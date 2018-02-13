@@ -1,0 +1,86 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsConsumption.aspx.cs" Inherits="SPDProject.SpdQuery.GoodsConsumption" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>代管商品消耗明细查询</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="False" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Items>
+                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px"
+                    Layout="Anchor" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <f:Button ID="btnAudit" Icon="ArrowRotateClockwise" Text="清 空" EnableDefaultState="false" OnClick="btClear_Click" EnablePostBack="true" runat="server" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btnExp" runat="server" CssStyle="margin-left: 10px;" Icon="DatabaseGo" EnableAjax="false" DisableControlBeforePostBack="false" EnableAjaxLoading="true" AjaxLoadingType="Mask"
+                                    OnClick="btExport_Click" EnablePostBack="true" Text="导出" EnableDefaultState="false" ConfirmText="是否确认导出此进销存信息?" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btSearch" Icon="Magnifier" Text="查 询"  EnableDefaultState="false" OnClick="btSearch_Click" runat="server" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="10px 0px 10px 10px"
+                            ShowHeader="False" LabelWidth="80px" runat="server">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:DatePicker ID="dpkDATE1" runat="server" Label="操作日期" Required="true" ShowRedStar="true"></f:DatePicker>
+                                        <f:DatePicker ID="dpkDATE2" runat="server" Label="　至" LabelSeparator="" Required="true" ShowRedStar="true" LabelWidth="40px"></f:DatePicker>
+                                        <f:TextBox ID="txbGDSEQ" runat="server" Label="商品" EmptyText="可输入编码、名称或助记码" />
+                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="科室" EnableEdit="true" ForceSelection="true" />
+                                        <f:DropDownList ID="ddlPSSID" runat="server" Label="配送商" EnableEdit="true" ForceSelection="true" />
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+                <f:Grid ID="GridGoods" AnchorValue="100% -73px" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                    AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" IsDatabasePaging="true" AllowPaging="true"
+                    PageSize="100" OnPageIndexChange="GridGoods_PageIndexChange" OnSort="GridGoods_Sort" SortField="SEQNO" SortDirection="DESC">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                        <f:BoundField Width="50px" DataField="SEQNO" SortField="SEQNO" HeaderText="系号" Hidden="true" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="135px" DataField="RQSJ" SortField="RQSJ" HeaderText="时间" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="BILLTYPE" SortField="BILLTYPE" HeaderText="单据类型" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="BILLNO" SortField="BILLNO" HeaderText="单据编号" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="GDSEQ" SortField="GDSEQ" HeaderText="商品编码" TextAlign="Center" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="170px" DataField="GDNAME" SortField="GDNAME" HeaderText="商品名称" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="GDSPEC" SortField="GDSPEC" HeaderText="规格·容量" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="CATNAME" SortField="CATNAME" HeaderText="商品类别" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="50px" DataField="SL" SortField="SL" HeaderText="数量" TextAlign="Center" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="90px" DataField="DEPTNAME" SortField="DEPTNAME" HeaderText="科室" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="150px" DataField="PSSNAME" SortField="PSSNAME" HeaderText="配送商" EnableColumnHide="true" EnableHeaderMenu="false" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="HWID" SortField="HWID" HeaderText="货位" EnableColumnHide="true" EnableHeaderMenu="false" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="PH" SortField="PH" HeaderText="批号" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="80px" DataField="YXQZ" SortField="YXQZ" HeaderText="效期" DataFormatString="{0:yyyy-MM-dd}" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="40px" DataField="ROWNO" HeaderText="行号" TextAlign="Center" EnableColumnHide="true" EnableHeaderMenu="false" Hidden="true" />
+                        <f:BoundField Width="60px" DataField="KCADD" SortField="KCADD" HeaderText="操作" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="50px" DataField="SPLB" SortField="SPLB" HeaderText="库存品" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="40px" DataField="JXTAX" SortField="JXTAX" HeaderText="税率" TextAlign="Center" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="50px" DataField="LSJ" SortField="LSJ" HeaderText="售价" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="HSJJ" SortField="HSJJ" HeaderText="进价" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="BHSJJ" SortField="BHSJJ" HeaderText="不含税进价" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="LSJE" HeaderText="零售金额" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="HSJE" HeaderText="含税金额" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="BHSJE" HeaderText="不含税金额" TextAlign="Right" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="110px" DataField="PZWH" HeaderText="注册证号" EnableColumnHide="true" EnableHeaderMenu="false" TextAlign="Center" />
+                        <f:BoundField Width="80px" DataField="RQ_SC" HeaderText="生产日期" DataFormatString="{0:yyyy-MM-dd}" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="100px" DataField="ZPBH" HeaderText="制品编号" EnableColumnHide="true" EnableHeaderMenu="false" />
+                        <f:BoundField Width="70px" DataField="OPERGH" HeaderText="操作员" EnableColumnHide="true" EnableHeaderMenu="false" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+</html>

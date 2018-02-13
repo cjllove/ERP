@@ -1,0 +1,127 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="SupEvaluation.aspx.cs" Inherits="ERPProject.ERPStorage.SupEvaluation" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>供应商评价</title>
+    <script src="../res/js/start.js"></script>
+    <style type="text/css" media="all">
+        #rateStatus {
+            float: left;
+            clear: both;
+            width: 100%;
+            height: 0px;
+        }
+
+        #rateMe {
+            clear: both;
+            width: 100%;
+            height: 50%;
+            margin-left: 0px;
+        }
+
+            #rateMe li {
+                float: left;
+                list-style: none;
+            }
+
+                #rateMe li a:hover,
+                #rateMe .on {
+                    background: url(../res/images/2.png) no-repeat;
+                    width: 30px;
+                    height: 45px;
+                }
+
+            #rateMe a {
+                float: left;
+                background: url(../res/images/1.png) no-repeat;
+                margin-left: 0px;
+                width: 30px;
+                height: 45px;
+            }
+
+        #ratingSaved {
+            display: none;
+        }
+
+        .saved {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="PanelMain" OnCustomEvent="PageManager1_CustomEvent"
+            runat="server" />
+        <f:Panel ID="PanelMain" runat="server" ShowBorder="false" ShowHeader="false" AutoScroll="true">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar1" runat="server">
+                    <Items>
+                        <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="<b>供应商评价</b>" runat="server" />
+                        <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                        <f:Button ID="btnSave" Icon="Disk" Text="提 交" EnableDefaultState="false" EnablePostBack="false" runat="server" OnClientClick="btnSave()" />
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormDoc" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                    ShowHeader="False" LabelWidth="70px" runat="server">
+                    <Items>
+                        <f:GroupPanel runat="server" Title="入库情况评价" BoxFlex="1">
+                            <Items>
+                                <f:Label runat="server" ID="tleSUPNAME" Text="" Label="供应商" Enabled="false"></f:Label>
+                                <f:Label runat="server" ID="tleBILLNO" Text="" Label="入库单" Enabled="false"></f:Label>
+                                <f:ContentPanel ID="cpanAdd" runat="server" CssStyle="border-left: 0px;border-right: 0px;border-top: 0px;border-bottom: 0px;" ShowHeader="false" BodyPadding="0px 0px 0px 20px " AutoScroll="true" AnchorValue="100%">
+                                    <Items>
+                                        <%=html %>
+                                    </Items>
+                                </f:ContentPanel>
+                                <f:RadioButtonList ID="rblNUM2" runat="server" Label="包装外观" Width="260">
+                                    <f:RadioItem Text="合格" Value="0" Selected="true" />
+                                    <f:RadioItem Text="不合格" Value="1" />
+                                </f:RadioButtonList>
+                                <f:RadioButtonList ID="rblNUM3" runat="server" Label="数 量" Width="260">
+                                    <f:RadioItem Text="符合" Value="0" Selected="true" />
+                                    <f:RadioItem Text="不符" Value="1" />
+                                </f:RadioButtonList>
+                                <f:RadioButtonList ID="rblNUM1" runat="server" Label="抽检结果" Width="260">
+                                    <f:RadioItem Text="合格" Value="0" Selected="true" />
+                                    <f:RadioItem Text="不合格" Value="1" />
+                                </f:RadioButtonList>
+                            </Items>
+                        </f:GroupPanel>
+                        <f:GroupPanel runat="server" Title="供货及时率评价" BoxFlex="1" Margin="10PX 0 0 0">
+                            <Items>
+                                <f:RadioButtonList ID="rblSTR5" runat="server" Label="" Width="260" ColumnVertical="true" ColumnNumber="1">
+                                </f:RadioButtonList>
+                            </Items>
+                        </f:GroupPanel>
+                        <f:GroupPanel runat="server" Title="详细说明" BoxFlex="1" Margin="10PX 0 0 0">
+                            <Items>
+                               <f:TextArea ID="txaMEMO" runat="server" Label="" Height="60px" Width="360" />
+                            </Items>
+                        </f:GroupPanel>
+                    </Items>
+
+                </f:Form>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="hdfPSSID" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hdfValue" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hdfcount" runat="server"></f:HiddenField>
+    </form>
+    <script src="../res/my97/WdatePicker.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function btnSave() {
+            F('<%= hdfValue.ClientID%>').value = "";
+            for (var i = 0; i < F('<%= hdfcount.ClientID%>').value ; i++) {
+                F('<%= hdfValue.ClientID%>').value = document.getElementById("rateNow" + (i + 1)).innerHTML;
+
+            }
+            F.customEvent('Save' + F('<%= hdfValue.ClientID%>').value);
+        }
+    </script>
+</body>
+</html>

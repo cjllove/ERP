@@ -1,0 +1,224 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Oracle.ManagedDataAccess.Client;
+
+namespace SPDProject.SpdEvalution
+{
+    public partial class EvlManage : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                PubFunc.DdlDataGet("DDL_USER", ddlCJR, ddlXGR);
+                dpkCJRQ.SelectedDate = DateTime.Now;
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            DataTable dtDoc = DbHelperOra.Query("SELECT A.* FROM DOC_EVALUATION A WHERE A.SEQNO = '" + GridGoods.DataKeys[e.RowIndex][0] + "'").Tables[0];
+            if (dtDoc != null && dtDoc.Rows.Count > 0)
+            {
+                PubFunc.FormDataSet(Form2, dtDoc.Rows[0]);
+                WindowAdd.Hidden = false;
+                if (dtDoc.Rows[0]["FLAG"].ToString() == "Y")
+                {
+                    tbxPRONAME.Enabled = false;
+                    tbxMemo.Enabled = false;
+                    nbxQZ.Enabled = false;
+                    btnSubmit.Enabled = false;
+                }
+                else
+                {
+                    tbxPRONAME.Enabled = true;
+                    tbxMemo.Enabled = true;
+                    nbxQZ.Enabled = true;
+                    btnSubmit.Enabled = true;
+
+                }
+            }
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            String Sql = "SELECT 1 FROM DOC_EVALUATION A WHERE FLAG = 'Y'";
+            if (DbHelperOra.Exists(Sql))
+            {
+                Alert.Show("请将项目回撤后，进行增加！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            WindowAdd.Hidden = false;
+            ddlCJR.SelectedValue = UserAction.UserID;
+            dpkCJRQ.SelectedDate = DateTime.Now;
+            tbxPRONAME.Text = "";
+            tbxMemo.Text = "";
+            ddlFLAG.SelectedValue = "N";
+            tbxSEQNO.Text = "";
+        }
+
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (DbHelperOra.Exists("SELECT 1 FROM DOC_EVALUATION A WHERE FLAG = 'Y'"))
+            {
+                Alert.Show("请将项目回撤后，进行删除！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            int[] rowIndex = GridGoods.SelectedRowIndexArray;
+            if (GridGoods.SelectedRowIndex == -1)
+            {
+                Alert.Show("请选择数据行删除！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (DbHelperOra.ExecuteSql("DELETE FROM DOC_EVALUATION WHERE SEQNO = '" + GridGoods.DataKeys[rowIndex[0]][0] + "'") > 0)
+            {
+                Alert.Show("评价项目删除成功！");
+            }
+            else
+            {
+                Alert.Show("您删除的项目已被其他人操作,请检查！", "提示信息", MessageBoxIcon.Warning);
+            }
+            btnSearch_Click(null, null);
+        }
+
+        protected void btnAuditBatch_Click(object sender, EventArgs e)
+        {
+            if (!DbHelperOra.Exists("SELECT 1 FROM (SELECT SUM(QZ) QZ FROM DOC_EVALUATION A WHERE FLAG = 'N') WHERE QZ =100"))
+            {
+                Alert.Show("权重合计必须为100%或此评价项目已被审核，请检查！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            if (DbHelperOra.ExecuteSql("UPDATE DOC_EVALUATION SET FLAG ='Y'") > 0)
+            {
+                Alert.Show("评价项目审核成功！");
+            }
+            btnSearch_Click(null, null);
+        }
+
+        protected void btnCancel_Click(object sender, EventArgs e)
+        {
+            if (DbHelperOra.Exists("SELECT * FROM DAT_PJ_DOC WHERE PJYF = TO_CHAR(SYSDATE, 'yyyy-MM') AND FLAG = 'N'"))
+            {
+                Alert.Show("本月存在未评价的科室,不允许回撤评价项目！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            if (DbHelperOra.ExecuteSql("UPDATE DOC_EVALUATION SET FLAG ='N'") > 0)
+            {
+                Alert.Show("评价项目回撤成功！");
+            }
+            btnSearch_Click(null, null);
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            String Sql = "SELECT A.*,f_getusername(A.CJR) CJRNAME,f_getusername(A.XGR) XGRNAME,DECODE(A.FLAG,'Y','正常','未生效') FLAGNAME,QZ||'%' QZNAME FROM DOC_EVALUATION A ORDER BY SEQNO";
+            DataTable dt = DbHelperOra.Query(Sql).Tables[0];
+            GridGoods.DataSource = dt;
+            GridGoods.DataBind();
+            if (dt.Rows.Count > 0)
+            {
+                if (dt.Rows[0]["FLAG"].ToString() == "N")
+                {
+                    btnNew.Enabled = true;
+                    btnDelete.Enabled = true;
+                    btnAuditBatch.Enabled = true;
+                    btnCancel.Enabled = false;
+                }
+                else
+                {
+                    btnNew.Enabled = false;
+                    btnDelete.Enabled = false;
+                    btnAuditBatch.Enabled = false;
+                    btnCancel.Enabled = true;
+                }
+            }
+            else
+            {
+                btnNew.Enabled = true;
+                btnDelete.Enabled = false;
+                btnAuditBatch.Enabled = false;
+                btnCancel.Enabled = false;
+            }
+        }
+
+        protected void btnSubmit_Click(object sender, EventArgs e)
+        {
+            //写入项目中
+            if (DbHelperOra.Exists("SELECT 1 FROM DOC_EVALUATION WHERE PRONAME = '" + tbxPRONAME.Text + "' AND SEQNO <> '" + tbxSEQNO.Text + "'"))
+            {
+                Alert.Show("已存在评价项目【" + tbxPRONAME.Text + "】", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            MyTable mtType = new MyTable("DOC_EVALUATION");
+            mtType.ColRow = PubFunc.FormDataHT(Form2);
+            mtType.ColRow["XGR"] = UserAction.UserID;
+            mtType.ColRow["XGRQ"] = DateTime.Now;
+            if (tbxSEQNO.Text.Length < 1)
+            {
+                mtType.ColRow["SEQNO"] = DbHelperOra.GetSingle("SELECT SEQ_EVAL.NEXTVAL FROM DUAL");
+            }
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            cmdList.Add(new CommandInfo("DELETE DOC_EVALUATION WHERE SEQNO='" + tbxSEQNO.Text + "'", null));
+            cmdList.AddRange(mtType.InsertCommand());
+            DbHelperOra.ExecuteSqlTran(cmdList);
+            WindowAdd.Hidden = true;
+            btnSearch_Click(null, null);
+        }
+
+        protected void btnClose_Click(object sender, EventArgs e)
+        {
+            WindowAdd.Hidden = true;
+        }
+
+        protected void btn_Auto_Click(object sender, EventArgs e)
+        {
+            if (DbHelperOra.Exists("SELECT 1 FROM DOC_EVALUATION WHERE FLAG = 'N'"))
+            {
+                Alert.Show("评价项目未审核确认，请检查！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            OracleParameter[] parameters ={
+                                              new OracleParameter("VI_USER" ,OracleDbType.Varchar2,20),
+                                              new OracleParameter("VO_NUM",OracleDbType.Int32)
+                                           };
+            parameters[0].Value = UserAction.UserID;
+
+            parameters[0].Direction = ParameterDirection.Input;
+            parameters[1].Direction = ParameterDirection.Output;
+
+            try
+            {
+                DbHelperOra.RunProcedure("STORE.P_PJ_AUTO", parameters);
+                if (!PubFunc.StrIsEmpty(parameters[1].Value.ToString()) && parameters[1].Value.ToString().ToLower() != "null")
+                {
+                    if ("0".Equals(parameters[1].Value.ToString()))
+                    {
+                        Alert.Show("暂时没有需要生成评价的科室!", "消息提示", MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        Alert.Show(string.Format("科室评价生成成功，条目数：【{0}】", parameters[1].Value.ToString()), "消息提示", MessageBoxIcon.Information);
+
+                    }
+                }
+                else
+                {
+                    Alert.Show("暂时没有需要生成评价的科室!", "消息提示", MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception err)
+            {
+                Alert.Show(err.Message, "错误提示", MessageBoxIcon.Warning);
+            }
+        }
+    }
+}

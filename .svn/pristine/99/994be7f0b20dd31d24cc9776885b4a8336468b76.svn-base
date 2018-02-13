@@ -1,0 +1,84 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="BriefSearch.aspx.cs" Inherits="SPDProject.SpdDictionary.BriefSearch" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>简报查询</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="MainPanel"
+            runat="server" />       
+                    
+        <f:Panel ID="MainPanel" runat="server" AutoScroll="false"  Layout="VBOX" BoxConfigAlign="Stretch" BoxConfigPosition="Left" ShowBorder="false" ShowHeader="false">
+                     <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnClear" Icon="ArrowRotateClockwise" Text="清 空"  OnClick="btnClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出"  OnClick="btnExport_Click"  ConfirmText="是否导出当前信息?" DisableControlBeforePostBack="false" EnableDefaultState="false"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSearch" Icon="Magnifier" Text="查 询"  OnClick="btnSearch_Click" runat="server"  EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="FormSearch" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25% 25% 50%">
+                                                    <Items>
+                                                        <f:DropDownList ID="ddlUSERS" runat="server" Label="用户信息"></f:DropDownList>
+                                                        <f:DropDownList ID="ddlISSEND" runat="server" Label="发送状态">
+                                                            <f:ListItem  Value="" Text="--请选择--" Selected="true"/>
+                                                            <f:ListItem Value="N" Text="未发送" />
+                                                            <f:ListItem Value="Y" Text="已发送" />
+                                                            <f:ListItem Value="E" Text="异常" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkBegRQ" runat="server" Label="查询期间" Required="true" ShowRedStar="true" />
+                                                        <f:DatePicker ID="dpkEndRQ" runat="server" Label="　　至" LabelSeparator="" Required="true" ShowRedStar="true" />
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                <f:Grid ID="GridToBrief" ShowBorder="true" ShowHeader="false" BoxFlex="3" AutoScroll="true" EnableColumnLines="true" CssStyle="border-left:none;"
+                    EnableCheckBoxSelect="false" DataKeyNames="SUPID" EnableRowDoubleClickEvent="true"  OnRowDoubleClick="GridToBrief_RowDoubleClick" OnRowDataBound="GridToBrief_RowDataBound"
+                    runat="server" OnPageIndexChange="GridToBrief_PageIndexChange" PageSize="50" IsDatabasePaging="true" AllowPaging="true">
+                          <Columns>      
+                              <f:TemplateField RenderAsRowExpander="true">
+                    <ItemTemplate>
+                        <div class="expander">
+                            <p>
+                                <strong>用户名称：</strong><%# Eval("USERNAME") %>
+                            </p>
+                            <p>
+                                <strong>发送内容：</strong><%# Eval("BRCONTENT") %>
+                            </p>
+                        </div>
+                    </ItemTemplate>
+                </f:TemplateField>                 
+                        <f:BoundField Width="60px" DataField="USERID" HeaderText="用户编码"  />
+                              <f:BoundField Width="60px" DataField="USERNAME" HeaderText="用户名称"></f:BoundField>
+                        <f:BoundField Width="13px" DataField="ISSEND" ColumnID="ISSEND" Hidden="true"></f:BoundField>
+                        <f:BoundField Width="60px" DataField="ISSENDNAME" ColumnID="ISSENDNAME" HeaderText="发送状态" />
+                        <f:BoundField Width="60px" DataField="TIMEOA" Hidden="true" HeaderText="参数" />
+                        <f:BoundField Width="120px" DataField="TIMEUP" HeaderText="更新时间"></f:BoundField>
+                        <f:BoundField Width="230px" DataField="BRCONTENT" HeaderText="发送内容" ExpandUnusedSpace="true" />
+                    </Columns>
+                </f:Grid>            
+                       
+
+                           </Items>						
+        </f:Panel>
+                        
+    </form>
+    <script>
+      
+       
+    </script>
+</body>
+</html>

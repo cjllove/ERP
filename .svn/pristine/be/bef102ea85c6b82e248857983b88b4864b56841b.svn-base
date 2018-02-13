@@ -1,0 +1,146 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WorkPanal.aspx.cs" Inherits="SPDProject.SpdQuery.WorkPanal" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head runat="server">
+    <title>配送面板</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox" EnableCollapse="true"
+            ShowHeader="false">
+            <Items>
+                <f:Panel runat="server" BoxFlex="2" EnableCollapse="true" AutoScroll="true" Layout="Anchor" ShowBorder="true" ShowHeader="false">
+                    <Items>
+                        <f:ContentPanel runat="server" ShowBorder="false" ShowHeader="false">
+                            <div style="width: 100%; height: 550px" id="echart"></div>
+                        </f:ContentPanel>
+                    </Items>
+                </f:Panel>
+                <f:Panel runat="server" BoxFlex="1" RegionSplitWidth="3px" AutoScroll="true" EnableCollapse="true" ShowBorder="true" ShowHeader="false">
+                    <Items>
+                        <f:Grid ID="GridGoods" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                            EnableRowDoubleClickEvent="true" SortDirection="DESC" SortField="WSSL" EnableCollapse="true" ExpandAllRowExpanders="true"
+                            AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="CODE" EnableColumnLines="true">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar1" runat="server">
+                                    <Items>
+                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="科室" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                        <f:DatePicker ID="lisDATE" runat="server" Label="配送日期" Required="true" ShowRedStar="true"></f:DatePicker>
+                                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                        <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" runat="server" EnableDefaultState="false" OnClick="btSearch_Click" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                <f:BoundField DataField="NAME" SortField="NAME" HeaderText="科室" ExpandUnusedSpace="true" MinWidth="200px" />
+                                <f:BoundField DataField="PSNAME" SortField="PSNAME" HeaderText="配送员" Width="80px" TextAlign="Center" />
+                                <f:BoundField DataField="PSTIME" SortField="PSTIME" HeaderText="计划配送时间" Width="110px" TextAlign="Center" />
+                                <f:BoundField DataField="WSSL" SortField="WSSL" HeaderText="待配送品规" Width="110px" TextAlign="Center" />
+                                <f:BoundField DataField="PSSL" SortField="PSSL" HeaderText="配送中品规" Width="110px" TextAlign="Center" />
+                                <f:BoundField DataField="YSSL" SortField="YSSL" HeaderText="已配送品规" Width="110px" TextAlign="Center" />
+                                <f:TemplateField ColumnID="expander" RenderAsRowExpander="true">
+                                    <ItemTemplate>
+                                        <div class="expander">
+                                            <p>
+                                                <strong>【<%# Eval("PSNAME") %>】配送详细信息：</strong>
+                                            </p>
+                                            <p>
+                                                <strong>待配送：</strong><%# Eval("DSXQ") %>
+                                            </p>
+                                            <p>
+                                                <strong>配送中：</strong><%# Eval("PSXQ") %>
+                                            </p>
+                                        </div>
+                                    </ItemTemplate>
+                                </f:TemplateField>
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="hfdArray" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdVal1" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdVal2" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdVal3" runat="server"></f:HiddenField>
+    </form>
+    <script src="/res/js/echarts.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function getEcharsData() {
+            var datatitl = F('<%= hfdArray.ClientID%>').getValue().split(",");
+            var dataVal1 = F('<%= hfdVal1.ClientID%>').getValue().split(",");
+            var dataVal2 = F('<%= hfdVal2.ClientID%>').getValue().split(",");
+            var dataVal3 = F('<%= hfdVal3.ClientID%>').getValue().split(",");
+            var eChart = echarts.init($('#echart')[0]);
+            var option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {            // 坐标轴指示器，坐标轴触发有效
+                        type: 'shadow'        // 默认为直线，可选为：'line' | 'shadow'
+                    }
+                },
+                legend: {
+                    data: ['待配送品规', '配送中品规', '已配送品规']
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '1%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value'
+                },
+                yAxis: {
+                    type: 'category',
+                    data: datatitl
+                },
+                series: [
+                    {
+                        name: '待配送品规',
+                        type: 'bar',
+                        stack: '总量',
+                        label: {
+                            normal: {
+                                show: true,
+                                position: 'insideRight'
+                            }
+                        },
+                        data: dataVal1
+                    },
+                    {
+                        name: '配送中品规',
+                        type: 'bar',
+                        stack: '总量',
+                        label: {
+                            normal: {
+                                show: true,
+                                position: 'insideRight'
+                            }
+                        },
+                        data: dataVal2
+                    },
+                    {
+                        name: '已配送品规',
+                        type: 'bar',
+                        stack: '总量',
+                        label: {
+                            normal: {
+                                show: true,
+                                position: 'insideRight'
+                            }
+                        },
+                        data: dataVal3
+                    }
+                ]
+            };
+            eChart.setOption(option);
+        };
+    </script>
+</body>
+</html>

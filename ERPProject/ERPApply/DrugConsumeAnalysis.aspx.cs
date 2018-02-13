@@ -1,0 +1,314 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPApply
+{
+    public partial class DrugConsumeAnalysis : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+
+
+        private void BindDDL()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID, lstDEPTID);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            dpkBegRQ.SelectedDate = DateTime.Now.AddDays(-7);
+            dpkEndRQ.SelectedDate = DateTime.Now;
+        }
+
+        private string GetQuerySql()
+        {
+            string strSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTNAME,
+                                                  B.GDSEQ,
+                                                  B.GDNAME,
+                                                  B.GDSPEC,
+                                                  DECODE(G.ISGZ,'Y','是','否')  ISGZ,
+                                                  F_GETCATNAME(G.CATID) CATTYPE,
+                                                  F_GETUNITNAME(B.UNIT) UNIT,
+                                                  B.HSJJ,
+                                                  SUM(B.XSSL) SL,
+                                                  SUM(B.HSJE) JE,
+                                                  F_GETSUPNAME(G.SUPPLIER) SUPNAME,
+                                                  F_GETPRODUCERNAME(G.PRODUCER) PRODUCER,
+                                                  G.PIZNO PZWH
+                                         FROM DAT_XS_DOC A, DAT_XS_COM B, DOC_GOODS G
+                                       WHERE A.SEQNO = B.SEQNO
+                                           AND B.GDSEQ = G.GDSEQ
+                                           AND A.FLAG = 'Y' ";
+            string strWhere = " ";
+
+            if (!PubFunc.StrIsEmpty(trbGOODS.Text))
+            {
+                strWhere += string.Format(" AND (UPPER(G.GDSEQ) LIKE UPPER('%{0}%') OR UPPER(G.ZJM) LIKE UPPER('%{0}%') OR G.GDNAME LIKE '%{0}%')", trbGOODS.Text.Trim());
+            }
+            if (!PubFunc.StrIsEmpty(lstDEPTID.SelectedValue))
+            {
+                strWhere += " AND A.DEPTID='" + lstDEPTID.SelectedValue + "'";
+            }
+            strWhere += string.Format(" AND A.SHRQ>=TO_DATE('{0}','YYYY-MM-DD') AND A.SHRQ < TO_DATE('{1}','YYYY-MM-DD')+1 ", lstLRRQ1.Text, lstLRRQ2.Text);
+            strWhere += string.Format(" AND A.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+
+            strSql = strSql + strWhere;
+
+            strSql += " GROUP BY A.DEPTID,B.GDSEQ, B.GDNAME, B.GDSPEC, G.CATID, B.UNIT, B.HSJJ, G.ISGZ, G.SUPPLIER,G.PRODUCER,G.PIZNO";
+            return strSql;
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal HSJJTotal = 0, HSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HSJJTotal += Convert.ToInt32(row["SL"]);
+                HSJETotal += Convert.ToDecimal(row["JE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("SL", HSJJTotal.ToString("F2"));
+            summary.Add("JE", HSJETotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+
+        private void DataQuery()
+        {
+            int total = 0;
+            lblSUBNUM.Text = "0";
+            lblSUBSUM.Text = "0";
+            DataTable dtSum = DbHelperOra.Query("SELECT SUM(NVL(SL,0)) SL,SUM(NVL(JE,0)) JE FROM (" + GetQuerySql() + ")").Tables[0];
+            if (dtSum.Rows.Count > 0)
+            {
+                lblSUBNUM.Text = dtSum.Rows[0]["JE"].ToString();
+                lblSUBSUM.Text = dtSum.Rows[0]["SL"].ToString();
+            }
+            DataTable dtData = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, GetQuerySql(), ref total);
+            OutputSummaryData(dtData);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataQuery();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataQuery();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+
+            ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), DateTime.Now.ToString("yyyy年MM月") + "科室使用明细", string.Format("科室使用明细_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataQuery();
+        }
+
+        private void OutputSummaryMxData(DataTable source)
+        {
+            decimal HSJJTotal = 0, HSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HSJJTotal += Convert.ToInt32(row["HJSL"]);
+                HSJETotal += Convert.ToDecimal(row["HJJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("COUNTTITLE", "本页合计");
+            summary.Add("HJSL", HSJJTotal.ToString("F2"));
+            summary.Add("HJJE", HSJETotal.ToString("F2"));
+            GridCom.SummaryData = summary;
+        }
+
+        private string GetSearchSql()
+        {
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.AppendFormat(@"SELECT D.NAME DEPTNAME,
+                                                           A.BILLNO,
+                                                           A.RQSJ SHRQ,
+                                                           B.GDSEQ,
+                                                           B.GDNAME,
+                                                           B.GDSPEC,
+                                                           F_GETUNITNAME(B.UNIT) UNIT,
+                                                           C.NAME CATTYPE,
+                                                           B.HSJJ,B.PIZNO PZWH,A.PH,A.YXQZ,
+                                                           DECODE(B.ISGZ,'Y','是','否')  ISGZ,
+                                                           F_GETSUPNAME(A.SUPID) SUPNAME,
+                                                           F_GETPRODUCERNAME(B.PRODUCER) PRODUCER,
+                                                           (SELECT STR1 FROM DAT_XS_COM WHERE SEQNO=A.BILLNO AND ROWNO=A.ROWNO) BARCODE,
+                                                           ABS(DECODE(A.BILLTYPE,
+                                                                          'XST',
+                                                                          DECODE(A.KCADD, '1', A.SL, 0),
+                                                                          A.SL)) HJSL,
+                                                           ABS(DECODE(A.BILLTYPE,
+                                                                          'XST',
+                                                                          DECODE(A.KCADD, '1', A.SL, 0),
+                                                                          A.SL) * A.HSJJ) HJJE
+                                                      FROM DAT_GOODSJXC A, DOC_GOODS B, SYS_CATEGORY C, SYS_DEPT D
+                                                     WHERE A.GDSEQ = B.GDSEQ
+                                                       AND A.DEPTID = D.CODE
+                                                       AND B.CATID = C.CODE
+                                                       AND A.BILLTYPE IN ('DSH', 'XSD', 'XSG', 'XST')
+                                                       AND A.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                           TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                       AND A.DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('3', '4'))
+                                                     ", dpkBegRQ.Text, dpkEndRQ.Text);
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND A.DEPTID='{0}'", ddlDEPTID.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(trbSearch.Text.Trim()))
+            {
+                sbSql.AppendFormat(" AND (UPPER(B.GDSEQ) LIKE UPPER('%{0}%') OR UPPER(B.ZJM) LIKE UPPER('%{0}%') OR B.GDNAME LIKE '%{0}%')", trbSearch.Text.Trim());
+            }
+
+            sbSql.AppendFormat(" AND A.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            sbSql.Append("ORDER BY D.NAME, A.BILLNO, A.SUPID, B.GDNAME");
+            return sbSql.ToString();
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            if (dpkBegRQ.SelectedDate == null || dpkEndRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkBegRQ.SelectedDate > dpkEndRQ.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            int total = 0;
+            DataTable dtData = GetDataTable(GridCom.PageIndex,GridCom.PageSize, GetSearchSql(),ref total);
+            OutputSummaryMxData(dtData);
+            GridCom.RecordCount = total;
+            GridCom.DataSource = dtData;
+            GridCom.DataBind();
+        }
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormSearch);
+            dpkBegRQ.SelectedDate = DateTime.Now;
+            dpkEndRQ.SelectedDate = DateTime.Now;
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (dpkBegRQ.SelectedDate == null || dpkEndRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkBegRQ.SelectedDate > dpkEndRQ.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridCom.Columns.Count - 1];
+            for (int index = 1; index < GridCom.Columns.Count; index++)
+            {
+                GridColumn column = GridCom.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+
+            ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "科室使用信息", string.Format("科室使用信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            dpkBegRQ.SelectedDate = lstLRRQ1.SelectedDate;
+            dpkEndRQ.SelectedDate = lstLRRQ2.SelectedDate;
+            ddlDEPTID.SelectedValue = lstDEPTID.SelectedValue;
+            trbSearch.Text = trbGOODS.Text;
+            btnSearch_Click(null, null);
+            TabStrip1.ActiveTabIndex = 1;
+        }
+
+        protected void GridCom_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridCom.PageIndex = e.NewPageIndex;
+            int total = 0;
+            DataTable dtData = GetDataTable(GridCom.PageIndex, GridCom.PageSize, GetSearchSql(), ref total);
+            OutputSummaryMxData(dtData);
+            GridCom.RecordCount = total;
+            GridCom.DataSource = dtData;
+            GridCom.DataBind();
+        }
+    }
+}

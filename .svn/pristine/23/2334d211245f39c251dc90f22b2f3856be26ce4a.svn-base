@@ -1,0 +1,654 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.XJ_CJRM
+{
+    public partial class ConstantList : BillBase
+    {
+        private string strDocSql = "SELECT * FROM DAT_CK_DOC WHERE BILLTYPE = 'DSC' AND SEQNO ='{0}' AND STR1='D2C'";
+        private string strComSql = "SELECT *,F_GETUNITNAME(UNIT) UNITNAME,F_GETPRODUCERNAME(PRODUCER) PRODUCERNAME,FPSL/BZHL CH,FPSL*HSJJ CHJE FROM DAT_CK_COM WHERE SEQNO ='{0}' ORDER BY ROWNO";
+        public ConstantList()
+        {
+            BillType = "DSC";
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billNew();
+            }
+            if (Request.QueryString["tp"] != null && Request.QueryString["tp"].ToString().Trim().Length > 0)
+            {
+                docDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE=" + Request.QueryString["tp"].ToString()).ToString();
+            }
+            else
+            {
+                docDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE='2'").ToString();
+            }
+        }
+
+        private void DataInit()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, lstDEPTOUT, docDEPTOUT);
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID, docDEPTID);
+            PubFunc.DdlDataGet("DDL_USER", lstSLR, docLRY, docSLR);
+
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+        protected override void billNew()
+        {
+            string strDeptout = docDEPTOUT.SelectedValue;
+            string strDeptid = docDEPTID.SelectedValue;
+            PubFunc.FormDataClear(FormDoc);
+
+            docFLAG.SelectedValue = "M";
+            docSLR.SelectedValue = UserAction.UserID;
+            docLRY.SelectedValue = UserAction.UserID;
+            docLRRQ.SelectedDate = DateTime.Now;
+            docXSRQ.SelectedDate = DateTime.Now;
+
+            docDEPTOUT.SelectedValue = strDeptout;
+            docDEPTID.SelectedValue = strDeptid;
+            docDEPTOUT.Enabled = true;
+            docSLR.Enabled = true;
+            docDEPTID.Enabled = true;
+            docXSRQ.Enabled = true;
+            docMEMO.Enabled = true;
+            //改变按钮状态
+            btnDel.Enabled = false;
+            btnSave.Enabled = true;
+            btnAudit.Enabled = false;
+            btnDelRow.Enabled = true;
+            PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+
+            //处理 本页合计
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("CH", "0");
+            summary.Add("CHJE", "0");
+
+            GridGoods.SummaryData = summary;
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                if (flag == "新单")
+                {
+                    highlightRows.Text += e.RowIndex.ToString() + ",";
+                }
+                //if (flag == "已提交" || flag == "已分配")
+                //{
+                //    highlightyel.Text += e.RowIndex.ToString() + ",";
+                //}
+            }
+        }
+        private JObject GetJObject(Dictionary<string, object> dicRecord)
+        {
+            JObject defaultObj = new JObject();
+            defaultObj.Add("GDSEQ", dicRecord["GDSEQ"].ToString());
+            defaultObj.Add("BARCODE", dicRecord["BARCODE"].ToString());
+            defaultObj.Add("GDNAME", dicRecord["GDNAME"].ToString());
+            defaultObj.Add("GDSPEC", dicRecord["GDSPEC"].ToString());
+            defaultObj.Add("UNIT", dicRecord["UNIT"].ToString());
+            defaultObj.Add("UNITNAME", dicRecord["UNITNAME"].ToString());
+            defaultObj.Add("BZHL", dicRecord["BZHL"].ToString());
+            defaultObj.Add("BZSL", (dicRecord["BZSL"] ?? "0").ToString());
+
+            defaultObj.Add("HWID", dicRecord["HWID"].ToString());
+            defaultObj.Add("PH", dicRecord["PH"].ToString());
+            defaultObj.Add("PZWH", dicRecord["PZWH"].ToString());
+            defaultObj.Add("RQ_SC", dicRecord["RQ_SC"].ToString());
+            defaultObj.Add("YXQZ", dicRecord["YXQZ"].ToString());
+            defaultObj.Add("JXTAX", dicRecord["JXTAX"].ToString());
+            defaultObj.Add("PRODUCER", dicRecord["PRODUCER"].ToString());
+            defaultObj.Add("PRODUCERNAME", dicRecord["PRODUCERNAME"].ToString());
+
+            decimal hl = 0, rs = 0, jg = 0;
+            decimal.TryParse((dicRecord["BZHL"] ?? "0").ToString(), out hl);
+            decimal.TryParse((dicRecord["BZSL"] ?? "0").ToString(), out rs);
+            decimal.TryParse((dicRecord["HSJJ"] ?? "0").ToString(), out jg);
+
+            defaultObj.Add("DHSL", rs * hl);
+            defaultObj.Add("HSJJ", (dicRecord["HSJJ"] ?? "0").ToString());
+            defaultObj.Add("HSJE", rs * jg);
+            defaultObj.Add("ZPBH", (dicRecord["ZPBH"] ?? "0").ToString());
+            defaultObj.Add("MEMO", (dicRecord["MEMO"] ?? "0").ToString());
+            //defaultObj.Add("ISLOT", dicRecord["ISLOT"].ToString());
+            return defaultObj;
+        }
+        protected void GridGoods_AfterEdit(object sender, FineUIPro.GridAfterEditEventArgs e)
+        {
+            string[] strCell = GridGoods.SelectedCell;
+            List<Dictionary<string, object>> newDict = GridGoods.GetNewAddedList();
+            if (newDict.Count == 0) return;
+            if (e.ColumnID == "BZSL" || e.ColumnID == "HSJJ")
+            {
+                PageContext.RegisterStartupScript(GridGoods.GetUpdateCellValueReference(strCell[0], strCell[1], GetJObject(newDict[Convert.ToInt16(strCell[0])]).ToString()));
+
+                //计算合计数量
+                decimal bzslTotal = 0, feeTotal = 0;
+                foreach (Dictionary<string, object> dic in newDict)
+                {
+                    bzslTotal += Convert.ToDecimal(dic["CH"] ?? "0");
+                    feeTotal += Convert.ToDecimal(dic["HSJJ"] ?? "0") * Convert.ToDecimal(dic["BZHL"] ?? "0") * Convert.ToDecimal(dic["CH"] ?? "0");
+                }
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                summary.Add("CH", bzslTotal.ToString());
+                summary.Add("CHJE", feeTotal.ToString("F6"));
+
+                GridGoods.SummaryData = summary;
+            }
+        }
+
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected override void billAddRow()
+        {
+            if (PubFunc.FormDataCheck(FormDoc).Length > 1) return;
+
+            string strBillno = docSEQNO.Text;
+            // 新增数据初始值
+            JObject defaultObj = new JObject();
+            defaultObj.Add("GDSEQ", "");
+            defaultObj.Add("BARCODE", "");
+            defaultObj.Add("GDNAME", "");
+            defaultObj.Add("GDSPEC", "");
+            defaultObj.Add("UNIT", "");
+            defaultObj.Add("UNITNAME", "");
+            defaultObj.Add("BZHL", "");
+            defaultObj.Add("BZSL", "");
+            defaultObj.Add("DHSL", "");
+            defaultObj.Add("XSSL", "");
+            defaultObj.Add("JXTAX", "");
+            defaultObj.Add("HSJJ", "");
+            defaultObj.Add("HSJE", "");
+            defaultObj.Add("ZPBH", "");
+            defaultObj.Add("PRODUCER", "");
+            defaultObj.Add("PRODUCERNAME", "");
+            defaultObj.Add("HWID", "");
+            defaultObj.Add("PH", "");
+            defaultObj.Add("PZWH", "");
+            defaultObj.Add("RQ_SC", "");
+            defaultObj.Add("YXQZ", "");
+            defaultObj.Add("MEMO", "");
+            PubFunc.FormLock(FormDoc, true, "");
+            //trbEditorGDSEQ.Enabled = true;
+            PageContext.RegisterStartupScript(GridGoods.GetAddNewRecordReference(defaultObj, true));
+        }
+
+        protected override void billDelRow()
+        {
+            if (docFLAG.SelectedValue != "M")
+            {
+                Alert.Show("非新增单据不能删除！");
+                return;
+            }
+            if (GridGoods.SelectedRowID == null)
+            {
+                Alert.Show("请选择数据行删除！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            GridGoods.DeleteSelectedRows();
+            PubFunc.FormLock(FormDoc, true, "");
+        }
+
+        protected override void billGoods()
+        {
+            if (PubFunc.FormDataCheck(FormDoc).Length > 1) return;
+            if (docFLAG.SelectedValue != "M")
+            {
+                Alert.Show("非新单据不允许操作");
+                return;
+            }
+            //参数说明：cx-查询内容，bm-商品配置部门,su-供应商
+            string url = "~/SpdApply/Contant_GoodsWindow_His.aspx?bm=" + docDEPTID.SelectedValue + "&cx=" + docDEPTOUT.SelectedValue + "&su=";
+            PageContext.RegisterStartupScript(Window1.GetSaveStateReference(hfdValue.ClientID) + Window1.GetShowReference(url, "可出定数商品信息查询"));
+            PubFunc.FormLock(FormDoc, true, "");
+            docMEMO.Enabled = true;
+        }
+
+        protected override void billSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("输入条件录入日期不正确！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            string strSql = @"SELECT A.SEQNO,A.BILLNO,DECODE(A.FLAG,'M','新单','N','已提交','S','已分配','Q','转缺货','已出库') FLAG,F_GETDEPTNAME(A.DEPTID) DEPTID,A.XSRQ,F_GETDEPTNAME(A.DEPTOUT) DEPTOUT,A.SUBSUM,
+                                     A.SUBNUM,F_GETUSERNAME(A.SLR) SLR,F_GETUSERNAME(A.LRY) LRY,A.LRRQ,F_GETUSERNAME(A.SHR) SHR,A.SHRQ,A.MEMO,
+                                    (SELECT SUM(FPSL*HSJJ) FROM DAT_CK_COM B WHERE B.SEQNO = A.SEQNO) CHJE,(SELECT COUNT(1) FROM DAT_CK_COM B WHERE B.SEQNO = A.SEQNO) CHSL
+                                from DAT_CK_DOC A
+                                WHERE A.BILLTYPE='DSC' AND A.XSTYPE='1' ";
+            string strSearch = "";
+
+
+            if (lstBILLNO.Text.Length > 0)
+            {
+                strSearch += string.Format(" AND A.BILLNO  LIKE '%{0}%'", lstBILLNO.Text);
+            }
+            if (lstFLAG.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.FLAG='{0}'", lstFLAG.SelectedItem.Value);
+            }
+            if (lstSLR.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.SLR='{0}'", lstSLR.SelectedItem.Value);
+            }
+            if (lstDEPTID.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            if (lstDEPTOUT.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND DEPTOUT='{0}'", lstDEPTOUT.SelectedItem.Value);
+            }
+            strSearch += string.Format(" AND deptid in( select code FROM SYS_DEPT where type <>'1' and  F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += string.Format(" AND A.LRRQ>=TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            strSearch += string.Format(" AND A.LRRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lstLRRQ2.Text);
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY A.BILLNO DESC";
+            highlightRows.Text = "";
+            highlightyel.Text = "";
+            GridList.DataSource = DbHelperOra.Query(strSql).Tables[0];
+            GridList.DataBind();
+        }
+
+        protected override void billAudit()
+        {
+            if (Doc.DbGetSysPara("LOCKSTOCK") == "Y")
+            {
+                Alert.Show("系统库存已被锁定，请等待物资管理科结存处理完毕再做审核处理！", "消息提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            if (docFLAG.SelectedValue != "M")
+            {
+                Alert.Show("非新单不能提交！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            string strBillno = docSEQNO.Text;
+            //增加定数是否已经被提交出库判断
+            if (DbHelperOra.Exists(String.Format(@"SELECT 1 FROM
+                    (SELECT GDSEQ,COUNT(1) SL
+                    FROM DAT_CK_COM A
+                    WHERE A.SEQNO = '{0}'
+                    GROUP BY GDSEQ) A,DOC_GOODSCFG B
+                    WHERE A.GDSEQ = B.GDSEQ AND B.DEPTID = '{1}'
+                    AND A.SL > B.DSNUM - B.DSPOOL - B.NUM3", strBillno, docDEPTID.SelectedValue)))
+            {
+                Alert.Show("单据【" + strBillno + "】中部分定数已经被出库，请检查！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+
+            if (BillOper(strBillno, "DECLARE") == 1)
+            {
+                Alert.Show("单据【" + strBillno + "】提交成功！");
+                OperLog("定数出库", "提交单据【" + docBILLNO.Text + "】");
+                billOpen(strBillno);
+            }
+            else
+            {
+                Alert.Show("单据【" + strBillno + "】提交失败,请刷新后重试！", "错误提示", MessageBoxIcon.Error);
+                billOpen(strBillno);
+            }
+        }
+
+        protected override void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            billOpen(GridList.Rows[e.RowIndex].Values[1].ToString());
+        }
+
+        protected override void billOpen(string strBillno)
+        {
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+
+            PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+            DataTable dtBill = DbHelperOra.Query(string.Format(strComSql, strBillno)).Tables[0];
+            decimal bzslTotal = 0, feeTotal = 0;
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    //LoadGridRow(row, false, "DSC");
+                    bzslTotal += Convert.ToDecimal(row["CH"] ?? "0");
+                    feeTotal += Convert.ToDecimal(row["HSJJ"] ?? "0") * Convert.ToDecimal(row["BZHL"] ?? "0") * Convert.ToDecimal(row["CH"] ?? "0");
+                }
+                /*
+               *  修 改 人 ：袁鹏    修改时间：2015-04-13
+               *  信息说明：这种加载方法比LoadGridRow(row, false, "DSC")更高效
+               *  研发组织：威高讯通信息科技有限公司
+               */
+                PubFunc.GridRowAdd(GridGoods, dtBill);
+            }
+            //trbEditorGDSEQ.Enabled = false;
+            PubFunc.FormLock(FormDoc, true, "");
+            //计算合计数量
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("CH", bzslTotal.ToString());
+            summary.Add("CHJE", feeTotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+            TabStrip1.ActiveTabIndex = 1;
+            //根据状态屏蔽按钮
+            if (docFLAG.SelectedValue == "M")
+            {
+                docMEMO.Enabled = true;
+                btnDel.Enabled = true;
+                btnSave.Enabled = true;
+                btnAudit.Enabled = true;
+                btnDelRow.Enabled = true;
+            }
+            else if (docFLAG.SelectedValue == "Y")
+            {
+                btnDel.Enabled = false;
+                btnSave.Enabled = false;
+                btnAudit.Enabled = false;
+                btnDelRow.Enabled = false;
+            }
+            else if (docFLAG.SelectedValue == "N")
+            {
+                btnDel.Enabled = false;
+                btnSave.Enabled = false;
+                btnAudit.Enabled = false;
+                btnDelRow.Enabled = false;
+            }
+            else
+            {
+                btnDel.Enabled = false;
+                btnSave.Enabled = false;
+                btnAudit.Enabled = false;
+                btnDelRow.Enabled = false;
+            }
+        }
+
+        protected override void billSave()
+        {
+            #region 数据有效性验证
+            if (docFLAG.SelectedValue != "M")
+            {
+                Alert.Show("非新单不能保存！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            List<Dictionary<string, object>> newDict = GridGoods.GetNewAddedList().OrderBy(x => x["GDSEQ"]).ToList();
+            if (newDict.Count == 0)
+            {
+                Alert.Show("请输入商品信息", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            List<Dictionary<string, object>> goodsData = new List<Dictionary<string, object>>();
+            //判断是否有空行
+            for (int i = 0; i < newDict.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(newDict[i]["GDSEQ"].ToString()))
+                {
+                    goodsData.Add(newDict[i]);
+                }
+            }
+
+            if (goodsData.Count == 0)//所有Gird行都为空行时
+            {
+                Alert.Show("商品信息不能为空", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            //验证单据信息
+            if (DbHelperOra.Exists("SELECT 1 FROM dat_ck_doc where seqno = '" + docBILLNO.Text + "'") && docBILLNO.Enabled)
+            {
+                Alert.Show("您输入的单号已存在,请检查!");
+                return;
+            }
+            #endregion
+
+            if (PubFunc.StrIsEmpty(docBILLNO.Text))
+            {
+                docSEQNO.Text = BillSeqGet();
+                //处理单号前缀
+                docSEQNO.Text = "DSC" + docSEQNO.Text.Substring(3, docSEQNO.Text.Length - 3);
+                docBILLNO.Text = docSEQNO.Text;
+                docBILLNO.Enabled = false;
+            }
+            MyTable mtType = new MyTable("DAT_CK_DOC");
+            mtType.ColRow = PubFunc.FormDataHT(FormDoc);
+            mtType.ColRow["SEQNO"] = docBILLNO.Text;
+            mtType.ColRow.Add("BILLTYPE", "DSC");
+            mtType.ColRow.Add("SUBNUM", goodsData.Count);
+            mtType.ColRow.Add("XSTYPE", "1");
+            decimal subNum = 0;//总金额
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            MyTable mtTypeMx = new MyTable("DAT_CK_COM");
+            //先删除单据信息在插入
+            cmdList.Add(mtType.DeleteCommand(""));//删除单据台头
+            cmdList.Add(new CommandInfo("delete dat_ck_com where seqno='" + docBILLNO.Text + "'", null));//删除单据明细
+            for (int i = 0; i < goodsData.Count; i++)
+            {
+                mtTypeMx.ColRow = PubFunc.GridDataGet(goodsData[i]);
+
+                mtTypeMx.ColRow.Add("SEQNO", docBILLNO.Text);
+                mtTypeMx.ColRow.Add("ROWNO", i + 1);
+                mtTypeMx.ColRow.Add("PHID", mtTypeMx.ColRow["PH"]);
+                mtTypeMx.ColRow.Add("XSSL", mtTypeMx.ColRow["BZHL"]);
+                mtTypeMx.ColRow.Add("BHSJJ", 0);
+                mtTypeMx.ColRow.Add("BHSJE", 0);
+                mtTypeMx.ColRow.Remove("UNITNAME");
+                mtTypeMx.ColRow.Remove("PRODUCERNAME");
+                subNum = subNum + decimal.Parse(mtTypeMx.ColRow["HSJE"].ToString());
+                cmdList.Add(mtTypeMx.Insert());
+            }
+            mtType.ColRow.Add("SUBSUM", subNum);
+            cmdList.AddRange(mtType.InsertCommand());
+            DbHelperOra.ExecuteSqlTran(cmdList);
+            Alert.Show("定数出库信息保存成功！");
+            OperLog("定数出库", "修改单据【" + docBILLNO.Text + "】");
+            billOpen(docBILLNO.Text);
+            btnDel.Enabled = true;
+            billLockDoc(true);
+        }
+
+        /// <summary>
+        /// FineUIPro.Grid控件数据加载
+        /// </summary>
+        /// <param name="row">要加载的行数据</param>
+        /// <param name="firstRow">是否插入指定行</param>
+        /// <param name="flag">数据来源：NEW-从数据库中获得，用于商品新增时；OLD-从销售单据明细中获得，用于修改或审核时</param>
+        private void LoadGridRow(DataRow row, bool firstRow = true, string flag = "NEW")
+        {
+            decimal price = 0, number = 0;
+            decimal.TryParse(row["HSJJ"].ToString(), out price);
+            decimal.TryParse(row["BZHL"].ToString(), out number);
+            row["HSJE"] = (price * number).ToString();
+            JObject defaultObj = new JObject();
+            defaultObj.Add("GDSEQ", row["GDSEQ"].ToString());
+            defaultObj.Add("BARCODE", row["BARCODE"].ToString());
+            defaultObj.Add("GDNAME", row["GDNAME"].ToString());
+            defaultObj.Add("GDSPEC", row["GDSPEC"].ToString());
+            defaultObj.Add("UNIT", row["UNIT"].ToString());
+            defaultObj.Add("UNITNAME", row["UNITNAME"].ToString());
+            defaultObj.Add("BZSL", row["BZSL"].ToString());
+            defaultObj.Add("BZHL", row["BZHL"].ToString());
+            defaultObj.Add("DHSL", "1");
+            defaultObj.Add("JXTAX", row["JXTAX"].ToString());
+            defaultObj.Add("HSJJ", row["HSJJ"].ToString());
+            defaultObj.Add("HSJE", row["HSJE"].ToString());
+            defaultObj.Add("ZPBH", row["ZPBH"].ToString());
+            defaultObj.Add("PRODUCER", row["PRODUCER"].ToString());
+            defaultObj.Add("PRODUCERNAME", row["PRODUCERNAME"].ToString());
+            defaultObj.Add("HWID", row["HWID"].ToString());
+            defaultObj.Add("PH", row["PH"].ToString());
+            defaultObj.Add("PZWH", row["PZWH"].ToString());
+            defaultObj.Add("RQ_SC", row["RQ_SC"].ToString());
+            defaultObj.Add("YXQZ", row["YXQZ"].ToString());
+            defaultObj.Add("MEMO", row["MEMO"].ToString());
+            defaultObj.Add("ISLOT", row["ISLOT"].ToString());
+            if (flag == "DSC")
+            { defaultObj.Add("STR2", row["STR2"].ToString()); }
+            if (firstRow)
+            {
+                int rowIndex = GridGoods.SelectedRowIndex;
+                PageContext.RegisterStartupScript(GridGoods.GetUpdateCellValueReference(rowIndex, defaultObj));
+            }
+            else
+            {
+                PageContext.RegisterStartupScript(GridGoods.GetAddNewRecordReference(defaultObj, true));
+            }
+        }
+
+        protected void Window1_Close(object sender, WindowCloseEventArgs e)
+        {
+            string err = "";
+            string msg = "";
+            DataTable dt = GetGoods(hfdValue.Text);
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                dt.Columns["PIZNO"].ColumnName = "PZWH";
+                dt.Columns.Add("PH", Type.GetType("System.String"));
+                dt.Columns.Add("RQ_SC", Type.GetType("System.String"));
+                dt.Columns.Add("YXQZ", Type.GetType("System.String"));
+                dt.Columns.Add("MEMO", Type.GetType("System.String"));
+                dt.Columns.Add("BZSL", Type.GetType("System.Int32"));
+                dt.Columns.Add("DHSL", Type.GetType("System.Int32"));
+                dt.Columns.Add("HSJE", Type.GetType("System.Double"));
+                foreach (DataRow row in dt.Rows)
+                {
+                    row["BZSL"] = "1";
+                    row["BZHL"] = row["NUM_XS"];
+                    row["DHSL"] = row["BZHL"];
+                    row["HSJE"] = Convert.ToDecimal(row["HSJJ"]) * Convert.ToDecimal(row["BZHL"]);
+                    int k = 0;
+                    //数量重新复制为应出数量，不考虑库存
+                    k = Convert.ToInt32(row["sum_num"]);
+                    //if (DbHelperOra.Exists(string.Format("SELECT 1 FROM VIEW_DS WHERE GDSEQ_OLD = '{0}'", row["GDSEQ"])))
+                    //{
+                    //    //数量重新复制为应出数量，不考虑库存
+                    //    k = Convert.ToInt32(row["sum_num"]);
+                    //}
+                    //else
+                    //{
+                    //    if (Convert.ToInt32(row["sum_num"]) < Convert.ToInt32(row["SL"]))
+                    //    { k = Convert.ToInt32(row["sum_num"]); }
+                    //    else { k = Convert.ToInt32(row["SL"]); }
+                    //}
+                    if (k < 1)
+                    {
+                        err = err + "【" + row["GDNAME"] + "】";
+                    }
+
+                    //重复的定数商品不再添加 YuaPeng 2010621
+                    List<Dictionary<string, object>> newDict = GridGoods.GetNewAddedList().OrderBy(x => x["GDSEQ"]).ToList();
+                    int sameRowCount = newDict.Where(a => a["GDSEQ"].ToString() == row["GDSEQ"].ToString()).Count();
+                    if (sameRowCount <= 0)
+                    {
+                        for (int i = 0; i < k; i++)
+                        {
+                            if (string.IsNullOrWhiteSpace(row["HSJJ"].ToString()) || row["HSJJ"].ToString() == "0")
+                            {
+                                msg += "【" + row["GDSEQ"].ToString() + " | " + row["GDNAME"].ToString() + "】,";
+                                Alert.Show("商品" + msg + "【含税进价】为空");
+                                continue;
+                            }
+                            LoadGridRow(row, false);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Alert.Show("系统传值错误！！！", "消息提示", MessageBoxIcon.Warning);
+            }
+            if (err.Length > 0)
+            {
+                Alert.Show("商品" + err + "添加失败,请检查商品价格！");
+            }
+        }
+        protected override void billDel()
+        {
+            if (docBILLNO.Text.Trim() == "")
+            {
+                Alert.Show("请选择需要删除的单据");
+                return;
+            }
+            if (docFLAG.SelectedValue != "M")
+            {
+                Alert.Show("非新单不能删除!");
+                return;
+            }
+            DbHelperOra.ExecuteSql("Delete from DAT_CK_DOC t WHERE T.SEQNO ='" + docBILLNO.Text.Trim() + "'");
+            DbHelperOra.ExecuteSql("Delete from DAT_CK_COM t WHERE T.SEQNO ='" + docBILLNO.Text.Trim() + "'");
+            Alert.Show("单据删除成功!");
+            OperLog("定数出库", "删除单据【" + docBILLNO.Text + "】");
+            billNew();
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                return;
+            }
+            billSearch();
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            highlightRows.Text = "";
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        protected void btnAudit2_Click(object sender, EventArgs e)
+        {
+            if (docFLAG.SelectedValue != "S")
+            {
+                Alert.Show("未库存分配的单据不允许审核！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            string strBillno = docSEQNO.Text;
+            if (BillOper(strBillno, "AUDIT") == 1)
+            {
+                Alert.Show("单据【" + strBillno + "】审核成功！");
+                OperLog("定数出库", "审核单据【" + strBillno + "】");
+                billOpen(strBillno);
+            }
+            else
+            {
+                Alert.Show("单据【" + strBillno + "】审核失败,请检查！", "错误提示", MessageBoxIcon.Error);
+                billOpen(strBillno);
+            }
+        }
+    }
+}

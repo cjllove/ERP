@@ -1,0 +1,327 @@
+﻿using FineUIPro;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.WH_WDZXPH
+{
+    public partial class CodingMatching : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+        private void DataInit()
+        {
+            //PubFunc.DdlDataGet("DDL_HOSPITAL", ddlHisp);
+        }
+        #region one
+        private void SearchOne(bool err = false)
+        {
+            int total = 0;
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.Append(" SELECT A.STRTOLLMATERIALCODE HISCODE,A.STRTOLLMATERIALNAME HISNAME, ");
+            sbSql.Append(" A.STRTOLLMATERIALSTYLE HISSPEC,A.DBLSALEPRICE HISPRICE,A.STRUNITNAME HISUNIT");
+            sbSql.Append(" FROM TOLLMATERIALPRICE@JSP_DATABASE A");
+            if (!string.IsNullOrWhiteSpace(tgbExlGoods.Text.Trim()))
+            {
+                sbSql.AppendFormat(" WHERE A.STRTOLLMATERIALCODE LIKE '%{0}%' OR A.STRTOLLMATERIALNAME LIKE '%{0}%' ", tgbExlGoods.Text.Trim());
+            }
+            DataTable dtData = GetPageDataTable(GridExcel.PageIndex, GridExcel.PageSize, sbSql.ToString(), ref total);
+            GridExcel.RecordCount = total;
+            GridExcel.DataSource = dtData;
+            GridExcel.DataBind();
+        }
+        private DataTable GetPageDataTable(int pageNum, int pageSize, string sbSql, ref int totalNum)
+        {
+            string sQLString = "select count(*) from (" + sbSql + ")";
+            string text = "SELECT * FROM (SELECT SPD.*, ROWNUM RN FROM ({0}) SPD WHERE ROWNUM <= {1}) WHERE RN > {2}";
+            DataTable result;
+            try
+            {
+                int.TryParse(DbHelperOra.GetSingle(sQLString).ToString(), out totalNum);
+                if (pageSize == 0)
+                {
+                    text = sbSql.ToString();
+                }
+                else
+                {
+                    text = string.Format(text, sbSql.ToString(), (pageNum + 1) * pageSize, pageNum * pageSize);
+                }
+                result = DbHelperOra.Query(text).Tables[0];
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message, ex);
+            }
+            return result;
+        }
+
+        private bool CheckFileExt(string fileNameExt)
+        {
+            if (String.IsNullOrEmpty(fileNameExt))
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        protected void btnExlSch_Click(object sender, EventArgs e)
+        {
+            SearchOne();
+        }
+        protected void GridExcel_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridExcel.PageIndex = e.NewPageIndex;
+            SearchOne();
+        }
+        protected void GridExcel_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            //ToolbarText4.Text = "当前匹配商品：【"+ GridExcel.Rows[e.RowIndex].DataKeys[1] + "】";
+            int[] selGoods = GridGoods.SelectedRowIndexArray;
+            if (selGoods.Count() == 1)
+            {
+                Match(GridExcel.DataKeys[e.RowIndex][0].ToString(), GridGoods.DataKeys[selGoods[0]][0].ToString());
+            }
+        }
+        #endregion
+
+        #region Two
+        private void SearchTwo()
+        {
+            String sql = @"SELECT A.*,f_getunitname(A.UNIT) UNITNAME,f_getproducername(A.PRODUCER) PRODUCERNAME  
+                FROM DOC_GOODS A WHERE 1=1";
+            if (trbSearch.Text.Trim().Length > 0)
+            {
+                sql += String.Format(" AND (A.GDSEQ LIKE '%{0}%' OR A.ZJM LIKE '%{0}%') OR A.GDNAME LIKE '%{0}%' OR A.BAR3 LIKE '%{0}%'", trbSearch.Text.Trim());
+            }
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, sql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+            #region //从数据平台取得数据
+            //DataTable dt = new DataTable();
+            //try
+            //{
+            //    JObject result = ApiClientService.query("DOC_GOODS_All", (GridGoods.PageIndex * GridGoods.PageSize).ToString(), ((GridGoods.PageIndex + 1) * GridGoods.PageSize).ToString(), ddlGoodsState.SelectedValue.Trim(), trbSearch.Text.Trim());
+            //    if ("success".Equals(result.Value<String>("result")))
+            //    {
+            //        String serJa = JsonConvert.SerializeObject(result.Value<JArray>("data"));
+            //        dt = JsonConvert.DeserializeObject<DataTable>(serJa);
+            //        GridGoods.RecordCount = Convert.ToInt32((dt.Rows[0]["TOTAL"] ?? "0"));
+            //        GridGoods.DataSource = dt;
+            //        GridGoods.DataBind();
+            //    }
+            //    else
+            //    {
+            //        String reason = result.Value<String>("reason");
+            //        Exception ex = new Exception(reason);
+            //        throw ex;
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    //Alert.Show(ex.Message + ex.StackTrace, "获取商品信息时超时,请重新再试！", MessageBoxIcon.Error);
+            //    Alert.Show("您查找的商品不存在或网络连接超时，请检查！", MessageBoxIcon.Warning);
+            //}
+            #endregion
+        }
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            SearchTwo();
+        }
+        protected void btnSrch_Click(object sender, EventArgs e)
+        {
+            SearchTwo();
+        }
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            int[] selExl = GridExcel.SelectedRowIndexArray;
+            if (selExl.Count() < 1)
+            {
+                Alert.Show("请选择金算盘中的商品！！！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            Match(GridExcel.DataKeys[selExl[0]][0].ToString(), GridGoods.Rows[e.RowIndex].Values[1].ToString());
+        }
+        private void Match(string HisCode, string Gdseq)
+        {
+            //增加判断此HISCODE是否已经匹配
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_GOODS WHERE GDSEQ <>'{0}' AND NVL(HISCODE,'#') = '{1}'", Gdseq, HisCode)))
+            {
+                PageContext.RegisterStartupScript(
+                Confirm.GetShowReference("商品编码【" + HisCode + "】已经匹配了其他的商品，是否继续匹配？", "消息提示",
+                    MessageBoxIcon.Question,
+                    PageManager1.GetCustomEventReference(false, "Confirm_OK"), // 第一个参数 false 用来指定当前不是AJAX请求
+                    PageManager1.GetCustomEventReference("Confirm_Cancel")));
+            }
+            else
+            {
+                DataEdit();
+            }
+        }
+        private void DataEdit()
+        {
+            string gdseq = GridGoods.Rows[GridGoods.SelectedRowIndex].Values[1].ToString();
+            string jspcode = GridExcel.DataKeys[GridExcel.SelectedRowIndex][0].ToString();
+            string jspjg = GridExcel.DataKeys[GridExcel.SelectedRowIndex][3].ToString();
+            List<CommandInfo> sqls = new List<CommandInfo>();
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_GOODS WHERE GDSEQ ='{0}'", gdseq)))
+            {
+                sqls.Add(new CommandInfo(string.Format("UPDATE DOC_GOODS SET HISCODE='{0}',HSJJ='{2}' WHERE GDSEQ='{1}'", jspcode, gdseq, jspjg), null));
+            }
+            else
+            {
+                string gdname = GridGoods.Rows[GridGoods.SelectedRowIndex].Values[2].ToString();
+                Alert.Show("商品【" + gdseq + "】" + gdname + " 还未下传到SPD系统，请先同步更新SPD系统商品资料！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            sqls.Add(new CommandInfo(string.Format("DELETE FROM DOC_GOODS_INF WHERE INF_TYPE='JSP' AND INF_GDSEQ='{0}' AND INF_CODE='{1}'", gdseq, jspcode), null));
+            MyTable mt = new MyTable("DOC_GOODS_INF");
+            mt.ColRow["INF_TYPE"] = "JSP";
+            mt.ColRow["INF_GDSEQ"] = gdseq;
+            mt.ColRow["INF_CODE"] = jspcode;
+            mt.ColRow["INF_NAME"] = GridExcel.DataKeys[GridExcel.SelectedRowIndex][1].ToString();
+            mt.ColRow["INF_SPEC"] = GridExcel.DataKeys[GridExcel.SelectedRowIndex][2].ToString();
+            mt.ColRow["INF_PRICE"] = GridExcel.DataKeys[GridExcel.SelectedRowIndex][3].ToString();
+            mt.ColRow["INF_UNIT"] = GridExcel.DataKeys[GridExcel.SelectedRowIndex][4].ToString();
+            mt.ColRow["INF_RATIO"] = "1";
+            sqls.Add(mt.Insert());
+            if (DbHelperOra.ExecuteSqlTran(sqls))
+            {
+                Alert.Show("商品【" + gdseq + "】对码成功！", "消息提示", MessageBoxIcon.Warning);
+                trbSearch.Text = "";
+                tgbExlGoods.Text = "";
+                SearchOne();
+                SearchTwo();
+                TabStripMain.ActiveTabIndex = 1;
+                tgbGoods.Text = gdseq;
+                btnGridOut_Click(null, null);
+            }
+            else
+            {
+                Alert.Show("商品【" + gdseq + "】对码失败！", "消息提示", MessageBoxIcon.Warning);
+            }
+        }
+        #endregion
+
+        #region Three
+        protected void btnGridOut_Click(object sender, EventArgs e)
+        {
+            int total = 0;
+            string Sql = @"SELECT A.GDSEQ,
+                                A.GDNAME,
+                                A.GDSPEC,
+                                A.HSJJ,
+                                A.PIZNO PZWH,
+                                F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,
+                                C.NAME UNITNAME,
+                                A.BAR3 EAS_CODE,
+                                B.INF_CODE,
+                                B.INF_NAME,
+                                B.INF_SPEC,
+                                B.INF_PRICE,
+                                B.INF_UNIT
+                            FROM DOC_GOODS A,
+                                (SELECT * FROM DOC_GOODS_INF WHERE INF_TYPE = 'JSP') B,
+                                DOC_GOODSUNIT C
+                            WHERE A.GDSEQ = B.INF_GDSEQ(+)
+                            AND A.UNIT = C.CODE(+)
+                            AND A.FLAG = 'Y' ";
+            string Stearch = "";
+            if (!PubFunc.StrIsEmpty(tgbGoods.Text))
+            {
+                Stearch += string.Format(" AND (A.GDSEQ LIKE '%{0}%' OR A.GDNAME LIKE '%{0}%' OR B.INF_CODE LIKE '%{0}%' OR B.INF_NAME LIKE '%{0}%' OR A.BAR3 LIKE '%{0}%')", tgbGoods.Text);
+            }
+            Stearch += " ORDER BY A.GDNAME DESC";
+            DataTable dtData = PubFunc.DbGetPage(GridOut.PageIndex, GridOut.PageSize, Sql + Stearch, ref total);
+            GridOut.RecordCount = total;
+            GridOut.DataSource = dtData;
+            GridOut.DataBind();
+        }
+
+        protected void GridOut_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridOut.PageIndex = e.NewPageIndex;
+            btnGridOut_Click(null, null);
+        }
+        protected void btnExlOut_Click(object sender, EventArgs e)
+        {
+            string Sql = @"SELECT C.NAME 医院名称,A.HISCODE HIS编码,A.HISNAME 商品名称,B.GDSPEC 规格,D.NAME 单位,B.HSJJ 价格,E.name 生产厂家,B.PIZNO 注册证号,B.GDSEQ SPD编码,B.BAR3 ERP编码,
+                    DECODE(B.FLAG,'Y','正常','未下传') 商品状态,DECODE(A.PPMODE,'1','精确匹配','2','模糊匹配','3','手工匹配','历史匹配') 匹配模式 
+                    FROM DAT_UPLOAD_GOODS A,DOC_GOODS B,DOC_CUSTOMER C,DOC_GOODSUNIT D,DOC_PRODUCER E
+                    WHERE A.GDSEQ = B.GDSEQ(+) AND A.CUSTID = C.CODE(+) AND B.UNIT = D.CODE(+) AND A.FLAG = 'Y' AND B.PRODUCER=E.code(+)";
+            string Stearch = "";
+            if (!PubFunc.StrIsEmpty(trbSearch.Text))
+            {
+                Stearch += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.BAR3 LIKE '%{0}%')", trbSearch.Text);
+            }
+            Stearch += " ORDER BY A.UPTTIME DESC";
+
+            DataTable dt = DbHelperOra.Query(Sql + Stearch).Tables[0];
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                Alert.Show("暂时没有符合要求的数据，无法导出", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            ExcelHelper.ExportByWeb(dt, "商品匹配信息", string.Format("商品匹配信息_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+            btnExlOut.Enabled = true;
+        }
+        #endregion
+
+        protected void btnExp_Click(object sender, EventArgs e)
+        {
+            string Sql = @"SELECT '' 医院名称,'' HIS编码,'' 商品名称,'' 规格,'' 单位,'' 价格,'' 生产厂家,'' 注册证号,'' SPD编码,'' ERP编码,
+                    '' 商品状态,'' 匹配模式 
+                    FROM DUAL";
+            DataTable dt = DbHelperOra.Query(Sql).Tables[0];
+            ExcelHelper.ExportByWeb(dt, "商品匹配信息", "商品匹配样表.xls");
+            btnExp.Enabled = true;
+        }
+
+        protected void btnMatch_Click(object sender, EventArgs e)
+        {
+            int[] rows1 = GridExcel.SelectedRowIndexArray;
+            if (rows1.Count() < 1)
+            {
+                Alert.Show("请选择金算盘中的商品！！！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            int[] rows2 = GridGoods.SelectedRowIndexArray;
+            if (rows2.Count() < 1)
+            {
+                Alert.Show("请选择要对码的SPD系统商品！！！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            Match(GridExcel.DataKeys[rows1[0]][0].ToString(), GridGoods.Rows[rows2[0]].Values[1].ToString());
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            if (e.EventArgument == "Confirm_OK")
+            {
+                DataEdit();
+            }
+        }
+    }
+}

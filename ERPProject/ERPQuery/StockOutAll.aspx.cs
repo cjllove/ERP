@@ -1,0 +1,891 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Text.RegularExpressions;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class StockOutAll : PageBase
+    {
+        protected string SHTXD_PLDY = "/grf/SHTXD_PLDY.grf";
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            getUSERID.Text = UserAction.UserID;
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+                //如果是从首页待办事宜跳转过来的就直接转到明细Tab页进行审核 By c 20160109
+                if (Request.QueryString["pid"] != null && !string.IsNullOrWhiteSpace(Request.QueryString["pid"].ToString()))
+                {
+                    TabStrip1.ActiveTabIndex = 0;
+                    GetDateSearchSumSql();
+                }
+                hfdCurrent.Text = UserAction.UserID;
+
+                //获取客户化GRF文件地址  By c 2016年1月21日12:18:29 At 威海509
+                string grf = Doc.DbGetGrf("SHTXD_PLDY");
+                if (!string.IsNullOrWhiteSpace(grf))
+                {
+                    SHTXD_PLDY = grf;
+                }
+
+                if (Request.QueryString["tp"] != null && Request.QueryString["tp"].ToString().Trim().Length > 0)
+                {
+                    ddlDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE=" + Request.QueryString["tp"].ToString()).ToString();
+                }
+                else
+                {
+                    ddlDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE='2'").ToString();
+                }
+            }
+        }
+
+        private void BindDDL()
+        {
+            //PubFunc.DdlDataGet("DDL_SYS_DEPOT", ddlDEPTOUT, lstDeptOut);            
+            //PubFunc.DdlDataGet("DDL_SYS_DEPTDEF", ddlDEPTID, lstDeptIn);
+
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, ddlDEPTID, lstDeptIn);
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTOUT, lstDeptOut);
+            PubFunc.DdlDataGet("DAT_LX", ddlXl);
+            PubFunc.DdlDataGet("DAT_LOUDONG", lstHOUSE);
+            PubFunc.DdlDataGet("DDL_LOUCENG", lstFLOOR);
+            lstBEGRQ.SelectedDate = DateTime.Now.AddDays(-1);
+            lstENDRQ.SelectedDate = DateTime.Now;
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            //获取非定数出库模式，打印通行单时使用 By c 2016年1月16日20:36:36 At 威海509
+            hfdFDSMODE.Text = Doc.DbGetSysPara("FDSMODE");
+        }
+
+        #region 拣货汇总Tab
+        private string GetSearchSql()
+        {
+            string strSql = string.Format(@"SELECT A.DEPTOUT,B.GDSEQ,B.GDNAME,B.GDSPEC,A.SL,F_GETBZHL(B.GDSEQ) BZHL,ROUND(A.SL/F_GETBZHL(B.GDSEQ),2) BZSL,
+                B.HSJJ*F_GETBZHL(B.GDSEQ) HSJJ,A.SL*B.HSJJ JE,B.PRODUCER,B.PIZNO
+                ,f_getunitname(b.unit) unitname，F_GETSELLUNITNAME(B.GDSEQ) SELLUNITNAME,F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME
+                ,F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,F_GETHWID(A.DEPTOUT,B.GDSEQ) HWID
+                FROM (SELECT A.DEPTOUT,B.GDSEQ,SUM(DECODE(A.BILLTYPE,'DSC',FPSL,'LCD',XSSL)) SL
+                FROM DAT_CK_DOC A,DAT_CK_COM B,SYS_DEPT C
+                WHERE A.SEQNO = B.SEQNO AND A.FLAG = 'S' AND B.XSSL > 0 AND A.DEPTID = C.CODE AND A.STR4>=TO_DATE('{0}','YYYY-MM-DD') AND A.STR4 <TO_DATE('{1}','YYYY-MM-DD') + 1", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (!PubFunc.StrIsEmpty(ddlDEPTOUT.SelectedValue))
+            {
+                strSql += " AND A.DEPTOUT = '" + ddlDEPTOUT.SelectedValue + "'";
+            }
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue))
+            {
+                strSql += " AND A.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            }
+            if (!PubFunc.StrIsEmpty(ddlXl.SelectedValue))
+            {
+                strSql += " AND C.STR3 = '" + ddlXl.SelectedValue + "'";
+            }
+            if (tbgBC.Text.Trim().Length > 0)
+            {
+                strSql += " AND A.NUM1 = " + tbgBC.Text.Trim() + "";
+            }
+            strSql += " GROUP BY A.DEPTOUT,B.GDSEQ) A,DOC_GOODS B WHERE A.GDSEQ = B.GDSEQ";
+            if (tbxGOODS.Text.Trim().Length > 0)
+            {
+                strSql += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' OR B.BARCODE LIKE '%{0}%' OR B.HISCODE LIKE '%{0}%' OR B.HISNAME LIKE '%{0}%' OR B.STR4 LIKE '%{0}%')", tbxGOODS.Text.Trim().ToUpper());
+            }
+            strSql += " ORDER BY DEPTOUT,A.GDSEQ";
+            return strSql;
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            tbxGOODS_TriggerClick(null, null);
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            getUSERID.Text = UserAction.UserID;
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【分配日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！", "警告提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品配送信息按配送路线汇总", string.Format("商品配送信息按配送路线汇总_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal HSJJTotal = 0, HSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HSJJTotal += Convert.ToInt32(row["SL"]);
+                HSJETotal += Convert.ToDecimal(row["JE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "全部合计");
+            summary.Add("SL", HSJJTotal.ToString("F2"));
+            summary.Add("JE", HSJETotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+
+        protected void tbxGOODS_TriggerClick(object sender, EventArgs e)
+        {
+            Regex regex = new Regex(@"^[0-9]*$");
+            Match maa = regex.Match(tbgBC.Text);
+            if (!maa.Success)
+            {
+                Alert.Show("【波次信息】请输入数字类型！");
+                return;
+            }
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【分配日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", MessageBoxIcon.Warning);
+                return;
+            }
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            //OutputSummaryData(dtData);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+        #endregion
+
+        #region 单据列表Tab
+        private void GetDateSearchSumSql()
+        {
+            //变色行的清空一定要放在Grid绑定数据之前
+
+            if (lstBEGRQ.SelectedDate == null || lstENDRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【分配期间】！", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (lstBEGRQ.SelectedDate > lstENDRQ.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", MessageBoxIcon.Warning);
+                return;
+            }
+            Regex regex = new Regex(@"^[0-9]*$");
+            Match maa = regex.Match(tgbBC.Text);
+            if (!maa.Success)
+            {
+                Alert.Show("【波次编号】请输入数字类型！");
+                return;
+            }
+            string strSql = @"SELECT A.SEQNO,A.BILLNO,A.FLAG,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.XSRQ,F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,A.NUM1,
+                                                      DECODE(A.FLAG,'S' ,'已分配','Y' ,'已出库')  FLAG_CN,A.DEPTOUT,A.DEPTID,
+                                                      A.SUBNUM,F_GETUSERNAME(A.SLR) SLR,F_GETUSERNAME(A.LRY) LRY,A.LRRQ,F_GETUSERNAME(A.SHR) SHR,A.SHRQ,A.MEMO,A.STR2,
+                                                  NVL((SELECT FUNCTIME FROM SYS_FUNCPRNNUM WHERE FUNCNO = A.SEQNO),0) PRINTNUM
+                                           FROM DAT_CK_DOC A
+                                       WHERE A.XSTYPE='1' AND A.BILLTYPE IN('LCD','DSC') AND A.FLAG IN('S','Y')";
+            string strSearch = "";
+            if (lstFLAG.SelectedItem != null && lstFLAG.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.FLAG='{0}'", lstFLAG.SelectedItem.Value);
+            }
+            if (tgbBIll.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND A.SEQNO LIKE '%{0}%'", tgbBIll.Text.Trim());
+            }
+            if (tgbBC.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND A.NUM1 = {0}", tgbBC.Text.Trim());
+            }
+            if (ddlType.SelectedValue.Length > 0)
+            {
+                switch (ddlType.SelectedValue)
+                {
+                    case "G":
+                        strSearch += "AND EXISTS(SELECT 1 FROM DAT_CK_COM B WHERE B.SEQNO = A.SEQNO AND B.ISGZ = 'Y')";
+                        break;
+                    case "D":
+                        strSearch += "AND A.BILLTYPE = 'DSC'";
+                        break;
+                    case "F":
+                        strSearch += "AND A.BILLTYPE = 'LCD'";
+                        break;
+                }
+            }
+            if (lstDeptIn.SelectedItem != null && lstDeptIn.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDeptIn.SelectedItem.Value);
+            }
+            if (lstDeptOut.SelectedItem != null && lstDeptOut.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND DEPTOUT='{0}'", lstDeptOut.SelectedItem.Value);
+            }
+            if (lstHOUSE.SelectedValue != null && lstHOUSE.SelectedValue.Length > 0)
+            {
+                strSql = strSql + " AND A.DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE  HOUSE='" + lstHOUSE.SelectedValue + "')";
+            }
+            if (lstFLOOR.SelectedValue != null && lstFLOOR.SelectedValue.Length > 0)
+            {
+                strSql = strSql + " AND A.DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE  FLOOR='" + lstFLOOR.SelectedValue + "')";
+            }
+            strSearch += string.Format(" AND A.LRRQ>=TO_DATE('{0}','YYYY-MM-DD')", lstBEGRQ.Text);
+            strSearch += string.Format(" AND A.LRRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lstENDRQ.Text);
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY A.NUM1 DESC";
+
+            int total = 0;
+
+            DataTable table = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+            string sortField = GridList.SortField;
+            string sortDirection = GridList.SortDirection;
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", sortField, sortDirection);
+
+            GridList.DataSource = view1;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG_CN"].ToString();
+                int num = int.Parse(row["PRINTNUM"].ToString());
+                FineUIPro.BoundField flagcol = GridList.FindColumn("FLAG_CN") as FineUIPro.BoundField;
+                if (flag == "已分配")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+                else if (num < 1)
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+            }
+        }
+        protected void btnClear2_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Form2);
+            lstBEGRQ.SelectedDate = DateTime.Now.AddDays(-7);
+            lstENDRQ.SelectedDate = DateTime.Now;
+            getUSERID.Text = UserAction.UserID;
+        }
+
+        protected void btnSearch2_TriggerClick(object sender, EventArgs e)
+        {
+            GetDateSearchSumSql();
+        }
+
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            GetDateSearchSumSql();
+        }
+
+        protected void GridList_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            string billno = GridList.DataKeys[e.RowIndex][0].ToString();
+            String flag = "";
+            if (GridList.DataKeys[e.RowIndex][2].ToString() != "Y")
+                flag = "Y";
+            string url = "~/ERPApply/CKWindow.aspx?bm=" + billno + "&cx=" + flag;
+            if (billno.Substring(0, 3) == "DSC")
+            {
+                PageContext.RegisterStartupScript(Window1.GetSaveStateReference(hfdValue.ClientID) + Window1.GetShowReference(url, "出库信息:单号【" + billno + "】浅粉色表示缺货"));
+            }
+            else
+            {
+                PageContext.RegisterStartupScript(Window1.GetSaveStateReference(hfdValue.ClientID) + Window1.GetShowReference(url, "出库信息:单号【" + billno + "】"));
+            }
+        }
+        protected void btnAudit_Click(object sender, EventArgs e)
+        {
+            if (GridList.SelectedRowIndexArray.Length < 1)
+            {
+                Alert.Show("请选择需要审核的单据!", MessageBoxIcon.Question);
+                return;
+            }
+            String Sql = @"SELECT TO_CHAR(WMSYS.WM_CONCAT(A.GDNAME))
+                        FROM DAT_CK_COM A,(SELECT COUNT (1) SL,GDSEQ FROM DAT_CK_EXT WHERE BILLNO = '{0}' GROUP BY GDSEQ) B
+                        WHERE A.GDSEQ = B.GDSEQ AND A.SEQNO = '{0}' AND A.ISGZ = 'Y' AND A.XSSL <> B.SL";
+            Object err = DbHelperOra.GetSingle(String.Format(Sql, GridList.DataKeys[GridList.SelectedRowIndex][0]));
+            if ((err ?? "").ToString().Length > 0)
+            {
+                Alert.Show("商品[" + err + "]高值码数量与单据中商品数量不一致，请检查!", MessageBoxIcon.Question);
+                return;
+            }
+            int[] index = GridList.SelectedRowIndexArray;
+            if (index.Count() < 1)
+            {
+                Alert.Show("请选择需要审核的单据！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            string strBill = "";
+            foreach (int i in index)
+            {
+                if (GridList.DataKeys[i][2].ToString() == "S")
+                {
+                    strBill = strBill + "'" + GridList.DataKeys[i][0] + "',";
+                    OracleParameter[] parameters = {
+                                               new OracleParameter("VTASKID", OracleDbType.Varchar2,20),
+                                               new OracleParameter("VPARA", OracleDbType.Varchar2,800) };
+                    parameters[0].Value = GridList.DataKeys[i][0].ToString().Substring(0, 3);
+                    parameters[1].Value = "'" + GridList.DataKeys[i][0] + "','" + GridList.DataKeys[i][0].ToString().Substring(0, 3) + "','" + UserAction.UserID + "','AUDIT'";
+                    cmdList.Add(new CommandInfo("P_EXECTASK", parameters, CommandType.StoredProcedure));
+                }
+            }
+            //检查单据有效性
+            if (strBill.Length < 1)
+            {
+                Alert.Show("请选择正确的单据进行审核！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_CK_DOC WHERE FLAG <> 'S' AND SEQNO IN (" + strBill.TrimEnd(',') + ")"))
+            {
+                Alert.Show("您选择的单据状态不正确或已被其他人操作！", "提示信息", MessageBoxIcon.Warning);
+                GetDateSearchSumSql();
+                return;
+            }
+            //验证科室是否盘点
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_CK_DOC D,DAT_PD_LOCK P WHERE D.SEQNO IN (" + strBill.TrimEnd(',') + ") AND (P.DEPTID=D.DEPTOUT OR P.DEPTID=D.DEPTID) AND P.FLAG='N'"))
+            {
+                Alert.Show("出库或申领科室正在盘点,请检查!", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            //验证高值商品追溯码是否已经全部录入
+            string sql_gz = @"SELECT 1
+                                          FROM DAT_CK_COM A， (SELECT E.BILLNO SEQNO, E.GDSEQ, COUNT(1) SL
+                                                                FROM DAT_CK_EXT E
+                                                               GROUP BY E.BILLNO, E.GDSEQ) B
+                                         WHERE A.SEQNO = B.SEQNO
+                                           AND A.GDSEQ = B.GDSEQ
+                                           AND A.ISGZ = 'Y'
+                                           AND A.XSSL <> B.SL
+                                           AND A.SEQNO IN ({0})";
+            if (DbHelperOra.Exists(string.Format(sql_gz, strBill.TrimEnd(','))))
+            {
+                Alert.Show("所选单据中存在未录入高值码的高值商品!", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            try
+            {
+                if (DbHelperOra.ExecuteSqlTran(cmdList))
+                {
+                    GetDateSearchSumSql();
+                    Alert.Show("批量审核成功！");
+                    OperLog("库房拣货", "批量审核【" + strBill.Replace("'", "") + "】");
+                }
+            }
+            catch (Exception ex)
+            {
+                string strRet = ex.Message;
+                if (strRet.IndexOf("ORA-") > -1)
+                {
+                    string msg = strRet.Substring(0, strRet.IndexOf("\n"));
+                    Alert.Show(msg.Substring(msg.IndexOf("ORA-") + 10), "异常信息", MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    Alert.Show("信息：" + strRet, "错误提示", MessageBoxIcon.Error);
+                }
+                return;
+            }
+        }
+        #endregion
+
+
+        protected void btnPrintAll_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridList.SelectedRowIndexArray;
+            if (selections.Length == 0)
+            {
+                Alert.Show("请选择要打印的单据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (selections.Length > 30)
+            {
+                Alert.Show("一次批量打印最多三十条单据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string djbh = "";
+            string djbhDS = "";
+            string djbhFDS = "";
+
+            foreach (int rowIndex in selections)
+            {
+                //批量记录数据时验证单据状态
+                if (GridList.DataKeys[rowIndex][2].ToString() == "Y")
+                {
+                    //回去批量传递的信息
+                    djbh = djbh + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                    if (GridList.DataKeys[rowIndex][0].ToString().Substring(0, 3) == "DSC")
+                    {
+                        djbhDS = djbhDS + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                    }
+                    else
+                    {
+                        djbhFDS = djbhFDS + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                    }
+                }
+                else
+                {
+                    Alert.Show("单据" + GridList.DataKeys[rowIndex][0].ToString() + "不是已出库状态单据！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            //去除末尾的“,”
+            djbh = djbh.TrimEnd(',');
+            djbhDS = djbhDS.TrimEnd(',');
+            djbhFDS = djbhFDS.TrimEnd(',');
+            string strwhere = "";
+            string strwhereDS = "";
+            string strwhereFDS = "";
+            string[] strdjbh = djbh.Split(',');
+            for (int i = 0; i < strdjbh.Length; i++)
+            {
+                strwhere = strwhere + "'" + strdjbh[i] + "',";
+            }
+            string[] strdjbhDS = djbhDS.Split(',');
+            for (int i = 0; i < strdjbhDS.Length; i++)
+            {
+                strwhereDS = strwhereDS + "'" + strdjbhDS[i] + "',";
+            }
+            string[] strdjbhFDS = djbhFDS.Split(',');
+            for (int i = 0; i < strdjbhFDS.Length; i++)
+            {
+                strwhereFDS = strwhereFDS + "'" + strdjbhFDS[i] + "',";
+            }
+            strwhere = strwhere.TrimEnd(',');
+            strwhereDS = strwhereDS.TrimEnd(',');
+            strwhereFDS = strwhereFDS.TrimEnd(',');
+            getdjbh.Text = strwhere;
+            getdjbhDS.Text = strwhereDS;
+            getdjbhFDS.Text = strwhereFDS;
+            PageContext.RegisterStartupScript("PrintCKD()");
+
+        }
+
+        protected void ScanSearch(string type)
+        {
+            string sql = "";
+            if (type == "SHOW")
+            {
+                sql = "SELECT A.*,f_getunitname(A.UNIT) UNITNAME FROM DAT_CK_EXT A WHERE A.BILLNO = '{0}' ORDER BY A.GDSEQ,A.INSTIME DESC";
+            }
+            else
+            {
+                if (type == "SJSHOW")
+                {
+                    sql = @"select B.GDSEQ,
+                                   B.GDNAME,
+                                   B.GDSPEC,
+                                   f_getunitname(b.unit) UNITNAME,
+                                   '1' BZHL,
+                                   A.PH,
+                                   '1' BZSL,
+                                   A.GDBARCODE ONECODE
+                              from DAT_BARCODE_SJ A, DOC_GOODS B
+                             WHERE A.GDSEQ = B.GDSEQ and a.rkseqno='{0}'
+                             order by onecode";
+                }
+                else
+                {
+                    sql = "SELECT A.*,f_getunitname(A.UNIT) UNITNAME FROM DAT_CK_EXT A WHERE A.BILLNO = '{0}' ORDER BY A.INSTIME DESC";
+                }
+
+            }
+            DataTable dtScan = DbHelperOra.Query(string.Format(sql, GridList.Rows[GridList.SelectedRowIndex].DataKeys[0])).Tables[0];
+            GridSacn.DataSource = dtScan;
+            GridSacn.DataBind();
+            zsmScan.Text = String.Empty;
+            zsmScan.Focus();
+        }
+        protected void btnClose_Click(object sender, EventArgs e)
+        {
+            if (GridList.DataKeys[GridList.SelectedRowIndex][2].ToString()!="Y")
+            {
+                Confirm_Sure();
+            }
+            WindowScan.Hidden = true;
+        }
+        protected void btnScan_Click(object sender, EventArgs e)
+        {
+            int[] index = GridList.SelectedRowIndexArray;
+            if (index.Length != 1)
+            {
+                Alert.Show("请选择一张单据信息进行扫描追溯码操作！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            int i = GridList.SelectedRowIndex;
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_COM A,DOC_GOODS B WHERE A.GDSEQ = B.GDSEQ AND B.ISGZ = 'Y'  AND SEQNO = '{0}'", GridList.DataKeys[i][0])))
+            {
+                if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_DOC A WHERE A.FLAG='Y'  AND SEQNO = '{0}'", GridList.DataKeys[i][0])))
+                {
+                    btnSure.Enabled = false;
+                    zsmDelete.Enabled = false;
+                    zsmDelAll.Enabled = false;
+                    WindowScan.Hidden = false;
+                    ScanSearch("SHOW");
+                }
+                else
+                {
+                    btnSure.Enabled = true;
+                    zsmDelete.Enabled = true;
+                    zsmDelAll.Enabled = true;
+                    WindowScan.Hidden = true;
+                    WindowScan.Hidden = false;
+                    ScanSearch("SHOW");
+                }
+            }
+            else
+            {
+                if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_COM A,DOC_GOODS B WHERE A.GDSEQ = B.GDSEQ AND B.CATID0 = '1'  AND SEQNO = '{0}'", GridList.DataKeys[i][0])))
+                {
+                    WindowScan.Hidden = false;
+                    ScanSearch("SJSHOW");
+                }
+                else
+                {
+                    Alert.Show("此单据中没有已经保存的高值商品或试剂,请检查！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+
+            }
+        }
+        private JObject GetJObject(Dictionary<string, object> dicRecord)
+        {
+            JObject defaultObj = new JObject();
+            foreach (string key in dicRecord.Keys)
+            {
+                defaultObj.Add(key, dicRecord[key] == null ? "" : dicRecord[key].ToString());
+            }
+            decimal hl = 0, rs = 0, jg = 0;
+            decimal.TryParse(dicRecord["BZHL"].ToString(), out hl);//包装含量
+            decimal.TryParse(dicRecord["BZSL"].ToString(), out rs);//订货数
+            decimal.TryParse(dicRecord["HSJJ"].ToString(), out jg);//价格
+
+            defaultObj.Remove("XSSL");
+            defaultObj.Remove("HSJE");
+            defaultObj.Add("XSSL", rs * hl);
+            //defaultObj.Add("HSJE", rs * jg * hl);
+
+            //处理金额格式
+            string jingdu = (rs * jg).ToString("F2");
+            defaultObj.Add("HSJE", jingdu);
+
+            return defaultObj;
+        }
+        protected void btnScanClose_Click(object sender, EventArgs e)
+        {
+            string seq = GridSacn.Rows[0].Values[1].ToString(), oneCode = "";
+            foreach (GridRow row in GridSacn.Rows)
+            {
+                int rowIndex = row.RowIndex;
+                System.Web.UI.WebControls.TextBox tbxONECODE = (System.Web.UI.WebControls.TextBox)GridSacn.Rows[rowIndex].FindControl("tbxONECODE");
+                if (string.IsNullOrWhiteSpace(tbxONECODE.Text))
+                {
+                    Alert.Show(string.Format("第【{0}】行商品【{1}】唯一码为空！", rowIndex + 1, GridSacn.Rows[rowIndex].Values[1]), "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                //验证追溯码是否重复
+                string tbx = tbxONECODE.Text;
+                foreach (GridRow rowchild in GridSacn.Rows)
+                {
+                    int rowIndex_child = rowchild.RowIndex;
+                    System.Web.UI.WebControls.TextBox tbxONECODE_child = (System.Web.UI.WebControls.TextBox)GridSacn.Rows[rowIndex_child].FindControl("tbxONECODE");
+                    string tbx_child = tbxONECODE_child.Text;
+                    if (tbx == tbx_child && rowIndex != rowIndex_child)
+                    {
+                        Alert.Show(string.Format("第【{0}】行与第【{1}】行编码出现重复", rowIndex + 1, rowIndex_child + 1));
+                        return;
+                    }
+                }
+                if (DbHelperOra.Exists("select 1 from DAT_CK_EXT where ONECODE = '" + tbxONECODE.Text + "'"))
+                {
+                    Alert.Show(string.Format("第【{0}】行商品【{1}】唯一码已存在!", rowIndex + 1, GridSacn.Rows[rowIndex].Values[1]), "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (seq != GridSacn.Rows[rowIndex].Values[1].ToString() || (rowIndex + 1) == GridSacn.Rows.Count)
+                {
+                    int rowNo = 0;
+                    List<Dictionary<string, object>> newDict = GridGoods.GetNewAddedList();
+                    if ((rowIndex + 1) == GridSacn.Rows.Count || GridSacn.Rows.Count == 1)
+                    { oneCode += tbxONECODE.Text + ","; }
+                    foreach (Dictionary<string, object> dic in newDict)
+                    {
+                        if (seq == dic["GDSEQ"].ToString())
+                        {
+                            dic["CODEINFO"] = oneCode.TrimEnd(',');
+                            PageContext.RegisterStartupScript(GridGoods.GetAddNewRecordReference(GetJObject(dic), rowNo)); oneCode = "";
+                            break;
+                        }
+                        rowNo++;
+                    }
+
+                    seq = GridSacn.Rows[rowIndex].Values[1].ToString();
+                }
+                else
+                { oneCode += tbxONECODE.Text + ","; }
+            }
+            WindowScan.Hidden = true;
+        }
+
+        #region 追溯码
+        protected void zsmScan_TextChanged(object sender, EventArgs e)
+        {
+            //验证单据状态
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_DOC WHERE FLAG IN('Y') AND SEQNO = '{0}'", GridList.DataKeys[GridList.SelectedRowIndex][0])))
+            {
+                Alert.Show("单据状态为【已出库】，请检查！", "提示信息", MessageBoxIcon.Warning);
+                zsmScan.Text = string.Empty;
+                zsmScan.Focus();
+                return;
+            }
+            //增加输入二维码验证
+            if (!DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_GZ_EXT WHERE (ONECODE = '{0}' OR STR1 = '{0}') AND FLAG IN('Y','R') AND DEPTCUR = '{1}'", zsmScan.Text.Trim(), GridList.DataKeys[GridList.SelectedRowIndex][1])))
+            {
+                Alert.Show("您扫描的追溯码已被出库或未入库审核，请检查！", "提示信息", MessageBoxIcon.Warning);
+                zsmScan.Text = string.Empty;
+                zsmScan.Focus();
+                return;
+            }
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_EXT WHERE BILLNO = '{0}' AND (ONECODE = '{1}' OR STR1 = '{1}')", GridList.DataKeys[GridList.SelectedRowIndex][0], zsmScan.Text.Trim())))
+            {
+                Alert.Show("您扫描的追溯码已被扫描，请检查！", "提示信息", MessageBoxIcon.Warning);
+                zsmScan.Text = string.Empty;
+                zsmScan.Focus();
+                return;
+            }
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DAT_CK_EXT WHERE BILLNO LIKE 'LCD%' AND BILLNO <> '{0}' AND (ONECODE = '{1}' OR STR1 = '{1}') AND FLAG='N'", GridList.DataKeys[GridList.SelectedRowIndex][0], zsmScan.Text.Trim())))
+            {
+                Alert.Show("您扫描的追溯码已被其他单据占用，请检查！", "提示信息", MessageBoxIcon.Warning);
+                zsmScan.Text = string.Empty;
+                zsmScan.Focus();
+                return;
+            }
+            //写入数据库中
+            DbHelperOra.ExecuteSql(string.Format(@"INSERT INTO DAT_CK_EXT(DEPTID,BILLNO,ROWNO,ONECODE,GDSEQ,GDNAME,BARCODE,UNIT,GDSPEC,DEPTCUR,BZHL,INSTIME,PH,RQ_SC,YXQZ,STR1)
+                    SELECT '{0}','{1}',NVL((SELECT MAX(ROWNO)+1 FROM DAT_CK_EXT WHERE BILLNO = '{1}'),1),A.ONECODE,GDSEQ,GDNAME,BARCODE,UNIT,GDSPEC,DEPTCUR,BZHL,SYSDATE,PH,RQ_SC,YXQZ,STR1
+                    FROM DAT_RK_EXT A
+                    WHERE A.ONECODE = '{2}' OR A.STR1 = '{2}'", GridList.DataKeys[GridList.SelectedRowIndex][1], GridList.DataKeys[GridList.SelectedRowIndex][0], zsmScan.Text.Trim()));
+            Confirm_Sure();
+            ScanSearch("");
+        }
+
+        protected void zsmDelete_Click(object sender, EventArgs e)
+        {
+            if (GridSacn.SelectedCell == null)
+            {
+                Alert.Show("请选择您需要删除的数据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (GridSacn.SelectedRowIndex < 0)
+            {
+                Alert.Show("请选择您需要删除的数据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            //GridSacn.DeleteSelectedRows();
+            //string onecode = (GridSacn.DataKeys[GridSacn.SelectedRowIndex][0] ?? "").ToString();
+            string barcode = "";
+            foreach (int rowIndex in GridSacn.SelectedRowIndexArray)
+            {
+
+                barcode += GridSacn.DataKeys[rowIndex][0].ToString() + ",";
+            }
+            string onecode = barcode.Replace(",", "','");
+            DbHelperOra.ExecuteSql(string.Format("DELETE FROM DAT_CK_EXT WHERE ONECODE in('{0}') AND BILLNO in( '{1}')", onecode, GridList.DataKeys[GridList.SelectedRowIndex][0]));
+            Confirm_Sure();
+            ScanSearch("");
+        }
+        #endregion
+
+        protected void btnPrintBQ_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridList.SelectedRowIndexArray;
+            if (selections.Length == 0)
+            {
+                Alert.Show("请选择要打印的单据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string sql = "";
+            string djbh = "";
+            string djbhDS = "";
+            string djbhFDS = "";
+            string djDScs = "";
+            string djFDScs = "";
+            string djDSbarcode = "";
+            string djFDSbarcode = "";
+
+            foreach (int rowIndex in selections)
+            {
+                //批量记录数据时验证单据状态
+                if (GridList.DataKeys[rowIndex][2].ToString() == "Y")
+                {
+                    //回去批量传递的信息
+                    djbh = djbh + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                    if (GridList.DataKeys[rowIndex][0].ToString().Substring(0, 3) == "DSC")
+                    {
+                        djbhDS = djbhDS + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                        djDScs = djDScs + "'" + GridList.DataKeys[rowIndex][0].ToString() + "',";
+                    }
+                    else
+                    {
+                        djbhFDS = djbhFDS + GridList.DataKeys[rowIndex][0].ToString() + ",";
+                        djFDScs = djFDScs + "'" + GridList.DataKeys[rowIndex][0].ToString() + "',";
+                    }
+                }
+                else
+                {
+                    Alert.Show("单据【" + GridList.DataKeys[rowIndex][0].ToString() + "】不是已出库状态单据！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            //去除末尾的“,”
+            djbh = djbh.TrimEnd(',');
+            djbhDS = djbhDS.TrimEnd(',');
+            djbhFDS = djbhFDS.TrimEnd(',');
+            djDScs = djDScs.TrimEnd(',');
+            djFDScs = djFDScs.TrimEnd(',');
+            getdjbh.Text = djbh;
+            getdjbhDS.Text = djbhDS;
+            getdjbhFDS.Text = djbhFDS;
+            if (djDScs.Length > 0)
+            {
+                sql = string.Format(@"SELECT A.BARCODE  FROM DAT_GOODSDS_LOG A, DOC_GOODS C WHERE A.GDSEQ = C.GDSEQ AND A.SEQNO IN ({0})", djDScs);
+                DataTable dt = DbHelperOra.QueryForTable(sql);
+                if (dt.Rows.Count > 0)
+                {
+                    foreach (DataRow dr in dt.Rows)
+                    {
+                        djDSbarcode = djDSbarcode + dr[0].ToString() + ",";
+                    }
+                }
+                djDSbarcode = djDSbarcode.TrimEnd(',');
+                getdjDScs.Text = djDSbarcode;
+            }
+            if (djFDScs.Length > 0)
+            {
+                sql = string.Format(@"SELECT A.BARCODE FROM dat_ck_barcode A WHERE SEQNO IN ({0})", djFDScs);
+                DataTable dt = DbHelperOra.QueryForTable(sql);
+                if (dt.Rows.Count > 0)
+                {
+                    foreach (DataRow dr in dt.Rows)
+                    {
+                        djFDSbarcode = djFDSbarcode + dr[0].ToString() + ",";
+                    }
+                }
+                djFDSbarcode = djFDSbarcode.TrimEnd(',');
+                getdjFDScs.Text = djFDSbarcode;
+            }
+
+            PageContext.RegisterStartupScript("PrintLable()");
+        }
+
+        protected void btnSure_Click(object sender, EventArgs e)
+        {
+            //重新预占 呵呵
+            String Sql = @"SELECT TO_CHAR(WMSYS.WM_CONCAT(A.GDNAME))
+                        FROM DAT_CK_COM A,(SELECT COUNT (1) SL,GDSEQ FROM DAT_CK_EXT WHERE BILLNO = '{0}' GROUP BY GDSEQ) B
+                        WHERE A.GDSEQ = B.GDSEQ AND A.SEQNO = '{0}' AND A.ISGZ = 'Y' AND A.XSSL <> B.SL";
+            Object err = DbHelperOra.GetSingle(String.Format(Sql, GridList.DataKeys[GridList.SelectedRowIndex][0]));
+            if ((err ?? "").ToString().Length > 0)
+            {
+                PageContext.RegisterStartupScript(Confirm.GetShowReference("商品【" + err + "】扫描数与单据中商品数量不一致是否继续？",
+                    "提示信息", MessageBoxIcon.Information, PageManager1.GetCustomEventReference(true, "Confirm_Sure", false, false),
+                    null));
+                return;
+            }
+            else
+            {
+                Confirm_Sure();
+                WindowScan.Hidden = true;
+            }
+        }
+        protected void Confirm_Sure()
+        {
+            //WindowScan.Hidden = true;
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            OracleParameter[] parameters = {
+                                               new OracleParameter("VI_BILLNO", OracleDbType.Varchar2,20),
+                                               new OracleParameter("VI_USER", OracleDbType.Varchar2,800) };
+            parameters[0].Value = GridList.DataKeys[GridList.SelectedRowIndex][0].ToString();
+            parameters[1].Value = UserAction.UserID;
+            cmdList.Add(new CommandInfo("STOREDS.P_CK_UPDATE", parameters, CommandType.StoredProcedure));
+            try
+            {
+                DbHelperOra.ExecuteSqlTran(cmdList);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.IndexOf("ORA-20001") > -1)
+                {
+                    string msg = ex.Message.Substring(0, ex.Message.IndexOf("\n"));
+                    Alert.Show("错误提示：\n\r\n\r                                  " + msg.Substring(msg.IndexOf("ORA-20001") + 10), "错误信息", MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    Alert.Show("错误提示：" + ex.Message, MessageBoxIcon.Question);
+                }
+            }
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            switch (e.EventArgument)
+            {
+                case "Confirm_Sure": Confirm_Sure(); break;
+            }
+        }
+
+        protected void zsmDelAll_Click(object sender, EventArgs e)
+        {
+            DbHelperOra.ExecuteSql(string.Format("DELETE FROM DAT_CK_EXT WHERE BILLNO = '{0}'", GridList.DataKeys[GridList.SelectedRowIndex][0]));
+            Confirm_Sure();
+            ScanSearch("");
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GetDateSearchSumSql();
+        }
+    }
+}

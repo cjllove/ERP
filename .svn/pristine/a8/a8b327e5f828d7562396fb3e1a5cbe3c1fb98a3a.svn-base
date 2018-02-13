@@ -1,0 +1,398 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Text.RegularExpressions;
+using Oracle.ManagedDataAccess.Client;
+
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class BriefManage : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                DataQuery();
+            }
+        }
+
+        private void DataInit()
+        {
+            GridUsers.DataSource = DbHelperOra.QueryForTable("SELECT USERID,USERNAME,TEL FROM SYS_OPERUSER WHERE ISDELETE='N' ORDER BY USERID ASC");
+            GridUsers.DataBind();
+            hfdIsNew.Text = "Y";
+            btnBriefScreen_Click(null,null);
+        }
+
+        private void DataQuery()
+        {
+            String sql = @"select DBD.CODE BRCODE,
+                                       DBD.NAME BRNAME,
+                                       DBD.FLAG,
+                                       DECODE(DBD.FLAG, 'Y', '启用', 'N', '不启用','未维护') FLAGNAME,
+                                     F_JOINUSERID(DBD.CODE) USERID,
+                                     TO_CHAR(TIMEUP,'YYYY-MM-DD HH24:MI:SS')TIMEUP,
+                                     MEMO                                       
+                          from DOC_BRIEF_DOC DBD
+                         where  1=1
+                           ORDER BY DBD.CODE";
+            int total = 0;
+            if (!PubFunc.StrIsEmpty(tgbSearch.Text))
+            {
+                sql += string.Format(" AND (DOTYPE like '%{0}%' or DONAME like '%{0}%')", tgbSearch.Text);
+            }
+            DataTable dt = PubFunc.DbGetPage(GridToBrief.PageIndex, GridToBrief.PageSize, sql, ref total);
+
+                GridToBrief.DataSource = dt;
+            GridToBrief.RecordCount = total;
+            GridToBrief.DataBind();
+        }
+
+        protected void GridToBrief_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            hfdIsNew.Text = "N";
+            string strcode = GridToBrief.Rows[e.RowIndex].Values[0].ToString();
+            DataTable dt = DbHelperOra.Query("select * from DOC_BRIEF_DOC where code='" + strcode + "'").Tables[0];
+           PubFunc.FormDataSet(FormBR, dt.Rows[0]);
+           PubFunc.FormDataSet(FormCON,dt.Rows[0]);
+           labSHOW.Text = "";
+        }
+
+        protected void GridToBrief_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridToBrief.PageIndex = e.NewPageIndex;
+            DataQuery();
+        }
+
+        protected void tgbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataQuery();
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            hfdIsNew.Text = "Y";
+             ddlFLAG.SelectedValue = "N";         
+            tbxMEMO.Text = "";
+            PubFunc.FormDataClear(FormBR);
+            PubFunc.FormDataClear(FormCON);
+        }
+
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (GridToBrief.SelectedRowIndexArray.Length > 0)
+            {
+                string ID = "";
+                for (int i = 0; i < GridToBrief.SelectedRowIndexArray.Length; i++)
+                {
+                    ID += GridToBrief.Rows[GridToBrief.SelectedRowIndexArray[i]].Values[0].ToString() + ",";
+                }
+                DbHelperOra.ExecuteSql("delete from DOC_BRIEF_DOC where CODE in ('" + ID.TrimEnd(',').Replace(",", "','") + "')");
+                DataQuery();
+            }
+            else
+            {
+                Alert.Show("请选择要删除的信息！", MessageBoxIcon.Warning);
+            }
+        }
+
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+
+            if (tbxCODE.Text.Trim() == "" || tbxCODE.Text.Trim() == null)
+            {
+                Alert.Show("简报编码不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (tbxNAME.Text.Trim() == "" || tbxNAME.Text.Trim() == null)
+            {
+                Alert.Show("简报名称不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (trbESQL.Text.Trim() == "" || trbESQL.Text.Trim() == null)
+            {
+                Alert.Show("简报SQL不能为空！","消息提示",MessageBoxIcon.Warning);
+                return;
+            }
+            if (trbBRCONTENT.Text.Trim() == "" || trbBRCONTENT.Text.Trim()==null)
+            {
+                Alert.Show("简报内容不能为空！","消息提示",MessageBoxIcon.Warning);
+                return;
+            }
+                CheckSQL();            
+                string strcode = tbxCODE.Text.ToString().Trim();
+            
+            int num = 0;
+            switch (lstTIMEOA.SelectedValue)
+            {
+                case "DAY":
+                    num = 1;
+                    break;
+                case "MONTH":
+                    num = 30;
+                    break;
+                case "YEAR":
+                    num = 365;
+                    break;
+                default:
+                    num = 0;
+                    break;
+
+
+            }
+            Regex regex = new Regex(@"[-][ ]?[0-9]\d*");
+            trbESQL.Text = regex.Replace(trbESQL.Text.ToString(), "-" + num.ToString());
+            string strAFTER = trbESQL.Text.ToString().Replace("'", "''");
+            if (strAFTER.IndexOf("/r") < 0 || strAFTER.IndexOf("/n") < 0)
+            {
+                strAFTER = strAFTER.Replace("/r", " ");
+                strAFTER = strAFTER.Replace("/n", " ");
+            }
+              List<CommandInfo> cmdlist = new List<CommandInfo>();
+            cmdlist.Add(new CommandInfo(string.Format("DELETE FROM DOC_BRIEF_DOC WHERE CODE ='{0}'",strcode), null));
+            cmdlist.Add(new CommandInfo(string.Format("INSERT INTO DOC_BRIEF_DOC(CODE,NAME,FLAG,TIMEOA,ESQL,ISTIME,BRCONTENT,MEMO)VALUES('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}')", strcode, tbxNAME.Text, ddlFLAG.SelectedValue, lstTIMEOA.SelectedValue, strAFTER, ddlISTIME.SelectedValue, trbBRCONTENT.Text, tbxMEMO.Text.Trim()), null));
+            DataTable dtuser = DbHelperOra.QueryForTable(string.Format("SELECT USERID FROM DOC_BRIEF_COM WHERE CODE='{0}'",strcode));
+            if (dtuser.Rows.Count > 0)
+            {
+                string sresult=getSendMes(strcode);
+                foreach(DataRow dr in dtuser.Rows)
+                {
+                 cmdlist.Add(new CommandInfo(string.Format("UPDATE DOC_BRIEF_COM SET SENDMES='{0}' WHERE CODE='{1}' AND USERID='{2}'",sresult,strcode,dr[0].ToString()),null));
+                }
+            }
+
+             DbHelperOra.ExecuteSqlTran(cmdlist);           
+            Alert.Show("简报保存成功！");
+            DataQuery();
+            
+          
+        }
+
+        protected void btnTest_Click(object sender, EventArgs e)
+        {
+           DataTable dtget = DbHelperOra.QueryForTable(string.Format("SELECT ESQL,BRCONTENT FROM DOC_BRIEF_DOC WHERE  CODE='{0}'",tbxCODE.Text));
+            string strResult = "";
+
+            if (dtget.Rows.Count>0)
+            {
+                DataTable dtSQL = DbHelperOra.QueryForTable(dtget.Rows[0][0].ToString());
+                Regex regex = new Regex(@"[:：][1-9]\d*");
+                strResult = dtget.Rows[0][1].ToString();
+                MatchCollection mac = regex.Matches(strResult);
+                for (int i = 0; i < mac.Count;i++ )
+                {
+                    strResult = strResult.Replace(mac[i].ToString(),dtSQL.Rows[0][i].ToString());
+                }
+                
+            }
+            labSHOW.Text = "【预览结果】:"+strResult+"";
+        }
+        protected void CheckSQL()
+        {
+            try
+            {
+                DbHelperOra.ExecuteSql(trbESQL.Text.Trim());
+            }
+            catch (Exception ex)
+            {
+                Alert.Show(Error_Parse(ex.Message));
+                return ;
+            }
+            DataTable dt = DbHelperOra.QueryForTable(trbESQL.Text);
+            Regex regex = new Regex(@"[:：][1-9]\d*");
+            if (!regex.Matches(trbBRCONTENT.Text).Count.ToString().Equals(dt.Columns.Count.ToString()))
+            {
+                Alert.Show("SQL数量不匹配");
+                return ;
+            }
+        }
+        public static string Error_Parse(string error)
+        {
+            string value = string.Empty;
+            if (error.IndexOf("ORA-") > -1)
+            {
+                value = error.Replace("\n", "").Substring(error.IndexOf("ORA-") + 10);
+                if (value.IndexOf("ORA-") > -1)
+                {
+                    value = value.Substring(0, value.IndexOf("ORA-"));
+                }
+            }
+            else
+            {
+                value = error;
+            }
+
+            return value;
+        }
+
+        protected void btnUserScreen_Click(object sender, EventArgs e)
+        {
+            DataTable dt = DbHelperOra.QueryForTable(@"select CODE BRCODE,
+                                       NAME BRNAME,
+                                       FLAG,
+                                       DECODE(FLAG, 'Y', '启用', 'N', '不启用','未维护') FLAGNAME
+                                       F_JOINUSERID(CODE) USERID
+                                     TO_CHAR(TIMEUP,'YYYY-MM-DD HH24:MI:SS')TIMEUP,
+                                      MEMO
+                                       
+                          from DOC_BRIEF_DOC A
+                         where  1=1");
+            GridBriefConfig.DataSource = dt;
+            GridBriefConfig.DataBind();
+        }
+
+        protected void btnBriefConfig_Click(object sender, EventArgs e)
+        {
+            int[] selecta = GridBriefConfig.SelectedRowIndexArray;
+            int[] selectb = GridUsers.SelectedRowIndexArray;
+            if (selecta.Length < 1)
+            { return; }
+            //else if (selecta.Length >0 && selectb.Length < 1)
+            //{
+            //    PageContext.RegisterStartupScript(Confirm.GetShowReference(msErr,
+            //        "入库数量大于订货数量，是否继续？", MessageBoxIcon.Information, PageManager1.GetCustomEventReference(true, "Confirm_Save", false, false),
+            //        null));
+            //    return false;
+            //}
+            List<CommandInfo> cmdlist = new List<CommandInfo>();
+            foreach (int gr in selecta)
+            {
+                cmdlist.Add(new CommandInfo(string.Format("DELETE FROM DOC_BRIEF_COM WHERE CODE='{0}'", GridBriefConfig.Rows[gr].Values[1].ToString()), null));
+                foreach(int grs in selectb)
+                {
+                    if (GridUsers.Rows[grs].DataKeys[2]==null)
+                    {
+                        Alert.Show(GridUsers.Rows[grs].DataKeys[1].ToString()+"号码为空！");
+                        return;
+                    }
+                    DataTable dtget = DbHelperOra.QueryForTable(string.Format("SELECT ESQL,BRCONTENT FROM DOC_BRIEF_DOC WHERE  CODE='{0}'", GridBriefConfig.Rows[gr].Values[1].ToString()));
+                    string strResult = "";
+
+                    if (dtget.Rows.Count > 0)
+                    {
+                        DataTable dtSQL = DbHelperOra.QueryForTable(dtget.Rows[0][0].ToString());
+                        Regex regex = new Regex(@"[:：][1-9]\d*");
+                        strResult = dtget.Rows[0][1].ToString();
+                        MatchCollection mac = regex.Matches(strResult);
+                        for (int i = 0; i < mac.Count; i++)
+                        {
+                            strResult = strResult.Replace(mac[i].ToString(), dtSQL.Rows[0][i].ToString());
+                        }
+
+                    }
+                    cmdlist.Add(new CommandInfo(string.Format("INSERT INTO DOC_BRIEF_COM(CODE,USERID,FLAG,TEL,SENDMES) VALUES ('{0}','{1}','{2}','{3}','{4}')", GridBriefConfig.Rows[gr].Values[1].ToString(), GridUsers.Rows[grs].DataKeys[0].ToString(), 'Y', GridUsers.Rows[grs].DataKeys[2].ToString(), strResult), null));
+
+                }
+            }
+            if (DbHelperOra.ExecuteSqlTran(cmdlist))
+            {
+                Alert.Show("简报配置成功！");
+                btnBriefScreen_Click(null, null);
+                return;
+            }
+            else
+            {
+                Alert.Show("简报配置失败！");
+                return;
+            }
+
+        }
+        protected string getSendMes(string strcode)
+        {
+            DataTable dtget = DbHelperOra.QueryForTable(string.Format("SELECT ESQL,BRCONTENT FROM DOC_BRIEF_DOC WHERE  CODE='{0}'", strcode));
+            string strResult = "";
+
+            if (dtget.Rows.Count > 0)
+            {
+                DataTable dtSQL = DbHelperOra.QueryForTable(dtget.Rows[0][0].ToString());
+                Regex regex = new Regex(@"[:：][1-9]\d*");
+                strResult = dtget.Rows[0][1].ToString();
+                MatchCollection mac = regex.Matches(strResult);
+                for (int i = 0; i < mac.Count; i++)
+                {
+                    strResult = strResult.Replace(mac[i].ToString(), dtSQL.Rows[0][i].ToString());
+                }
+
+            }
+            return strResult;
+        }
+        protected void btnBriefScreen_Click(object sender, EventArgs e)
+        {
+            DataTable dt = DbHelperOra.QueryForTable(@"select CODE BRCODE,
+                                       NAME BRNAME,
+                                       FLAG,
+                                       DECODE(FLAG, 'Y', '启用', 'N', '不启用','未维护') FLAGNAME,
+                                      F_JOINUSERID(CODE) USERID,
+                                       MEMO
+                          from DOC_BRIEF_DOC 
+                         where  1=1 ORDER BY CODE ASC");
+            GridBriefConfig.DataSource = dt;
+            GridBriefConfig.DataBind();
+        }
+
+        protected void GridUsers_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            DataTable dt = DbHelperOra.QueryForTable(string.Format("SELECT CODE FROM DOC_BRIEF_COM WHERE USERID='{0}' ORDER BY CODE ASC", GridUsers.Rows[e.RowIndex].Values[0].ToString()));
+            List<int> selectRow = new List<int>();
+           for (int i = 0; i < dt.Rows.Count; i++)
+           {
+                   selectRow.Add(i);
+           }
+           GridBriefConfig.SelectedRowIndexArray = selectRow.ToArray();
+        }
+
+        protected void GridBriefConfig_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            DataTable dt = DbHelperOra.QueryForTable(string.Format("SELECT USERID FROM DOC_BRIEF_COM WHERE CODE='{0}' ORDER BY USERID ASC", GridBriefConfig.Rows[e.RowIndex].Values[1].ToString()));
+            DataTable alldt = PubFunc.GridDataGet(GridUsers);
+            List<int> selectRow = new List<int>();
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                for (int j = 0; j < alldt.Rows.Count; j++)
+                {
+                    if (dt.Rows[i][0].ToString().Equals(alldt.Rows[j][0].ToString()))
+                    {
+                        selectRow.Add(j);
+
+                    }
+                }
+                   
+            }
+            GridUsers.SelectedRowIndexArray = selectRow.ToArray();
+        }
+
+        protected void lstTIMEOA_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int num = 0;
+            switch (lstTIMEOA.Text)
+            {
+                case "DAY":
+                    num = 1;
+                    break;
+                case "MONTH":
+                    num = 30;
+                    break;
+                case "YEAR":
+                    num = 365;
+                    break;
+                default:
+                    num = 0;
+                    break;
+
+
+            }
+            string strAFTER = trbESQL.Text.ToString().Trim();
+              Regex regex = new Regex(@"[-][ ]?[1-9]\d*");
+                 trbESQL.Text= regex.Replace(strAFTER,"-"+num.ToString().Replace("'",""));
+        }
+    }
+}

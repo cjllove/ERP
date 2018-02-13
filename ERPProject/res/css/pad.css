@@ -1,0 +1,39 @@
+﻿.f-field-textbox {
+    padding:10px;
+}
+.ui-datepicker {
+    /*height:300px;*/
+    width:300px;
+}
+.ml-10 {
+    margin-left:10px;
+        
+}
+.large-font {
+            
+    font-weight:bold;
+    font-size:16px;
+}
+.item-table {
+    font-size:14px;
+    width:100%
+}
+
+.item-table div{
+    line-height:30px;
+}
+
+.item-table td>div>span,.item-table td>span {
+    display:inline-block;
+    margin-left: 20px;
+}
+
+.f-field-fieldlabel {
+    line-height:30px;
+}
+.f-messagebox-alert .f-btn, .f-messagebox-confirm .f-btn {
+        padding: 8px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 20px;
+}

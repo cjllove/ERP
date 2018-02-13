@@ -1,0 +1,412 @@
+﻿Object Report
+	Version='5.8.0.6'
+	Title='入库上架单'
+	Object Font
+		Name='宋体'
+		Size=105000,0
+		Weight=400
+		Charset=134
+	End
+	ConnectionString='Provider=OraOLEDB.Oracle.1;Persist Security Info=False;User ID=dbspd;Password=dbspd;Data Source=SPD_V5;Extended Properties=""'
+	QuerySQL='SELECT A.SEQNO,A.DEPTID,A.DHRQ,'' PRINTDATE,'' JHY,'' AMOUNT,ROWNUM ROWNO,GDSEQ,GDNAME,BARCODE,GDSPEC,PZWH,YXQZ,SSSL,UNIT,HSJJ,HSJE,'' PRODUCER,HWID  FROM DAT_RK_DOC A, DAT_RK_COM B WHERE A.SEQNO = B.SEQNO'
+	Object Printer
+		LeftMargin=1.5875
+		TopMargin=1
+		RightMargin=1.5875
+		BottomMargin=1
+	End
+	Object DetailGrid
+		Object Recordset
+			ConnectionString='Provider=OraOLEDB.Oracle.1;Persist Security Info=False;User ID=tjspd;Password=tjspd;Data Source=SPD_1520;Extended Properties=""'
+			QuerySQL='SELECT A.*,SYSDATE DYRQ,ROWNUM FROM (SELECT A.DEPTOUT,\r\n         A.DEPTID,\r\n         B.GDSEQ,\r\n         B.GDNAME,\r\n         B.GDSPEC,\r\n         B.HSJJ,\r\n         SUM(B.HSJE) JE,\r\n         B.PRODUCER,\r\n         B.PZWH,\r\n         B.UNIT,\r\n         B.BZHL,\r\n         SUM(B.BZSL) SL,\r\n         C.STR3,\r\n         F_GETPSLX(C.STR3) STR3NAME,\r\n         f_getproducername(B.PRODUCER) PRODUCERNAME,\r\n         f_getdeptname(A.DEPTOUT) DEPTOUTNAME,\r\n         f_getdeptname(A.DEPTID) DEPTIDNAME,\r\n         f_getunitname(B.UNIT) UNITNAME,f_gethwid(A.DEPTOUT,B.GDSEQ) HWID\r\n    FROM DAT_CK_DOC A, DAT_CK_COM B, SYS_DEPT C, DOC_GOODS D\r\n   WHERE A.SEQNO = B.SEQNO\r\n     AND A.DEPTID = C.CODE\r\n     AND B.GDSEQ = D.GDSEQ\r\n     AND A.FLAG = 'S'\r\n     AND A.BILLTYPE = 'LCD'\r\n   GROUP BY A.DEPTOUT,\r\n            A.DEPTID,\r\n            B.GDSEQ,\r\n            B.GDNAME,\r\n            B.GDSPEC,\r\n            B.HSJJ,\r\n            B.PRODUCER,\r\n            B.PZWH,\r\n            B.UNIT,\r\n            B.BZHL,\r\n            C.STR3) A'
+			Items Field
+				Item
+					Name='DEPTOUT'
+				End
+				Item
+					Name='DEPTID'
+				End
+				Item
+					Name='GDSEQ'
+				End
+				Item
+					Name='GDNAME'
+				End
+				Item
+					Name='GDSPEC'
+				End
+				Item
+					Name='HSJJ'
+					Type=Float
+				End
+				Item
+					Name='JE'
+					Type=Float
+				End
+				Item
+					Name='PRODUCER'
+				End
+				Item
+					Name='PZWH'
+				End
+				Item
+					Name='UNIT'
+				End
+				Item
+					Name='BZHL'
+					Type=Float
+				End
+				Item
+					Name='SL'
+					Type=Float
+				End
+				Item
+					Name='STR3'
+				End
+				Item
+					Name='STR3NAME'
+				End
+				Item
+					Name='PRODUCERNAME'
+				End
+				Item
+					Name='DEPTOUTNAME'
+				End
+				Item
+					Name='DEPTIDNAME'
+				End
+				Item
+					Name='UNITNAME'
+				End
+				Item
+					Name='HWID'
+				End
+				Item
+					Name='ROWNUM'
+					Type=Float
+				End
+				Item
+					Name='DYRQ'
+					Type=DateTime
+				End
+				Item
+					Name='Field1'
+				End
+			End
+		End
+		Items Column
+			Item
+				Name='ROWNO'
+				Width=1.77271
+			End
+			Item
+				Name='GDNAME'
+				Width=7.99042
+			End
+			Item
+				Name='GDSPEC'
+				Width=4.20688
+			End
+			Item
+				Name='PZWH'
+				Width=1.61396
+			End
+			Item
+				Name='YXQZ'
+				Width=2.19604
+			End
+		End
+		Object ColumnContent
+			Height=0.7
+			Object Font
+				Name='宋体'
+				Size=90000,0
+				Weight=400
+				Charset=134
+			End
+			Items ColumnContentCell
+				Item
+					Column='ROWNO'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					DataField='ROWNUM'
+				End
+				Item
+					Column='GDNAME'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					WordWrap=T
+					ShrinkFontToFit=T
+					DataField='GDNAME'
+				End
+				Item
+					Column='GDSPEC'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					WordWrap=T
+					TextAlign=MiddleCenter
+					DataField='GDSPEC'
+				End
+				Item
+					Column='PZWH'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					ShrinkFontToFit=T
+					DataField='UNITNAME'
+				End
+				Item
+					Column='YXQZ'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					DataField='SL'
+				End
+			End
+		End
+		Object ColumnTitle
+			Height=0.79375
+			Object Font
+				Name='宋体'
+				Size=90000,0
+				Weight=400
+				Charset=134
+			End
+			RepeatStyle=OnGroupHeader
+			Items ColumnTitleCell
+				Item
+					GroupTitle=F
+					Column='ROWNO'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					Text='行号'
+				End
+				Item
+					GroupTitle=F
+					Column='GDNAME'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					Text='商品名称'
+				End
+				Item
+					GroupTitle=F
+					Column='GDSPEC'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					Text='规格型号'
+				End
+				Item
+					GroupTitle=F
+					Column='PZWH'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					Text='单位'
+				End
+				Item
+					GroupTitle=F
+					Column='YXQZ'
+					Object Font
+						Name='宋体'
+						Size=180000,0
+						Weight=400
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					Text='数量'
+				End
+			End
+		End
+		Items Group
+			Item
+				Name='Group1'
+				Object GroupHeader
+					Height=3.20146
+					Object Font
+						Name='宋体'
+						Size=90000,0
+						Weight=400
+						Charset=134
+					End
+					PrintGridBorder=F
+					Items Control
+						Item
+							Type=StaticBox
+							Name='StaticBox1'
+							Left=0.0264583
+							Top=2.48708
+							Width=1.98438
+							Height=0.608542
+							Object Font
+								Name='宋体'
+								Size=120000,0
+								Weight=400
+								Charset=134
+							End
+							Text='出库库房：'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox15'
+							Left=10.2658
+							Top=2.48708
+							Width=1.98438
+							Height=0.608542
+							Object Font
+								Name='宋体'
+								Size=120000,0
+								Weight=400
+								Charset=134
+							End
+							Text='统计日期：'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox18'
+							Left=13.2292
+							Top=1.77271
+							Width=4.41854
+							Height=0.608542
+							Object Font
+								Name='宋体'
+								Size=120000,0
+								Weight=400
+								Charset=134
+							End
+							TextAlign=MiddleRight
+							Text='共[#SystemVar(PageCount)#]页，第[#SystemVar(PageNumber)#]页'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox19'
+							Left=2.01083
+							Top=2.48708
+							Width=6.58813
+							Height=0.61
+							Object Font
+								Name='宋体'
+								Size=120000,0
+								Weight=400
+								Charset=134
+							End
+							Text='[#DEPTOUTNAME#]'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox31'
+							Left=5.60917
+							Top=0.608542
+							Width=6.26533
+							Height=0.978958
+							Object Font
+								Name='宋体'
+								Size=217500,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='库房汇总拣货单'
+						End
+						Item
+							Type=SystemVarBox
+							Name='SystemVarBox1'
+							Left=12.2502
+							Top=2.48708
+							Width=5.34458
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=120000,0
+								Weight=400
+								Charset=134
+							End
+							Format='yyyy年MM月dd日 HH:mm:ss'
+							SystemVar=CurrentDateTime
+						End
+					End
+				End
+				Object GroupFooter
+					Height=0
+				End
+			End
+		End
+	End
+	Items Section
+		Item
+			Type=PageFooter
+			Height=0.79375
+			Items Control
+				Item
+					Type=StaticBox
+					Name='StaticBox24'
+					Left=0.592667
+					Top=0.0211667
+					Width=1.79917
+					Height=0.592667
+					TextAlign=MiddleCenter
+					Text='拣货员：'
+				End
+				Item
+					Type=StaticBox
+					Name='StaticBox29'
+					Left=7.00617
+					Top=0.0211667
+					Width=1.79917
+					Height=0.592667
+					TextAlign=MiddleCenter
+					Text='复核员：'
+				End
+				Item
+					Type=StaticBox
+					Name='StaticBox30'
+					Left=13.9912
+					Top=0.0211667
+					Width=1.79917
+					Height=0.592667
+					TextAlign=MiddleCenter
+					Text='配送员：'
+				End
+			End
+		End
+	End
+End

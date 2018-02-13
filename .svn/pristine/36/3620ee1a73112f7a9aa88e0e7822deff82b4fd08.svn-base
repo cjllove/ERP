@@ -1,0 +1,159 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Suppliers.aspx.cs" Inherits="SPDProject.SpdXM.XJ_CJRM.Suppliers" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>供应商资料维护</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="MainPanel"
+            runat="server" />
+        <f:Panel ID="MainPanel" runat="server" AutoScroll="false" BodyPadding="0px" Layout="Anchor" ShowBorder="false" ShowHeader="false">
+            <Items>
+                <f:Grid ID="GridSupplier" ShowBorder="false" ShowHeader="false" AnchorValue="100% -260px"
+                    AutoScroll="true" DataKeyNames="SUPID" EnableColumnLines="true"
+                    EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridSupplier_RowDoubleClick" EnableTextSelection="true"
+                    runat="server" OnPageIndexChange="Grid1_PageIndexChange" PageSize="50" IsDatabasePaging="true" AllowPaging="true">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:DropDownList ID="lstFLAG" runat="server" Label="状态" LabelWidth="50px" Width="150px"></f:DropDownList>
+                                <f:DropDownList ID="lstISSEND" runat="server" Label="是否本地" LabelWidth="70px" Width="170px">
+                                    <f:ListItem Text="--请选择--" Value="" />
+                                    <f:ListItem Text="是" Value="Y" />
+                                    <f:ListItem Text="否" Value="N" />
+                                </f:DropDownList>
+                                <f:TriggerBox ID="tgbSearch" TriggerIcon="Search" Width="250px" EmptyText="输入供应商编码或供应商名称关键词查询" runat="server" OnTriggerClick="btnSearch_Click"></f:TriggerBox>
+                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                <f:Button ID="btnNew" Text="新增" Icon="Add" runat="server" OnClick="btnNew_Click" EnableDefaultState="false"></f:Button>
+                                <f:Button ID="btnDelete" Text="删除" Icon="Delete" runat="server" ConfirmText="是否确认删除此信息?" OnClick="btnDelete_Click" EnableDefaultState="false"></f:Button>
+                                <f:Button ID="btnSave" Text="保存" Icon="Disk" runat="server" ValidateForms="FormProducer" OnClick="btnSave_Click" EnableDefaultState="false"></f:Button>
+                                <f:Button ID="btnAudit" Icon="UserTick" Text="审 核" EnablePostBack="true" runat="server" ConfirmText="是否确认审核此供应商？" OnClick="btnAudit_Click" ValidateForms="FormProducer" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                <f:Button ID="btnUnAudit" Icon="ArrowRedo" Text="反审核" EnablePostBack="true" runat="server" ConfirmText="是否确认反审核此供应商？" OnClick="btnUnAudit_Click" ValidateForms="FormProducer" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                <f:Button ID="btExp" CssStyle="margin-left: 15px;" OnClick="btExp_Click" Icon="PageExcel" Text="导 出" EnableAjax="false" DisableControlBeforePostBack="false" runat="server" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                <f:Button ID="btnSearch" OnClick="btnSearch_Click" Icon="Magnifier" Text="查 询" runat="server" EnableDefaultState="false"></f:Button>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Columns>
+                        <f:RowNumberField runat="server" Width="30px"></f:RowNumberField>
+                        <f:BoundField Width="130px" DataField="SUPID" HeaderText="供应商编码" />
+                        <f:BoundField Width="130px" DataField="SUPNAME" HeaderText="供应商名称" />
+                        <f:BoundField Width="130px" DataField="TEL" HeaderText="公司电话" />
+                        <f:BoundField Width="90px" DataField="LINKMAN" HeaderText="联系人" />
+                        <f:BoundField Width="230px" DataField="LOGINADDR" ExpandUnusedSpace="true" HeaderText="注册地址" />
+                        <f:BoundField Width="90px" DataField="FLAG" HeaderText="状态" />
+                        <f:BoundField Width="70px" DataField="ISDG" HeaderText="代管" TextAlign="center" />
+                        <f:BoundField Width="60px" DataField="ISBD" HeaderText="本地" TextAlign="center" />
+                    </Columns>
+                </f:Grid>
+                <f:Panel ID="PanelCond" ShowBorder="false" BodyPadding="0px" Height="260" ShowHeader="false" runat="server">
+                    <Items>
+                        <f:Form ID="FormProducer" ShowBorder="false" BodyPadding="10px 0px 10px 10px"
+                            CssStyle="border-top: 1px solid #99bce8;" ShowHeader="False" runat="server" LabelWidth="100px">
+                            <Rows>
+                                <f:FormRow ColumnWidths="22% 44% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxSUPID" Label="供应商编码" EmptyText="设定后不可更改(为空则自动生成)" runat="server" MaxLength="50" />
+                                        <f:TextBox ID="tbxSUPNAME" Label="供应商名称" runat="server" ShowRedStar="true" MaxLength="60" OnTextChanged="tbxSUPNAME_TextChanged" AutoPostBack="true" />
+
+                                        <f:TextBox runat="server" ID="tbxYYZZNO" Label="注册码" MaxLength="40" />
+                                        <f:CheckBox ID="chkISSUPPLIER" runat="server" Label="是否供应商 " Checked="false"></f:CheckBox>
+
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox Enabled="false" ID="lblSUPSIMID" Label="供应商简码" runat="server" MaxLength="40" />
+                                        <f:TextBox runat="server" ID="tbxSTR3" Label="ERP编码" MaxLength="20" EmptyText="ERP编码" />
+
+                                        <f:NumberBox runat="server" ID="tbxLOGINFUND" Label="注册资本" EmptyText="以万为单位" MaxLength="8" NoNegative="true"></f:NumberBox>
+                                        <f:NumberBox ID="tbxJYGM" Label="年营业额" EmptyText="以万为单位" runat="server" MaxLength="8" NoNegative="true" />
+                                        <f:CheckBox ID="chkISPRODUCER" runat="server" Label="是否生产商" Checked="false"></f:CheckBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:DropDownList runat="server" ID="ddlCORPKID" Label="企业性质" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                        <f:NumberBox ID="tbxNUM1" Label="公司规模" EmptyText="公司人数" runat="server" />
+
+                                        <f:TextBox runat="server" ID="tbxLEADER" Label="法人代表" MaxLength="20" />
+                                        <f:TextBox ID="tbxTEL" Label="公司电话" runat="server" MaxLength="20" />
+                                        <f:CheckBox ID="chkISPSS" runat="server" Label="是否配送商" Checked="false"></f:CheckBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="44% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxLOGINADDR" Label="注册地址" runat="server" MaxLength="60" />
+                                        <f:DatePicker ID="tbxLOGINRQ" Label="注册日期" runat="server" />
+                                        <f:TextBox ID="tbxEMAIL" Label="电子邮箱" RegexPattern="EMAIL" runat="server" MaxLength="60" />
+                                        <f:CheckBox ID="chkISDG" runat="server" Label="是否代管" Checked="false"></f:CheckBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxLINKMAN" Label="业务联系人" runat="server" MaxLength="20" />
+                                        <f:TextBox ID="tbxLINKTEL" Label="业务电话"  runat="server" MaxLength="40" />
+                                        <f:TextBox ID="tbxLINKFAX" Label="业务传真" runat="server" MaxLength="40" />
+                                        <f:TextBox ID="tbxLINKMANDUTY" Label="业务职务" runat="server" MaxLength="20" />
+                                        <f:CheckBox ID="chkISSEND" runat="server" Label="本地" Checked="true" AutoPostBack="true" OnCheckedChanged="chkISSEND_CheckedChanged"></f:CheckBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxLINKEMAIL" Label="业务邮箱" runat="server" RegexPattern="EMAIL" MaxLength="40" />
+                                        <f:TextBox runat="server" ID="tbxGATFUNDCORP" Label="收款单位"  MaxLength="60" />
+                                        <f:TextBox runat="server" ID="tbxGATFUNDBANK" Label="收款银行" MaxLength="60" />
+                                        <f:TextBox runat="server" ID="tbxGATACCNTNO" Label="收款账号" RegexPattern="NUMBER"  MaxLength="40" />
+                                        <f:DropDownList runat="server" ID="ddlFLAG" Label="状态" LabelWidth="50px" Enabled="false" EnableEdit="true" ForceSelection="true">
+                                            <f:ListItem Text="未审核" Value="N" Selected="true" />
+                                            <f:ListItem Text="审核通过" Value="Y" />
+                                        </f:DropDownList>
+
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxCWLINKMAN" Label="财务联系人" runat="server" MaxLength="20" />
+                                        <f:TextBox ID="tbxCWLINKTEL" Label="财务电话" runat="server" MaxLength="40" />
+                                        <f:TextBox ID="tbxCWLINKFAX" Label="财务传真" runat="server" MaxLength="40" />
+                                        <f:TextBox ID="tbxCWLINKDUTY" Label="财务职务" runat="server" MaxLength="20" />
+                                        <f:Label runat="server"></f:Label>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+                                    <Items>
+                                        <f:TextBox ID="tbxJYFW" Label="经营范围" runat="server" MaxLength="60" />
+                                        <f:TextBox runat="server" ID="tbxLEADERIDCARD" Label="法人身份证" RegexPattern="IDENTITY_CARD"  MaxLength="18" />
+                                        <f:TextBox ID="tbxCWLINKEMAIL" Label="财务邮箱" RegexPattern="EMAIL" runat="server" MaxLength="40" />
+                                        <f:TextBox runat="server" ID="tbxSTR2" Label="助记码" />
+                                        <f:Label runat="server"></f:Label>
+                                    </Items>
+                                </f:FormRow>
+                                <%--<f:FormRow Hidden="true">
+                                    <Items>
+                                        <f:TextBox ID="tbxSUPCAT" runat="server"></f:TextBox>  
+                                    </Items>
+                                </f:FormRow>--%>
+                                <f:FormRow Hidden="true">
+                                    <Items>
+                                        <f:TextBox runat="server" ID="tbxSUPPWD" Label="供应商密码" TextMode="Password" MaxLength="20" />
+                                        <f:TextBox runat="server" ID="tbx1SUPPWD" Label="确认密码" CompareOperator="Equal" CompareControl="tbxSUPPWD" TextMode="Password" MaxLength="20" />
+                                        <f:HiddenField ID="hfdIsNew" runat="server" Text="Y" />
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+</html>

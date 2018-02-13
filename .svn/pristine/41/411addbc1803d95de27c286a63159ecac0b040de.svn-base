@@ -1,0 +1,315 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.IO;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class PicturesBrowse : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlCATID, "DDL_SYS_CATEGORYDEF");
+            PubFunc.DdlDataGet(ddlSUPID, "DDL_DOC_SUPPLIERNULL");
+            //PubFunc.DdlDataGet(ddlFLAG, "DDL_GOODS_STATUS");
+            TabStrip1.ActiveTabIndex = 0;
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+            string msg = "";
+            DataTable dtData = GetGoodsList(GridGoods.PageIndex, GridGoods.PageSize, ref total, ref msg);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        public string GetSearch()
+        {
+            string strSearch = "";
+            if (ddlCATID.SelectedValue != null && ddlCATID.SelectedValue.Length > 0 && !ddlCATID.SelectedValue.Equals("0"))
+            {
+                strSearch += string.Format(" AND SP.CATID like '%{0}%'", ddlCATID.SelectedValue);
+            }
+            if (ddlSUPID.SelectedValue != null && ddlSUPID.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND SP.SUPPLIER='{0}'", ddlSUPID.SelectedValue);
+            }
+            if (tbxGDSEQ.Text.Length > 0)
+            {
+                strSearch += string.Format(" AND SP.GDSEQ like '%{0}%'", tbxGDSEQ.Text);
+            }
+            if (tbxGDNAME.Text.Length > 0)
+            {
+                strSearch += string.Format(" AND SP.GDNAME LIKE '%{0}%'", tbxGDNAME.Text);
+            }
+            if (tbxCD.Text.Length > 0)
+            {
+                strSearch += string.Format(" AND f.name LIKE '%{0}%'", tbxCD.Text);
+            }
+            if (tbxPIZNO.Text.Length > 0)
+            {
+                strSearch += string.Format(" AND SP.PIZNO LIKE '%{0}%'", tbxPIZNO.Text);
+            }
+            return strSearch;
+        }
+        /// <summary>
+        /// 获取商品数据信息
+        /// </summary>
+        /// <param name="pageNum">第几页</param>
+        /// <param name="pageSize">每页显示天数</param>
+        /// <param name="nvc">查询条件</param>
+        /// <param name="total">总的条目数</param>
+        /// <param name="errMsg"></param>
+        /// <returns></returns>
+        public DataTable GetGoodsList(int pageNum, int pageSize, ref int total, ref string errMsg)
+        {
+
+            string strGoods = @"SELECT SP.GDID,SP.GDNAME,SP.BARCODE,SP.GDSPEC,SP.HSJJ,SP.LSJ,SP.ZPBH,SP.PIZNO,
+                                       F_GETUNITNAME(SP.UNIT) UNITNAME, 
+                                       F_GETSUPNAME(SP.SUPPLIER) SUPNAME,
+                                       F_GETCATNAME(SP.CATID) CATIDNAME, 
+                                       S.NAME FLAGNAME,
+                                       F.SUPNAME CD
+                                  FROM DOC_GOODS SP,
+                                       SYS_CATEGORY B,
+                                       DOC_GOODSTYPE E,
+                                       doc_supplier F,
+                                       (SELECT CODE, NAME FROM SYS_CODEVALUE WHERE TYPE = 'GOODS_STATUS') S
+                                 WHERE SP.ISDELETE = 'N' AND SP.ISFLAG4='Y'
+                                   AND SP.CATID = B.CODE(+)
+                                   AND SP.FLAG = S.CODE
+                                   AND B.TYPE = E.CODE(+)
+                                   AND SP.PRODUCER = F.SUPID(+)";
+            StringBuilder strSql = new StringBuilder(strGoods);
+            string strSearch = GetSearch();
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql.Append(strSearch);
+            }
+            return GetDataTable(pageNum, pageSize, strSql, ref total);
+        }
+
+        private void billOpen(string strBillno)
+        {
+            DataTable dtPic = DbHelperOra.Query(string.Format(@"
+select * from (
+select gdseq,rowno,gdpict,str1,decode(flag,'N','新增','Y','已发布','E','已撤回') flag,PICPATH, ROWNUM HANGNO from doc_goodspicture where gdseq = '{0}')
+order by rowno", strBillno)).Tables[0];
+            if (dtPic.Rows.Count > 0)
+            {
+                gridPic.DataSource = dtPic;
+                gridPic.DataBind();
+                TabStrip1.ActiveTabIndex = 1;
+                string path = dtPic.Rows[0]["picpath"].ToString();
+                //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("CLOUD_URL_PREFIX") + dtPic.Rows[0]["picpath"].ToString();
+                //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?gdseq=" + strBillno + "&rowno=1";
+                
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+                    {
+                        imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+                    }
+                    else
+                    {
+                        imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("PIC_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                    }
+                }
+                else
+                {
+                    imgBMPPATH.ImageUrl = "/res/images/noPic.jpg";
+                }
+
+                //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                hfdPic.Text = dtPic.Rows[0]["picpath"].ToString();//没有点击的时候默认图片
+            }
+            else
+            {
+                gridPic.DataSource = dtPic;
+                gridPic.DataBind();
+                TabStrip1.ActiveTabIndex = 1;
+            }
+        }
+
+        private static Int32 mynow = 1;//labelpic1用于传递路径，labelpic用于传递gdseq  Alert.Show();
+        protected void btnLeft_Click(object sender, EventArgs e)
+        {
+
+            string picName = "";
+            string path = labelpic1.Text;
+            if (labelpic1.Text.Length == 0 && mynow == 1)
+            {
+                Alert.Show("此照片已经是第一张哦！");
+            }
+            else
+            {
+                //if (labelpic1.Text.Length == 0)
+               // {
+                    mynow--;
+                    if (mynow <= 0)
+                    {
+                        Alert.Show("此照片已经是第一张哦！");
+                        mynow = 1;
+                    }
+                    else
+                    {
+                        DataTable dtpic1 = DbHelperOra.Query(string.Format(@"select picpath from (
+select picpath,rownum hangno,rowno from doc_goodspicture where gdseq='{0}')
+where hangno='{1}' order by rowno", labelpic.Text, mynow.ToString())).Tables[0];
+                        if (dtpic1.Rows.Count > 0)
+                        {
+                            labelpic1.Text = dtpic1.Rows[0][0].ToString();
+                            path = labelpic1.Text;
+                           // hfdPic3.Text = mynow.ToString();
+                           // gridPic.SelectedRowIndex = Convert.ToInt16(hfdPic3.Text) - 1;
+                            gridPic.SelectedRowIndex = mynow - 1;
+                            if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+                            {
+                                imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+                            }
+                            else
+                            {
+                                imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                            }
+                            //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + dtpic1.Rows[0]["picpath"].ToString();
+                        }
+                        else
+                        {
+                            Alert.Show("没有图片不能显示！", "提示", MessageBoxIcon.Information);
+                        }
+                        
+                    }
+                //}
+                //else
+                //{
+                //    picName = labelpic1.Text.Substring(0, labelpic1.Text.IndexOf("."));//~/SpdUpload/GoodsPic/2015/03/30/GN101001826C_3
+                //    string[] pname1 = picName.Substring(picName.LastIndexOf("/") + 1).Split('_');
+                //    mynow--;
+                //    if (mynow <= 0)
+                //    {
+                //        Alert.Show("此照片已经是第一张哦！");
+                //        mynow = 1;
+                //    }
+                //    else
+                //    {
+                //        gridPic.SelectedRowIndex = mynow - 1;
+                //        if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+                //        {
+                //            imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+                //        }
+                //        else
+                //        {
+                //            imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                //        }
+
+                        
+                //    }
+                //}
+            }
+        }
+        protected void btnRight_Click(object sender, EventArgs e)
+        {
+            mynow++;
+            if (!string.IsNullOrWhiteSpace(hfdPic3.Text))
+            {
+                Int32 row = Convert.ToInt32(hfdPic3.Text);
+                if (mynow > row)
+                {
+                    Alert.Show("此照片已经是最后一张哦！");
+                    mynow = row;
+                }
+                else
+                {
+                    DataTable dtpic = DbHelperOra.Query(string.Format(@"select picpath from (
+select picpath,rownum hangno,rowno from doc_goodspicture where gdseq='{0}')
+where hangno='{1}' order by rowno", labelpic.Text, mynow.ToString())).Tables[0];
+                    string path = dtpic.Rows[0]["picpath"].ToString();
+                    if (dtpic.Rows.Count>0)
+                    {
+                        gridPic.SelectedRowIndex = mynow - 1;
+                        if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+                        {
+                            imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+                        }
+                        else
+                        {
+                            imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Alert.Show("没有图片不能显示", "提示", MessageBoxIcon.Information);
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            billOpen(GridGoods.Rows[e.RowIndex].Values[1].ToString());
+            labelpic.Text = GridGoods.Rows[e.RowIndex].Values[1].ToString();//双击单元格返回gdseq
+            DataTable dtpic = DbHelperOra.Query(string.Format("select * from doc_goodspicture where gdseq='{0}'", GridGoods.Rows[e.RowIndex].Values[1].ToString())).Tables[0];
+            if (dtpic.Rows.Count > 0)
+            {
+                hfdPic3.Text = dtpic.Rows.Count.ToString();
+            }
+            if (labelpic1.Text.Length > 0)
+            {
+                labelpic1.Text = "";
+            }
+            if (mynow > 1)
+            {
+                mynow = 1;
+            }
+        }
+
+        protected void gridPic_RowClick(object sender, GridRowClickEventArgs e)
+        {
+            string gdseq = gridPic.Rows[e.RowIndex].DataKeys[0].ToString();
+            string rowno = gridPic.Rows[e.RowIndex].DataKeys[1].ToString();
+            string HANGNO = gridPic.Rows[e.RowIndex].DataKeys[3].ToString();
+            DataTable picDt = DbHelperOra.Query(string.Format("select picpath from doc_goodspicture where gdseq='{0}' and rowno='{1}'", gdseq, rowno)).Tables[0];
+            string path = picDt.Rows[0]["picpath"].ToString();
+            
+            if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+            {
+                imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+            }
+            else
+            {
+                imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+            }
+
+            hfdPic2.Text = picDt.Rows[0][0].ToString();//点击左边列表显示的图片路径
+            mynow = Convert.ToInt32(HANGNO);
+            labelpic1.Text = picDt.Rows[0][0].ToString();//这个判断是否点击了左边单元行
+        }
+    }
+}

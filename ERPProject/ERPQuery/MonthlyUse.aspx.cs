@@ -1,0 +1,269 @@
+﻿using FineUIPro;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using XTBase;
+using XTBase.Utilities;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class MonthlyUse : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                BindDDL();
+                userid.Text = UserAction.UserID;
+            }
+        }
+        private void BindDDL()
+        {
+            tab3DATE1.SelectedDate = DateTime.Now;
+            tab3DATE2.SelectedDate = DateTime.Now;
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, lstDEPTOUT);
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID);
+        }
+        #region Tab3
+        
+        protected void btExporttab3_Click(object sender, EventArgs e)
+        {
+            if (tab3DATE1.SelectedDate == null || tab3DATE2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (tab3DATE1.SelectedDate > tab3DATE2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetQuerySqltab3()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[tab3GridGoods.Columns.Count - 1];
+            for (int index = 1; index < tab3GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = tab3GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    if (dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()] != null)
+                    {
+                        dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                        columnNames[index - 1] = column.HeaderText;
+                    }
+                }
+            }
+            ExcelHelper.ExportByWeb(dtData, "支出查询", string.Format("支出查询_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+        protected void btSearchtab3_Click(object sender, EventArgs e)
+        {
+            if (tab3DATE1.SelectedDate == null || tab3DATE2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (tab3DATE1.SelectedDate > tab3DATE2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataQuerytab3();
+        }
+        private void DataQuerytab3()
+        {
+            int total = 0;
+            //lblSUBNUM.Text = "0";
+            //lblSUBSUM.Text = "0";
+            //DataTable dtSum = DbHelperOra.Query("SELECT SUM(NVL(CKSL,0)) SL,SUM(NVL(CKJE,0)) JE FROM (" + GetQuerySql() + ")").Tables[0];
+            //if (dtSum.Rows.Count > 0)
+            //{
+            //    lblSUBNUM.Text = dtSum.Rows[0]["JE"].ToString();
+            //    lblSUBSUM.Text = dtSum.Rows[0]["SL"].ToString();
+            //}
+            string SS = GetQuerySqltab3();
+            DataTable dtData = GetDataTable(tab3GridGoods.PageIndex, tab3GridGoods.PageSize, GetQuerySqltab3(), ref total);
+            //OutputSummaryData(dtData);
+            tab3GridGoods.RecordCount = total;
+            tab3GridGoods.DataSource = dtData;
+            tab3GridGoods.DataBind();
+        }
+        private string GetQuerySqltab3()
+        {
+            #region SQL
+            string listSql = @"select deptout,deptoutname,deptid,deptidname,CODE_HIS,NAME_HIS,SUM(HSJE) sumhsje
+                                  from (select a.seqno seqno,
+                                               A.DEPTOUT deptout， F.NAME deptoutname,
+                                               A.DEPTID deptid， E.NAME deptidname,
+                                               E.CODE_HIS,E.NAME_HIS,
+                                               f_getusername(A.SLR) slr,
+                                               TO_CHAR(A.XSRQ, 'YYYY-MM-DD') xsrq,
+                                               f_getusername(A.LRY) lry,
+                                               TO_CHAR(A.LRRQ, 'YYYY-MM-DD') lrrq,
+                                               f_getusername(A.SHR) shr,
+                                               A.SHRQ shrq,
+                                               B.ROWNO rowno,
+                                               d.catid catid,
+                                               f_getcatname(d.catid) catidname,
+                                               B.GDSEQ gdseq,
+                                               B.gdname gdname,
+                                               F_GETUNITNAME(B.UNIT) unit,
+                                               B.GDSPEC gdspec,
+                                               B.BZHL bzhl,
+                                               B.BZSL bzsl,
+                                               B.XSSL xssl,
+                                               B.HSJJ hsjj,
+                                               --B.HSJE hsje,
+                                               DECODE(A.BILLTYPE, 'CKD', B.HSJE, 'DSC', B.HSJE,'LCD',B.HSJE,'YKD',B.HSJE -B.HSJE) HSJE,
+                                               B.PH ph,
+                                               B.PZWH pzwh,
+                                               TO_CHAR(B.RQ_SC, 'YYYY-MM-DD') rq_sc,
+                                               TO_CHAR(B.YXQZ, 'YYYY-MM-DD') xyxqz,
+                                               f_getproducername(B.PRODUCER) 生产商,
+                                               decode(d.ISJG, 'N', '非政采', 'Y', '政采', '未维护') isjg,
+                                               decode(d.ISFLAG3, 'N', '非直送', 'Y', '直送', '未维护') iskc,
+                                               f_getsuppliername(c.supid) supplier
+                                          from dat_ck_doc   A,
+                                               dat_ck_com   B,
+                                               doc_goodssup C,
+                                               doc_goods    D,
+                                               sys_dept     E,
+                                               sys_dept     F
+                                         where a.seqno(+) = b.seqno
+                                           and b.gdseq = c.gdseq(+)
+                                           and b.gdseq = d.gdseq(+)
+                                           and c.ordersort = 'Y'
+                                           and a.deptid = e.code(+)
+                                           AND A.FLAG<>'R'
+                                           AND A.DEPTOUT=F.CODE(+)
+                                           AND NVL(A.SHRQ, A.SPRQ) >= TO_DATE('{0}', 'YYYY-MM-DD')
+                                           AND NVL(A.SHRQ, A.SPRQ) < TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                        union all
+                                        /*select a.seqno seqno,
+                                               A.DEPTOUT deptout，F.NAME deptoutname,
+                                               A.DEPTID deptid， E.NAME deptidname,
+                                               E.CODE_HIS,E.NAME_HIS,
+                                               f_getusername(A.SLR) slr,
+                                               TO_CHAR(A.XSRQ, 'YYYY-MM-DD') xsrq,
+                                               f_getusername(A.LRY) lry,
+                                               TO_CHAR(A.LRRQ, 'YYYY-MM-DD') lrrq,
+                                               f_getusername(A.SHR) shr,
+                                               A.SPRQ shrq,
+                                               B.ROWNO rowno,
+                                               d.catid catid,
+                                               f_getcatname(d.catid) catidname,
+                                               B.GDSEQ gdseq,
+                                               B.gdname gdname,
+                                               F_GETUNITNAME(B.UNIT) unit,
+                                               B.GDSPEC gdspec,
+                                               B.BZHL bzhl,
+                                               B.BZSL bzsl,
+                                               B.XSSL xssl,
+                                               B.HSJJ hsjj,
+                                               B.HSJE hsje,
+                                               B.PH ph,
+                                               B.PZWH pzwh,
+                                               TO_CHAR(B.RQ_SC, 'YYYY-MM-DD') rq_sc,
+                                               TO_CHAR(B.YXQZ, 'YYYY-MM-DD') xyxqz,
+                                               f_getproducername(B.PRODUCER) 生产商,
+                                               decode(d.ISJG, 'N', '非政采', 'Y', '政采', '未维护') isjg,
+                                               decode(d.ISFLAG3, 'N', '非直送', 'Y', '直送', '未维护') iskc,
+                                               f_getsuppliername(c.supid) supplier
+                                          from dat_db_doc   A,
+                                               dat_db_com   B,
+                                               doc_goodssup C,
+                                               doc_goods    D,
+                                               sys_dept     E,
+                                               sys_dept     F
+                                         where a.seqno(+) = b.seqno
+                                           and b.gdseq = c.gdseq(+)
+                                           and b.gdseq = d.gdseq(+)
+                                           and c.ordersort = 'Y'
+                                           and a.deptid = e.code(+)
+                                           AND A.DEPTOUT=F.CODE(+)
+                                           AND NVL(A.SHRQ, A.SPRQ) >= TO_DATE('{0}', 'YYYY-MM-DD')
+                                           AND NVL(A.SHRQ, A.SPRQ) < TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                        union all*/
+                                        select a.seqno seqno,
+                                               A.DEPTOUT deptout， F.NAME deptoutname,
+                                               A.DEPTID deptid， E.NAME deptidname,
+                                               E.CODE_HIS,E.NAME_HIS,
+                                               '' slr,
+                                               TO_CHAR(A.XSRQ, 'YYYY-MM-DD') xsrq,
+                                               f_getusername(A.LRY) lry,
+                                               TO_CHAR(A.LRRQ, 'YYYY-MM-DD') lrrq,
+                                               f_getusername(A.SHR) shr,
+                                               A.SHRQ shrq,
+                                               B.ROWNO rowno,
+                                               d.catid catid,
+                                               f_getcatname(d.catid) catidname,
+                                               B.GDSEQ gdseq,
+                                               B.gdname gdname,
+                                               F_GETUNITNAME(B.UNIT) unit,
+                                               B.GDSPEC gdspec,
+                                               B.BZHL bzhl,
+                                               B.BZSL bzsl,
+                                               B.XSSL xssl,
+                                               B.HSJJ hsjj,
+                                               B.HSJE hsje,
+                                               B.PH ph,
+                                               B.PZWH pzwh,
+                                               TO_CHAR(B.RQ_SC, 'YYYY-MM-DD') rq_sc,
+                                               TO_CHAR(B.YXQZ, 'YYYY-MM-DD') xyxqz,
+                                               f_getproducername(B.PRODUCER) 生产商,
+                                               decode(d.ISJG, 'N', '非政采', 'Y', '政采', '未维护') isjg,
+                                               decode(d.ISFLAG3, 'N', '非直送', 'Y', '直送', '未维护') iskc,
+                                               f_getsuppliername(c.supid) supplier
+                                          from dat_XS_doc   A,
+                                               dat_XS_com   B,
+                                               doc_goodssup C,
+                                               doc_goods    D,
+                                               sys_dept     E,
+                                               sys_dept     F
+                                         where a.seqno(+) = b.seqno
+                                           AND A.BILLTYPE = 'XST'
+                                           and b.gdseq = c.gdseq(+)
+                                           and b.gdseq = d.gdseq(+)
+                                           and c.ordersort = 'Y'
+                                           AND A.FLAG<>'R'
+                                           and a.deptid = e.code(+)
+                                           AND A.DEPTOUT=F.CODE(+)
+                                           AND A.SHRQ >= TO_DATE('{0}', 'YYYY-MM-DD')
+                                           AND A.SHRQ < TO_DATE('{1}', 'YYYY-MM-DD') + 1)
+                                        where deptid in( select code FROM SYS_DEPT where  F_CHK_DATARANGE(CODE, '{2}') = 'Y' )
+                                ";
+            #endregion
+            string strSql = " ";
+            if (lstDEPTOUT.SelectedItem != null && lstDEPTOUT.SelectedItem.Value.Length > 0)
+            {
+                strSql += string.Format(" AND deptout = '{0}'", lstDEPTOUT.SelectedItem.Value);
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedItem.Value.Length > 0)
+            {
+                strSql += string.Format(" AND deptid = '{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            listSql = string.Format(listSql, tab3DATE1.Text, tab3DATE2.Text, UserAction.UserID);
+            return listSql+strSql + " GROUP BY deptout,deptoutname,deptid,deptidname,CODE_HIS,NAME_HIS order by deptout ,TO_NUMBER(CODE_HIS)  ASC";
+        }
+
+        protected void tab3GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            tab3GridGoods.PageIndex = e.NewPageIndex;
+            DataQuerytab3();
+        }
+        protected void tab3GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            tab3GridGoods.SortDirection = e.SortDirection;
+            tab3GridGoods.SortField = e.SortField;
+            DataQuerytab3();
+        }
+        #endregion
+    }
+}

@@ -1,0 +1,177 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DepartmentMonthBudgetBig.aspx.cs" Inherits="SPDProject.SpdApply.DepartmentMonthBudgetBig" %>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <link href="../res/css/tooltipster.css" rel="stylesheet">
+    <link href="../res/css/themes/tooltipster-shadow.css" rel="stylesheet">
+    <script src="../res/js/ichart.1.2.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        var labelarr;
+        var systit;
+        var syssubtit;
+        var footLabel;
+        function clearcurrdata() {
+            labelarr = "";
+            systit = "";
+            syssubtit = "";
+            footLabel = "";
+        }
+        function reloaddata(labelarr, systit, syssubtit, footLabel, data, iMax) {
+            clearcurrdata();
+            labelarr = labelarr;
+            systit = systit;
+            syssubtit = syssubtit;
+            footLabel = footLabel;
+            data = eval('(' + data + ')');
+            var chart = new iChart.ColumnMulti2D({
+                render: 'canvasDiv',
+                data: data,
+                labels: labelarr.split(','),
+                title: systit,
+
+                subtitle: syssubtit,
+
+                footnote: footLabel,
+
+                width: 800,
+
+                height: 400,
+
+                background_color: '#ffffff',
+
+                legend: {
+
+                    enable: true,
+
+                    background_color: null,
+
+                    border: {
+
+                        enable: false
+
+                    }
+
+                },
+
+                coordinate: {
+
+                    background_color: '#f1f1f1',
+
+                    scale: [{
+
+                        position: 'left',
+
+                        start_scale: 0,
+
+                        end_scale: iMax,
+
+                        scale_space: (iMax / 10).toFixed()
+
+                    }],
+
+                    width: 600,
+
+                    height: 460
+
+                },
+                sub_option: {
+
+                    listeners: {
+                        click: function () {
+
+                            parent.addExampleTab.apply(null, ['hello_FineUIPro_tab', "/spdapply/DepartmentBudget.aspx", '科室月度预算执行计划', '../../res/images/filetype/vs_aspx.png', true]);
+                        }
+                    }
+                }
+
+            });
+            chart.draw();
+        }
+
+    </script>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div>
+            <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+            <f:Panel ID="Panel2" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                ShowHeader="false" Height="100px">
+                <Items>
+                    <f:Form ID="frmsearch" runat="server" Width="100%" AnchorValue="100%">
+                        <Rows>
+                            <f:FormRow ColumnWidths="33% 33% 34%">
+                                <Items>
+                                    <f:DropDownList ID="lstDEPTID" runat="server" Label="查询科室" EnableEdit="true" ForceSelection="true" />
+                                    <f:DatePicker runat="server" Required="true" Label="选择月份" EmptyText="请选择日期"
+                                        ID="dpkMonth" ShowRedStar="True">
+                                    </f:DatePicker>
+                                    <%--<f:DropDownList ID="ddlMonth" runat="server" Label="选择月份" EnableEdit="true" ForceSelection="true">
+                                    <f:ListItem Text="请选择月份" Value="0" />
+                                    <f:ListItem Text="1月" Value="01" />
+                                    <f:ListItem Text="2月" Value="02" />
+                                    <f:ListItem Text="3月" Value="03" />
+                                    <f:ListItem Text="4月" Value="04" />
+                                    <f:ListItem Text="5月" Value="05" />
+                                    <f:ListItem Text="6月" Value="06" />
+                                    <f:ListItem Text="7月" Value="07" />
+                                    <f:ListItem Text="8月" Value="08" />
+                                    <f:ListItem Text="9月" Value="09" />
+                                    <f:ListItem Text="10月" Value="10" />
+                                    <f:ListItem Text="11月" Value="11" />
+                                    <f:ListItem Text="12月" Value="12" />
+
+                                </f:DropDownList>--%>
+                                </Items>
+                            </f:FormRow>
+                        </Rows>
+                    </f:Form>
+                </Items>
+                <Toolbars>
+                    <f:Toolbar ID="Toolbar2" runat="server">
+                        <Items>
+                            <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="" runat="server" />
+                            <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                            <f:ToolbarSeparator runat="server" />
+                            <f:Button ID="bntClear" Icon="Erase" Text="清 空" EnablePostBack="true" runat="server" OnClick="btnBill_Click" />
+                            <f:ToolbarSeparator runat="server" />
+                            <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询" EnablePostBack="true" runat="server" OnClick="btnBill_Click" />
+                        </Items>
+                    </f:Toolbar>
+                </Toolbars>
+            </f:Panel>
+            <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="false" Width="800px" Height="460px">
+
+                <Content>
+                    <div id="canvasDiv"></div>
+
+                </Content>
+            </f:Panel>
+        </div>
+    </form>
+    <script src="../res/js/jquery-1.11.1.min.js" type="text/javascript"></script>
+    <script src="../res/my97/WdatePicker.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        var tbxMyBoxClientID = '<%= dpkMonth.ClientID %>';
+ 
+        F.ready(function () {
+ 
+            var tbxMyBox = F(tbxMyBoxClientID);
+ 
+            tbxMyBox.onTriggerClick = function () {
+                WdatePicker({
+                    el: tbxMyBoxClientID + '-inputEl',
+                    dateFmt: 'yyyy-MM',
+                    onpicked: function () {
+                        // 确认选择后，执行触发器输入框的客户端验证
+                        tbxMyBox.validate();
+                    }
+                });
+            };
+ 
+        });
+    </script>
+</body>
+</html>
+

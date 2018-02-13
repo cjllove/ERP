@@ -1,0 +1,324 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using System.Collections;
+using XTBase;
+using Newtonsoft.Json.Linq;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class SupEvaluationQuery : PageBase
+    {
+        string strDocSql = "SELECT * FROM DAT_RK_DOC WHERE SEQNO ='{0}'";
+        string strComSql = @"SELECT A.SEQNO,A.ROWNO,A.DEPTID,A.GDSEQ,A.BARCODE,A.GDNAME,A.UNIT,A.GDSPEC,A.GDMODE,A.CDID,A.SPLB,A.CATID,A.HWID,A.BZHL,A.BZSL,
+                            A.DDSL,A.SSSL,A.JXTAX,A.HSJJ,A.BHSJJ,A.HSJE,A.BHSJE,A.LSJ,A.LSJE,A.ISGZ,A.ISLOT,A.PHID,A.PH, A.PZWH,TO_CHAR(A.RQ_SC,'YYYY-MM-DD') RQ_SC,
+                            TO_CHAR(A.YXQZ,'YYYY-MM-DD') YXQZ,A.KCSL,A.KCHSJE,A.SPZTSL,A.SPDAYXS,A.HLKC,A.ZPBH,A.STR1,A.STR2,A.STR3,A.NUM1,A.NUM2,
+                            A.NUM3,A.MEMO, F_GETUNITNAME(A.UNIT) UNITNAME,F_GETUNITNAME(B.UNIT) UNITSMALLNAME,A.MJRQ,A.MJPH,A.MJXQ,
+                            A.PRODUCER,f_getproducername(A.PRODUCER) PRODUCERNAME,A.SUPID,f_getsupname(a.supid) supname,
+                            NVL((SELECT SUM(NVL(DDC.BZSL,0)) FROM DAT_RK_DOC DDD,DAT_RK_COM DDC 
+                                WHERE DDD.SEQNO = DDC.SEQNO AND DDC.GDSEQ = A.GDSEQ AND DDD.FLAG IN('Y','G') AND DDD.SEQNO <>'{0}' AND DDD.DDBH = (SELECT DDBH FROM DAT_RK_DOC WHERE SEQNO = '{0}') ),0) YRKSL
+                            FROM DAT_RK_COM A, DOC_GOODS B WHERE SEQNO = '{0}' AND A.GDSEQ = B.GDSEQ ORDER BY A.ROWNO ";
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, docDEPTID);
+                PubFunc.DdlDataGet("DDL_DOC_SHS", lstSUPID);
+                PubFunc.DdlDataGet("DDL_USERALL", lstPJR, docCGY, docSHR, docLRY);
+                if (!isDg())
+                {
+                    PubFunc.DdlDataGet("DDL_DOC_SUPPLIER", docPSSID);
+                }
+                else
+                {
+                    PubFunc.DdlDataGet("DDL_DOC_SUPPLIER_DG", docPSSID);
+                }
+                PubFunc.DdlDataGet("DDL_BILL_STATUSDHD", docFLAG);
+                lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+                lstLRRQ2.SelectedDate = DateTime.Now;
+                GridGoodsBind();
+            }
+        }
+        private Boolean isDg()
+        {
+            if (Request.QueryString["dg"] != null && Request.QueryString["dg"].ToString() == "1")
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private void GridGoodsBind()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【订货时间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            int total = 0;
+            string sql = @"select A.SEQNO,
+                               A.PSSID,
+                               f_getsuppliername(A.PSSID) PSSNAME,
+                               B.BILLNO,
+                               (CASE
+                                 WHEN A.SEQNO = B.BILLNO THEN
+                                  '已评价'
+                                 ELSE
+                                  '未评价'
+                               END) PJTYPENAME,
+                               B.GRADE,
+                               decode(B.GRADE,
+                                      '1',
+                                      '一星',
+                                      '2',
+                                      '二星',
+                                      '3',
+                                      '三星',
+                                      '4',
+                                      '四星',
+                                      '5',
+                                      '五星',
+                                      '未评价') GRADENAME,
+                               B.SCORE,
+                               A.DHRQ,
+                               B.NUM1,
+                               decode(B.NUM1, '0', '合格', '1', '不合格', '未评价') NUM1NAME,
+                               B.NUM2,
+                               decode(B.NUM2, '0', '符合', '1', '不符合', '未评价') NUM2NAME,
+                               B.NUM3,
+                               decode(B.NUM3, '0', '合格', '1', '不合格', '未评价') NUM3NAME,
+                               B.str5,
+                               C.NAME STR5NAME,
+                               B.MEMO,
+                               B.PJR,
+                               f_getusername(B.PJR) PJRNAME,
+                               B.PJSJ
+                          from DAT_RK_DOC A,
+                               DAT_SUPEVALUATE B,
+                               (SELECT CODE, NAME, MEMO SCORE
+                                  FROM SYS_CODEVALUE
+                                 WHERE TYPE = 'GHQKPJ') C
+                         WHERE A.SEQNO = B.BILLNO(+)
+                           AND B.STR5 = C.CODE(+) ";
+
+            if (lstSUPID.SelectedItem != null && lstSUPID.SelectedItem.Value.Length > 0)
+            {
+                sql += string.Format(" AND A.PSSID='{0}'", lstSUPID.SelectedItem.Value);
+            }
+            if (!PubFunc.StrIsEmpty(txtSEQNO.Text))
+            {
+                sql += string.Format(" AND A.SEQNO LIKE '%" + txtSEQNO.Text + "%' ");
+            }
+            if (lstPJR.SelectedItem != null && lstPJR.SelectedItem.Value.Length > 0)
+            {
+                sql += string.Format(" AND B.PJR='{0}'", lstPJR.SelectedItem.Value);
+            }
+            if (lstGRADE.SelectedItem != null && lstGRADE.SelectedItem.Value.Length > 0)
+            {
+                sql += string.Format(" AND B.GRADE='{0}'", lstGRADE.SelectedItem.Value);
+            }
+            if (lstPJTYPENAME.SelectedItem != null && lstPJTYPENAME.SelectedItem.Value.Length > 0)
+                if (lstPJTYPENAME.SelectedItem.Value == "1")
+                {
+                    sql += "AND B.BILLNO IS NOT NULL";
+                }
+                else if (lstPJTYPENAME.SelectedItem.Value == "0")
+                {
+                    sql += "AND B.BILLNO IS NULL";
+                }
+            sql += string.Format(" AND DHRQ>=TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            sql += string.Format(" AND DHRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lstLRRQ2.Text);
+            sql += "order by B.BILLNO,A.SEQNO DESC";
+            DataTable dt = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, sql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dt;
+            GridGoods.DataBind();
+        }
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["PJTYPENAME"].ToString();
+                FineUIPro.BoundField flagcol = GridGoods.FindColumn("PJTYPENAME") as FineUIPro.BoundField;
+                if (flag == "未评价")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+            }
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            GridGoodsBind();
+        }
+
+        protected void btnClosePostBack_Click(object sender, EventArgs e)
+        {
+            GridGoodsBind();
+        }
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            GridGoodsBind();
+        }
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【录入日期】！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            int total = 0;
+            string sql = @"select A.SEQNO 入库单号,
+                               f_getsuppliername(A.PSSID) 送货商名称,
+                               A.DHRQ 到货日期,
+                               (CASE
+                                 WHEN A.SEQNO = B.BILLNO THEN
+                                  '已评价'
+                                 ELSE
+                                  '未评价'
+                               END) 评价状态,
+                               decode(B.GRADE,
+                                      '1',
+                                      '一星',
+                                      '2',
+                                      '二星',
+                                      '3',
+                                      '三星',
+                                      '4',
+                                      '四星',
+                                      '5',
+                                      '五星',
+                                      '未评价') 评价等级,
+                               decode(B.NUM1, '0', '合格', '1', '不合格', '未评价') 包装外观,
+                               decode(B.NUM2, '0', '符合', '1', '不符合', '未评价') 数量,
+                               decode(B.NUM3, '0', '合格', '1', '不合格', '未评价') 抽检结果,
+                               C.NAME 到货及时率，
+                               B.MEMO 评价说明,
+                               f_getusername(B.PJR) 评价人,
+                               B.PJSJ 评价时间
+                          from DAT_RK_DOC A,
+                               DAT_SUPEVALUATE B,
+                               (SELECT CODE, NAME, MEMO SCORE
+                                  FROM SYS_CODEVALUE
+                                 WHERE TYPE = 'GHQKPJ') C
+                         WHERE A.SEQNO = B.BILLNO(+)
+                           AND B.STR5 = C.CODE(+)";
+            if (lstSUPID.SelectedItem != null && lstSUPID.SelectedItem.Value.Length > 0)
+            {
+                sql += string.Format(" AND A.PSSID='{0}'", lstSUPID.SelectedItem.Value);
+            }
+            if (!PubFunc.StrIsEmpty(txtSEQNO.Text))
+            {
+                sql += string.Format(" AND A.SEQNO LIKE '%" + txtSEQNO.Text + "%' ");
+            }
+            if (lstGRADE.SelectedItem != null && lstGRADE.SelectedItem.Value.Length > 0)
+            {
+                sql += string.Format(" AND B.GRADE='{0}'", lstGRADE.SelectedItem.Value);
+            }
+            if (lstPJTYPENAME.SelectedItem != null && lstPJTYPENAME.SelectedItem.Value.Length > 0)
+                if (lstPJTYPENAME.SelectedItem.Value == "1")
+                {
+                    sql += "AND B.BILLNO IS NOT NULL";
+                }
+                else if (lstPJTYPENAME.SelectedItem.Value == "0")
+                {
+                    sql += "AND B.BILLNO IS NULL";
+                }
+            sql += string.Format(" AND DHRQ>=TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            sql += string.Format(" AND DHRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lstLRRQ2.Text);
+            sql += "order by B.BILLNO,A.SEQNO DESC";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "供应商评价信息导出", "供应商评价信息导出_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls");
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            winRKD.Hidden = false;
+            billOpen(GridGoods.Rows[e.RowIndex].Values[1].ToString());
+        }
+        /* 直接取出供应商评价详情信息（备用）
+        protected void GridGoods_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            //string supCode = GridGoods.Rows[e.RowIndex].DataKeys[0].ToString();
+            //PageContext.RegisterStartupScript("top._nav.myMenu('add',{id:'" + CurrScene + "',title:'供应商评价详情',url:'/UI/Windows/SupEvaluationDetail.aspx?supCode=" + supCode + "&scene=" + CurrScene + "',close:true});");
+            string billNo = GridGoods.Rows[GridGoods.SelectedRowIndex].DataKeys[0].ToString();
+            string PSSID = GridGoods.Rows[GridGoods.SelectedRowIndex].DataKeys[1].ToString();
+            string PSSNAME = GridGoods.Rows[GridGoods.SelectedRowIndex].DataKeys[2].ToString();
+            Window2.Hidden = false;
+            Window2.IFrameUrl = "../SpdStorage/SupEvaluation.aspx?billno=" + billNo + "&PSSID=" + PSSID + "&PSSNAME=" + PSSNAME;
+        }*/
+        protected void billOpen(string strBillno)
+        {
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            if (dtDoc != null && dtDoc.Rows.Count > 0)
+            {
+                PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+            }
+            else
+            {
+                Alert.Show("单据信息获取失败！！！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (docLRY.SelectedValue == null)
+            {
+                docLRY.SelectedValue = UserAction.UserID;
+            }
+
+            PageContext.RegisterStartupScript(GridCom.GetRejectChangesReference());
+            DataTable dtBill = DbHelperOra.Query(string.Format(strComSql, strBillno)).Tables[0];
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                decimal ddslTotal = 0, bzslTotal = 0, feeTotal = 0;
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    ddslTotal += Convert.ToDecimal(string.IsNullOrWhiteSpace(row["DDSL"].ToString()) ? "0" : row["DDSL"].ToString());
+                    if (!PubFunc.StrIsEmpty(Convert.ToString(row["BZSL"] ?? "0")))
+                    {
+                        bzslTotal += Convert.ToDecimal(row["BZSL"] ?? "0");
+                        // 还要乘以最小单位
+                        //feeTotal += Convert.ToDecimal(Convert.ToString(row["HSJJ"])) * Convert.ToDecimal(Convert.ToString(row["BZSL"] ?? "0")) * Convert.ToDecimal(Convert.ToString(row["SSSL"] ?? "0"));
+                        feeTotal += Convert.ToDecimal(row["HSJJ"]) * Convert.ToDecimal(row["BZSL"] ?? "0");
+                    }
+                    row["HSJE"] = Convert.ToDecimal(row["HSJE"]).ToString("F2");
+
+                }
+
+                Doc.GridRowAdd(GridCom, dtBill);
+
+                //计算合计数量
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                summary.Add("DDSL", ddslTotal.ToString());
+                summary.Add("BZSL", bzslTotal.ToString());
+                summary.Add("HSJE", feeTotal.ToString("F2"));
+                GridCom.SummaryData = summary;
+            }
+        }
+    }
+}

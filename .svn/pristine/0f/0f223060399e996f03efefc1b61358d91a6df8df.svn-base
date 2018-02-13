@@ -1,0 +1,290 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Collections.Specialized;
+using FineUIPro;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class HigtValueCodeSearch : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+
+        }
+
+        private void BindDDL()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID);
+            PubFunc.DdlDataSql(ddlFLag, @"SELECT '' FLAG ,'--请选择--' NAME  FROM dual
+                                                union all
+                                                SELECT 'N' FLAG ,'未使用' NAME  FROM dual
+                                                union all
+                                                SELECT 'Y' FLAG ,'已使用' NAME  FROM dual
+                                                union all
+                                                SELECT 'T' FLAG ,'已退货' NAME  FROM dual
+                                                ");
+            ddlFLag.SelectedValue = "";
+            ddlDEPTID.SelectedValue = DbHelperOra.GetSingle("SELECT CODE FROM SYS_DEPT WHERE  TYPE = 1 AND FLAG = 'Y' AND ROWNUM = 1").ToString();
+
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "高值信息", string.Format("高值信息报表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        private string GetSearchSql()
+        {
+            string sSQL = string.Empty;
+            string kfbm = DbHelperOra.GetSingle("SELECT CODE FROM SYS_DEPT WHERE  TYPE = 1 AND FLAG = 'Y' AND ROWNUM = 1").ToString();
+            string sSQL1 = @"SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,
+                            DECODE('{0}','N','未使用','Y','已使用','T','已退货','未知') FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_RK_EXT A WHERE A.DEPTID = '{1}'";
+
+            string sSQL2 = @"SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,
+                            DECODE('{0}','N','未使用','Y','已使用','T','已退货','未知') FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_CK_EXT A WHERE A.DEPTID <> '{1}'";
+
+            string sSQL3 = @"SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'未使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_RK_EXT A WHERE 1=1 AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_CK_EXT))
+                            UNION ALL
+                            (SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'已使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_RK_EXT A WHERE 1=1 AND A.ONECODE IN (SELECT ONECODE FROM DAT_CK_EXT))
+                            UNION ALL
+                            (SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'退货使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_RK_EXT A WHERE 1=1 AND A.FLAG = 'T')) A WHERE 1=1 ";
+
+            string sSQL4 = @"SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'未使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_CK_EXT A WHERE 1=1 AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_XS_EXT) )
+                            UNION ALL
+                            (SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'已使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_CK_EXT A WHERE 1=1 AND A.ONECODE IN (SELECT ONECODE FROM DAT_XS_EXT) )
+                            UNION ALL
+                            (SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,A.UNIT,A.PH,A.RQ_SC,'退货使用' FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_CK_EXT A WHERE 1=1 AND A.FLAG = 'T')) A WHERE 1=1 ";
+            if (string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                string sALLSql = string.Empty;
+                switch (ddlFLag.SelectedValue)
+                {
+                    case "N":
+                        sSQL1 += " AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_CK_EXT)";
+                        sSQL2 += " AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_XS_EXT)";
+                        sSQL1 = string.Format(sSQL1, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sSQL2 = string.Format(sSQL2, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((" + sSQL1 + ") UNION ALL SELECT * FROM (" + sSQL2 + ")) A WHERE 1=1";
+                        break;
+                    case "Y":
+                        sSQL1 += " AND A.ONECODE IN (SELECT ONECODE FROM DAT_CK_EXT)";
+                        sSQL2 += " AND A.ONECODE IN (SELECT ONECODE FROM DAT_XS_EXT)";
+                        sSQL1 = string.Format(sSQL1, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sSQL2 = string.Format(sSQL2, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((" + sSQL1 + ") UNION ALL SELECT * FROM (" + sSQL2 + ")) A WHERE 1=1";
+                        break;
+                    case "T":
+                        sSQL1 += " AND A.FLAG = 'T'";
+                        sSQL2 += " AND A.FLAG = 'T'";
+                        sSQL1 = string.Format(sSQL1, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sSQL2 = string.Format(sSQL2, ddlFLag.SelectedValue.ToString(), kfbm);
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((" + sSQL1 + ") UNION  ALL SELECT * FROM (" + sSQL2 + ")) A WHERE 1=1";
+                        break;
+                    default:
+                        sSQL3 += " AND A.DEPTID = '{0}'";
+                        sSQL4 += " AND A.DEPTID <> '{0}'";
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM ((" + sSQL3 + ") UNION ALL SELECT * FROM (" + sSQL4 + ")) A WHERE 1=1";
+                        sALLSql = string.Format(sALLSql, kfbm);
+                        break;
+                }
+                sSQL = sALLSql;
+            }
+            else if (ddlDEPTID.SelectedValue.ToString() == kfbm) //库房
+            {
+                string sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID ,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,
+                            DECODE('{0}','N','未使用','Y','已使用','T','已退货','未知') FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_RK_EXT A WHERE A.DEPTID = '{1}'";
+                switch (ddlFLag.SelectedValue)
+                {
+                    case "N":
+                        sALLSql += " AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_CK_EXT)";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    case "Y":
+                        sALLSql += " AND A.ONECODE  IN (SELECT ONECODE FROM DAT_CK_EXT)";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    case "T":
+                        sALLSql += " AND A.FLAG ='T'";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    default:
+                        sALLSql = sSQL3 + " AND A.DEPTID = '{0}'";
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID ,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM (" + sALLSql + ") A WHERE 1=1 ";
+                        sALLSql = string.Format(sALLSql, ddlDEPTID.SelectedValue.ToString());
+                        break;
+                }
+                sSQL = sALLSql;
+            }
+            else  //科室
+            {
+                string sALLSql = @" SELECT A.DEPTID,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,
+                            DECODE('{0}','N','未使用','Y','已使用','T','已退货','未知') FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1
+                            FROM  DAT_CK_EXT A WHERE A.DEPTID = '{1}'";
+
+                switch (ddlFLag.SelectedValue)
+                {
+                    case "N":
+                        sALLSql += " AND A.ONECODE NOT IN (SELECT ONECODE FROM DAT_XS_EXT)";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    case "Y":
+                        sALLSql += " AND A.ONECODE IN (SELECT ONECODE FROM DAT_XS_EXT)";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    case "T":
+                        sALLSql += " AND A.FLAG ='T'";
+                        sALLSql = string.Format(sALLSql, ddlFLag.SelectedValue.ToString(), ddlDEPTID.SelectedValue.ToString());
+                        break;
+                    default:
+                        sALLSql = sSQL4 + " AND A.DEPTID = '{0}'";
+                        sALLSql = @"SELECT F_GETDEPTNAME(A.DEPTID) DEPTID ,A.BILLNO,A.ONECODE,A.GDSEQ,F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                            F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,f_getunitname(A.UNIT) UNITNAME,A.PH,A.RQ_SC,A.FLAG,
+                            A.YXQZ,A.BZHL,A.INSTIME,A.STR1 FROM (" + sALLSql + ") A WHERE 1=1 ";
+                        sALLSql = string.Format(sALLSql, ddlDEPTID.SelectedValue.ToString());
+                        break;
+                }
+                sSQL = sALLSql;
+            }
+
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text.Trim()))
+            {
+                sSQL += " AND A.GDSEQ ='" + tbxGOODS.Text.Trim() + "'";
+            }
+
+            if (!PubFunc.StrIsEmpty(tbxBILLNO.Text.Trim()))
+            {
+                sSQL += " AND UPPER(TRIM(A.FLAG)) LIKE '%" + tbxBILLNO.Text.Trim().ToUpper() + "%'";
+            }
+            if (!string.IsNullOrWhiteSpace(lstLRRQ1.Text))
+            {
+                sSQL += string.Format(" AND TRUNC(A.INSTIME) >= TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(lstLRRQ2.Text))
+            {
+                sSQL += string.Format(" AND TRUNC(A.INSTIME) <= TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ2.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(tbxONECODE.Text.Trim()))
+            {
+                sSQL += " AND UPPER(TRIM(A.ONECODE)) LIKE '" + tbxONECODE.Text.Trim().ToUpper() + "%'";
+            }
+            sSQL += " ORDER BY  A.BILLNO ,A.FLAG ASC,INSTIME DESC  ";
+
+            return sSQL;
+        }
+
+        protected void tbxGOODS_TriggerClick(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void GridGoods_Sort(object sender, FineUIPro.GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+        protected void btnAudit_Click(object sender, EventArgs e)
+        {
+            ddlFLag.SelectedValue = "";
+
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+    }
+}

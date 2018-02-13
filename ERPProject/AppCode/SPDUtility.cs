@@ -1,0 +1,116 @@
+﻿using FineUIPro;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+
+namespace ERPProject
+{
+    public class ERPUtility
+    {
+        /// <summary>
+        /// 缓存清除（只针对SYS_REPORT表的下拉框缓存）
+        /// </summary>
+        /// <param name="tableName">缓存涉及到的表名</param>
+        public static void CacheClear(string tableName)
+        {
+            string sql = string.Format("SELECT SEQNO FROM SYS_REPORT WHERE INSTR(STR3,'{0}')>0 ", tableName.ToUpper());
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt.Rows)
+                {
+                    CacheHelper.RemoveOneCache(row["SEQNO"].ToString());
+                }
+            }
+        }
+        /// <summary>
+        /// 根据Grid列获取导出Excel的数据源
+        /// </summary>
+        /// <param name="gridData"></param>
+        /// <param name="dtData"></param>
+        /// <returns></returns>
+        public static DataTable ExportDataTable(FineUIPro.Grid gridData, DataTable dtData, string filed = "")
+        {
+            List<String> columnNames = new List<string>();
+            for (int index = 1; index < gridData.Columns.Count; index++)
+            {
+                GridColumn column = gridData.Columns[index];
+                if (column.Hidden == false)
+                {
+                    if (column is FineUIPro.BoundField)
+                    {
+                        //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                        dtData.Columns[((FineUIPro.BoundField)column).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    }
+                    else if (column is FineUIPro.RenderField)
+                    {
+                        dtData.Columns[((FineUIPro.RenderField)column).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    }
+                    columnNames.Add(column.HeaderText);
+                }
+            }
+            return dtData.DefaultView.ToTable(true, columnNames.ToArray());
+        }
+
+        public static string errorParse(string error)
+        {
+            string value = string.Empty;
+            if (error.IndexOf("ORA-") > -1)
+            {
+                value = error.Replace("\n", "").Substring(error.IndexOf("ORA-") + 10);
+                if (value.IndexOf("ORA-") > -1)
+                {
+                    value = value.Substring(0, value.IndexOf("ORA-"));
+                }
+            }
+            else
+            { value = error; }
+            return value;
+        }
+
+        public static void DataExport(string sql, FineUIPro.Grid grid, string title)
+        {
+            DataTable dtData = DbHelperOra.QueryForTable(sql);
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+
+            DataTable table = new DataTable();
+            table.Columns.Add(new DataColumn("序号", typeof(int)));
+            foreach (DataColumn col in dtData.Columns)
+            {
+                table.Columns.Add(new DataColumn(col.ColumnName, col.DataType));
+            }
+
+            decimal rowno = 0;
+            foreach (DataRow row in dtData.Rows)
+            {
+                DataRow dr = table.NewRow();
+                dr["序号"] = ++rowno;
+                foreach (DataColumn col in dtData.Columns)
+                {
+                    dr[col.ColumnName] = row[col.ColumnName];
+                }
+                table.Rows.Add(dr);
+            }
+            List<string> colmns = new List<string>();
+            colmns.Add("序号");
+            for (int index = 1; index < grid.Columns.Count; index++)
+            {
+                GridColumn column = grid.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    table.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    colmns.Add(column.HeaderText);
+                }
+            }
+            ExcelHelper.ExportByWeb(dtData, title, title + "_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+    }
+}

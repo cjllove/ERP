@@ -1,0 +1,196 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class StorageStrategy : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+
+
+            //  PubFunc.DdlDataGet(ddlPRO, "DDL_DOC_DISNAME");
+            PubFunc.DdlDataGet("DDL_SUPID_ALL", ddlSUPID);
+            // PubFunc.DdlDataGet(ddlPASSID, "DDL_DOC_DISNAME");
+
+
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+            string msg = "";
+            NameValueCollection nvc = new NameValueCollection();
+
+            if (ddlSUPID.SelectedValue != null && ddlSUPID.SelectedValue.Length > 0) nvc.Add("SUPID", ddlSUPID.SelectedValue);
+            if (ddlISSUPID.SelectedValue.Length > 0) nvc.Add("ISSUPID", ddlISSUPID.SelectedValue);
+            if (ddlPRO.SelectedValue != null && ddlPRO.SelectedValue.Length > 0) nvc.Add("PRO", ddlPRO.SelectedValue);
+            if (ddlPASSID.SelectedValue != null && ddlPASSID.SelectedValue.Length > 0) nvc.Add("PASSID", ddlPASSID.SelectedValue);
+          
+
+            DataTable dtData = GetSupplyList(GridGoods.PageIndex, GridGoods.PageSize, nvc, ref total, ref msg);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        /// <summary>
+        /// 获取商品数据信息
+        /// </summary>
+        /// <param name="pageNum">第几页</param>
+        /// <param name="pageSize">每页显示天数</param>
+        /// <param name="nvc">查询条件</param>
+        /// <param name="total">总的条目数</param>
+        /// <param name="errMsg"></param>
+        /// <returns></returns>
+        public DataTable GetSupplyList(int pageNum, int pageSize, NameValueCollection nvc, ref int total, ref string errMsg)
+        {
+            string strSearch = "";
+            if (nvc != null)
+            {
+                foreach (string key in nvc)
+                {
+                    string condition = nvc[key];
+                    if (!string.IsNullOrEmpty(condition))
+                    {
+                        switch (key.ToUpper())
+                        {
+                            case "QUERY":
+                                strSearch += string.Format(" AND (DS.SUPNAME LIKE '%{0}%' OR DS.SUPENAME LIKE '%{0}%' OR DS.SUPSIMNAME LIKE '%{0}%' ) ", condition.ToUpper());
+                                break;
+                            case "SUPID":
+                                strSearch += string.Format("AND DS.SUPID='{0}'", condition);
+                                break;
+                            case "ISSUPID":
+                                strSearch += string.Format("AND NVL(DS.ISSUPPLIER,'N') ='{0}'", condition);
+                                break;
+                            case "PRO":
+                                strSearch += string.Format("AND NVL(DS.ISPRODUCER,'N')='{0}'", condition);
+                                break;
+                            case "PASSID":
+                                strSearch += string.Format("AND NVL(DS.ISPSS,'N') ='{0}'", condition);
+                                break;
+                           
+
+                        }
+                    }
+                }
+            }
+
+
+            string strGoods = @"SELECT DS.SUPID, DS.SUPNAME,DS.SUPENAME,DS.SUPSIMNAME,DS.SUPZJM,
+           DS.SUPCAT,DS.REGID,DS.YYZZNO,DS.LOGINRQ,DS.LOGINLABEL,DS.LOGINFUND,DS.JYFW,
+           DS.BANK,DS.ACCNTNO,DS.LOGINADDR,DS.LEADER,DS.LEADERIDCARD,DS.TEL,DS.FAX,DS.TELSERVICE,
+           DS.ZIP,DS.EMAIL,DS.UPTTIME,
+           DECODE(DS.ISSUPPLIER,'Y','是','N','否','否') 供应商标志,
+           DECODE(DS.ISPRODUCER,'Y','是','N','否','否') 生产商标志,
+           DECODE(DS.ISPSS,'Y','是','N','否','否') 配送商标志
+                  FROM DOC_SUPPLIER DS WHERE 1=1 ";
+            StringBuilder strSql = new StringBuilder(strGoods);
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql.Append(strSearch);
+            }
+            return GetDataTable(pageNum, pageSize, strSql, ref total);
+          
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (GridGoods.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string strSearch = "";
+            string strGoods = @"SELECT DS.SUPID 供应商编号, 
+                                       DS.SUPNAME 供应商,
+                                       DS.SUPENAME 英文名称,
+                                       DS.SUPSIMNAME 简称,
+                                       DS.SUPZJM 供应商助记码,
+                                       DS.SUPCAT 供应商分类,
+                                       DS.REGID 地区,
+                                       DS.YYZZNO 营业执照,
+                                       DS.LOGINRQ 注册日期,
+                                       DS.LOGINLABEL 注册商标,
+                                       DS.LOGINFUND 注册资本,
+                                       DS.JYFW 经营范围,
+                                       DS.BANK 开户银行,
+                                       DS.ACCNTNO 银行账号,
+                                       DS.LOGINADDR 注册地址,
+                                       DS.LEADER 法人代表,
+                                       DS.LEADERIDCARD 法人代表身份证,
+                                       DS.TEL 公司电话,
+                                       DS.FAX 公司传真,
+                                       DS.TELSERVICE 服务电话,
+                                       DS.ZIP 邮政编码,
+                                       DS.EMAIL ,
+                                       DS.UPTTIME 最后修改时间,
+                                       DECODE(DS.ISSUPPLIER,'Y','是','N','否','否')  供应商标志 ,
+                                       DECODE(DS.ISPRODUCER,'Y','是','N','否','否') 生产商标志   ,
+                                       DECODE(DS.ISPSS,'Y','是','N','否','否') 配送商标志
+                                         FROM DOC_SUPPLIER DS WHERE 1=1  ";
+
+            //if (!string.IsNullOrWhiteSpace(trbxSearch.Text))
+            //{
+            //    strSearch += string.Format("AND (DS.SUPNAME LIKE '%{0}%' OR DS.SUPENAME LIKE '%{0}%' OR DS.SUPSIMNAME LIKE '%{0}%' ) ", trbxSearch.Text);
+            //}
+
+
+            if (!string.IsNullOrWhiteSpace(ddlSUPID.SelectedValue))
+            {
+                strSearch += string.Format(" AND DS.SUPID='{0}'", ddlSUPID.SelectedValue);
+            } 
+            
+                if(!string.IsNullOrEmpty(ddlISSUPID.SelectedValue))
+                {
+                    strSearch+=string.Format("AND DS.ISSUPPLIER ='{0}'", ddlISSUPID.SelectedValue);
+                }
+            
+            if (!string.IsNullOrWhiteSpace(ddlPRO.SelectedValue))
+                 {
+                     strSearch += string.Format("AND DS.ISPRODUCER='{0}'", ddlPRO.SelectedValue);
+                 }
+                
+                 if (!string.IsNullOrWhiteSpace(ddlPASSID.SelectedValue))
+                 {
+                     strSearch += string.Format("AND DS.ISPSS='{0}'", ddlPASSID.SelectedValue);
+                 }
+
+
+            strGoods += strSearch;
+            DataTable dt = DbHelperOra.Query(strGoods).Tables[0];
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "供应商资料导出", "供应商资料导出_" + DateTime.Now.ToString("yyyyMMdd") + ".xls");
+        }
+    }
+}

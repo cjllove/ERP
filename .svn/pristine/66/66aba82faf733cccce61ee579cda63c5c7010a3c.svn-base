@@ -1,0 +1,274 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Data;
+using XTBase;
+using Oracle.ManagedDataAccess.Client;
+
+namespace SPDProject
+{
+    public class BillStatusService
+    {
+        public String failDetail = "";
+        public String convFailDetail = "";
+        public String CustId = "";
+        public String SeqNo = "";
+        public Boolean isError = false;
+        private void queryJa(String billno, String custid) {
+            this.SeqNo = billno;
+            this.CustId = custid;
+            String result = "";
+
+            result = ApiService.queryBillStatus(billno + "_" + custid);
+
+            
+            if (String.IsNullOrWhiteSpace(result) || "-1".Equals(result)) {
+                this.isError = true;
+                this.failDetail = "EAS login fail.";
+                return;
+            }
+            JObject jResult = JObject.Parse(result);
+            if ("success".Equals(jResult.Value<String>("result")))
+            {
+                JArray ja = jResult.Value<JArray>("data");
+                saveDocCom(ja);
+            }
+            else
+            {
+                this.failDetail = jResult.Value<String>("faildetail");
+            }
+        }
+
+        private void queryXDDJa(String billno, String custid) {
+            this.SeqNo = billno;
+            this.CustId = custid;
+            String result = ApiService.getXCK(billno + "_" + custid,true);
+            if (String.IsNullOrWhiteSpace(result) || "-1".Equals(result))
+            {
+                this.isError = true;
+                this.failDetail = "EAS login fail.";
+                return;
+            }
+            JObject jResult = (JObject)JArray.Parse(result)[0];
+            if ("success".Equals(jResult.Value<String>("result")))
+            {
+                JArray ja = jResult.Value<JArray>("data");
+                saveDocCom(ja);
+            }
+            else
+            {
+                this.failDetail = jResult.Value<String>("faildetail");
+            }
+        }
+
+        private void saveDocCom(JArray ja) {
+            DataTable dResultDOC = ApiUtil.GetTableSchema("DAT_BILLSTATUS_DOC_CONV");
+            DataTable dResultCOM = ApiUtil.GetTableSchema("DAT_BILLSTATUS_COM_CONV");
+            foreach (JToken jt in ja) {
+                //表头
+                JObject jo = (JObject)jt;
+                String billType = jo.Value<String>("BILLTYPE");
+                
+                String convSqlDOC = @"select * from dat_billstatus_rule where type = '"+billType+"' and doccom='D'";
+                String convSqlCOM = @"select * from dat_billstatus_rule where type='" + billType + "' and doccom='C'";
+                DataTable convertTableDOC = DbHelperOra.Query(convSqlDOC).Tables[0];
+                DataTable convertTableCOM = DbHelperOra.Query(convSqlCOM).Tables[0];
+                DataRow docRow = dResultDOC.NewRow();
+                String number = jo.Value<String>("NUMBER");
+                
+                foreach (DataRow dr in convertTableDOC.Rows) {
+                    String colTarget = dr["COLTARGET"].ToString();
+                    String colName = dr["COLNAME"].ToString();
+                    Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                    String convRule = dr["CONVRULE"].ToString();
+                    
+
+                    if (!isConv)
+                    {
+                        if (jo.Value<String>(colName)!=null)
+                        {
+                            docRow[colTarget] = jo.Value<String>(colName);
+                        }
+                    }
+                    else {
+                        docRow[colTarget] = convRule;
+                    }
+                }
+                docRow["DDBH"] = SeqNo;
+                docRow["CUSTID"] = CustId;
+                dResultDOC.Rows.Add(docRow);
+
+                //表体
+                JArray jacom = jo.Value<JArray>("ENTRIES");
+                foreach (JToken jtcom in jacom) {
+                    JObject jocom = (JObject)jtcom;
+                    DataRow comRow = dResultCOM.NewRow();
+                    foreach (DataRow dr in convertTableCOM.Rows) {
+                        String colTarget = dr["COLTARGET"].ToString();
+                        String colName = dr["COLNAME"].ToString();
+                        Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                        String convRule = dr["CONVRULE"].ToString();
+
+                        if (!isConv)
+                        {
+                            comRow[colTarget] = jocom.Value<String>(colName);
+                        }
+                        else
+                        {
+                            comRow[colTarget] = convRule;
+                        }
+                    }
+                    comRow["CUSTID"] = CustId;
+                    comRow["SEQNO"] = number;
+                    comRow["ROWNO"] = jacom.IndexOf(jtcom);
+                    DataTable goodsDt = getSpdGDSEQ(jocom.Value<String>("MATERIALNUMBER"), CustId);
+                    if (goodsDt.Rows.Count > 0) {
+                        comRow["GDSEQ"] = goodsDt.Rows[0]["GDSEQ"];
+                        comRow["UNIT"] = goodsDt.Rows[0]["UNIT"];
+                        comRow["GDNAME"] = goodsDt.Rows[0]["GDNAME"];
+                        comRow["GDSPEC"] = goodsDt.Rows[0]["GDSPEC"];
+                        comRow["GDMODE"] = goodsDt.Rows[0]["GDMODE"];
+                        comRow["CATID"] = goodsDt.Rows[0]["CATID"];
+                        comRow["JXTAX"] = goodsDt.Rows[0]["JXTAX"];
+                        //comRow["PZWH"] = goodsDt.Rows[0]["PZWH"];
+                        comRow["ZPBH"] = goodsDt.Rows[0]["ZPBH"];
+                        comRow["BZHL"] = goodsDt.Rows[0]["BZHL"];
+                        comRow["DDBH"] = SeqNo;
+                    }
+                    
+                    dResultCOM.Rows.Add(comRow);
+                }
+            }
+            bulkInsert("DAT_BILLSTATUS_DOC_CONV", dResultDOC, "BILLSTATUS.P_DOC_CONV");
+            bulkInsert("DAT_BILLSTATUS_COM_CONV", dResultCOM, "BILLSTATUS.P_COM_CONV");
+            saveLog();
+        }
+
+        /// <summary>
+        /// 根据eas 物料编码取商品信息
+        /// </summary>
+        /// <param name="material"></param>
+        /// <param name="custId"></param>
+        /// <returns></returns>
+        private DataTable getSpdGDSEQ(String material, String custId)
+        {
+            String sql = "select a.* from doc_goods a,doc_customer c,doc_custrange r ,doc_goodsgroup gr where a.flag='Y' and c.code = '" + custId + "' and gr.eascode='" + material + "' and a.gdseq = gr.gdseq and gr.groupid=r.catid and c.code=r.custid";
+            //String sql = "select a.gdseq from doc_goods a,doc_customer c,doc_custrange r where a.flag='Y' and c.code = '" + custId + "' and a.bar3='"+material+"' and a.catid0=r.catid and c.code=r.custid";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            return dt;
+        }
+
+        /// <summary>
+        /// 批量插入数据。 先清临时表，bulkcopy到临时表，再调存储过程插入到正式表
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="dt"></param>
+        /// <param name="procedureName"></param>
+        private void bulkInsert(String tableName,DataTable dt,String procedureName) {
+            String sql = "delete from " + tableName +" where custid = '"+CustId+"' and ddbh='"+SeqNo+"'";
+            DbHelperOra.ExecuteSql(sql);
+            ApiUtil.BulkInsert(tableName, dt);
+            if (!String.IsNullOrWhiteSpace(procedureName))
+            {
+                OracleParameter[] param = {
+                                          new OracleParameter("VS_SEQNO", OracleDbType.Varchar2,40),
+                                          new OracleParameter("VS_CUSTID",OracleDbType.Varchar2,20)
+                                      };
+                param[0].Direction = ParameterDirection.Input;
+                param[0].Value = SeqNo;
+                param[1].Direction = ParameterDirection.Input;
+                param[1].Value = CustId;
+
+                DbHelperOra.RunProcedure(procedureName, param);
+            }
+        }
+
+        private void saveLog() {
+            OracleParameter[] param = {
+                                          new OracleParameter("VS_SEQNO", OracleDbType.Varchar2,40),
+                                          new OracleParameter("VS_CUSTID",OracleDbType.Varchar2,20)
+                                      };
+            param[0].Direction = ParameterDirection.Input;
+            param[0].Value = SeqNo;
+            param[1].Direction = ParameterDirection.Input;
+            param[1].Value = CustId;
+
+            DbHelperOra.RunProcedure("BILLSTATUS.P_LOG", param);
+        }
+
+        private DataTable queryLog() {
+            String sql = "select * from dat_billstatus_log where custid= '" + CustId + "' and billno ='" + SeqNo + "' order by lrrq,upttime";
+            DataTable result = DbHelperOra.Query(sql).Tables[0];
+            return result;
+        }
+
+        public String query(String billno,String custid) {
+            try
+            {
+                queryJa(billno, custid);
+                return JsonConvert.SerializeObject(queryLog());
+            }catch (Exception ex){
+                this.isError = true;
+                this.convFailDetail = ex.Message + "\n\r" + ex.StackTrace;
+                return null;
+            }
+            
+        }
+
+        public String queryXDD(String billno, String custid) {
+            try
+            {
+                queryXDDJa(billno, custid);
+                return JsonConvert.SerializeObject(queryLog());
+
+            }
+            catch (Exception ex) {
+                this.isError = true;
+                this.convFailDetail = ex.Message + "\n\r" + ex.StackTrace;
+                return null;
+            }
+        }
+
+        public String queryCDD(String billno, String custid, String warehouse)
+        {
+            try
+            {
+                queryCDDJa(billno, custid, warehouse);
+                return JsonConvert.SerializeObject(queryLog());
+
+            }
+            catch (Exception ex)
+            {
+                this.isError = true;
+                this.convFailDetail = ex.Message + "\n\r" + ex.StackTrace;
+                return null;
+            }
+        }
+
+        private void queryCDDJa(String billno, String custid, String warehouse)
+        {
+            this.SeqNo = billno;
+            this.CustId = custid;
+            String result = ApiService.getDDPurAllStatus(billno + "_" + warehouse);
+            if (String.IsNullOrWhiteSpace(result) || "-1".Equals(result))
+            {
+                this.isError = true;
+                this.failDetail = "EAS login fail.";
+                return;
+            }
+            JObject jResult = (JObject)JArray.Parse(result)[0];
+            if ("success".Equals(jResult.Value<String>("result")))
+            {
+                JArray ja = jResult.Value<JArray>("data");
+                saveDocCom(ja);
+            }
+            else
+            {
+                this.failDetail = jResult.Value<String>("faildetail");
+            }
+        }
+    }
+}

@@ -1,0 +1,227 @@
+﻿using FineUIPro;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdApply
+{
+    public partial class ConstantWarning : BillBase
+    {
+        public ConstantWarning()
+        {
+            BillType = "DSC";
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                DataSearch();
+                if (Request.QueryString["tp"] != null && Request.QueryString["tp"].ToString().Trim().Length > 0)
+                {
+                    ddlDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE=" + Request.QueryString["tp"].ToString()).ToString();
+                }
+                else
+                {
+                    ddlDEPTOUT.SelectedValue = DbHelperOra.GetSingle("SELECT T.STR2 FROM DOC_GOODSTYPE T WHERE T.CODE='2'").ToString();
+                }
+            }
+        }
+
+        private void DataInit()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTOUT);
+            //DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, ddlDEPTID);
+            DataTable dtDept = DbHelperOra.Query("SELECT DISTINCT DEPTID,DEPTNAME FROM (" + GetSearchSql() + ") ORDER BY DEPTNAME").Tables[0];
+            ddlDEPTID.DataTextField = "DEPTNAME";
+            ddlDEPTID.DataValueField = "DEPTID";
+            ddlDEPTID.DataSource = dtDept;
+            ddlDEPTID.DataBind();
+            ddlDEPTID.Items.Insert(0, new FineUIPro.ListItem() { Text = "---请选择---", Value = "" });
+        }
+
+        private void DataSearch()
+        {
+            highlightRows.Text = "";
+            highlightRowsGreen.Text = "";
+
+            int count = 0;
+            GridList.DataSource = GetDataTable(GridList.PageIndex, GridList.PageSize, GetSearchSql(), ref count);
+            GridList.RecordCount = count;
+            GridList.DataBind();
+        }
+
+        private string GetSearchSql()
+        {
+            string jzr = Doc.DbGetSysPara("ACCOUNTDAY");//获取系统结账日期
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.AppendFormat(@"SELECT D.CODE DEPTID,
+                                                           D.NAME DEPTNAME,
+                                                           G.GDSEQ,
+                                                           G.GDNAME,
+                                                           G.GDSPEC,
+                                                           NVL(C.DSNUM, 0) DSNUM,
+                                                           NVL(C.NUM1, 0) NUM1,
+                                                           NVL(B.NUM2, 0) + NVL(C.DSPOOL, 0) NUM2,
+                                                           ((NVL(C.DSNUM, 0) - NVL(B.NUM2, 0) - NVL(C.DSPOOL, 0)) -
+                                                           FLOOR(NVL(A.KCSL, 0) / C.NUM1)) YCDS,
+                                                           C.ZDKC,
+                                                           C.ZGKC,
+                                                           NVL((SELECT SUM(ABS(DECODE(A.BILLTYPE,
+                                                                                     'XST',
+                                                                                     DECODE(A.KCADD, '1', A.SL, 0),
+                                                                                     A.SL)))
+                                                                 FROM DAT_GOODSJXC A, DOC_GOODS B
+                                                                WHERE A.GDSEQ = B.GDSEQ
+                                                                  AND A.BILLTYPE IN ('DSH', 'XSD', 'XSG', 'XST')
+                                                                  AND A.RQSJ >= TO_DATE('{0}', 'YYYY-MM-DD') + 1
+                                                                  AND A.DEPTID = D.CODE
+                                                                  AND B.GDSEQ = G.GDSEQ),
+                                                               0) BYXHS,
+                                                           FLOOR(NVL(A.KCSL, 0) / C.NUM1) KCSL,
+                                                           F_GETUNITNAME(G.UNIT) UNIT,
+                                                           G.HSJJ,
+                                                           ((NVL(C.DSNUM, 0) - NVL(B.NUM2, 0) - NVL(C.DSPOOL, 0)) -
+                                                           FLOOR(NVL(A.KCSL, 0) / C.NUM1)) * NVL(C.NUM1, 0) * G.HSJJ HSJE,
+                                                           G.PIZNO PZWH,
+                                                           G.PRODUCER,
+                                                           F_GETPRODUCERNAME(G.PRODUCER) PRODUCERNAME,
+                                                           G.SUPPLIER SUPID,
+                                                           F_GETSUPNAME(G.SUPPLIER) SUPNAME
+                                                      FROM DOC_GOODSCFG C,
+                                                           DOC_GOODS G,
+                                                           SYS_DEPT D,
+                                                           (SELECT K.DEPTID, K.GDSEQ, SUM(K.KCSL) KCSL
+                                                              FROM DAT_GOODSSTOCK K
+                                                             WHERE K.DEPTID IN
+                                                                   (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('3', '4'))
+                                                             GROUP BY K.DEPTID, K.GDSEQ) A,
+                                                           (SELECT TA.DEPTID DEPTID, TB.GDSEQ GDSEQ, COUNT(*) NUM2
+                                                              FROM DAT_CK_DOC TA, DAT_CK_COM TB
+                                                             WHERE TA.SEQNO = TB.SEQNO
+                                                               AND TA.BILLTYPE = 'DSC'
+                                                               AND TA.FLAG = 'N'
+                                                             GROUP BY TA.DEPTID, TB.GDSEQ) B
+                                                     WHERE C.GDSEQ = G.GDSEQ
+                                                       AND C.DEPTID = D.CODE
+                                                       AND C.DEPTID = A.DEPTID(+)
+                                                       AND C.GDSEQ = A.GDSEQ(+)
+                                                       AND C.DEPTID = B.DEPTID(+)
+                                                       AND C.GDSEQ = B.GDSEQ(+)
+                                                       AND C.NUM1 > 0
+                                                       AND ((NVL(C.DSNUM, 0) - NVL(B.NUM2, 0) - NVL(C.DSPOOL, 0)) -
+                                                           FLOOR(NVL(A.KCSL, 0) / C.NUM1)) > 0
+                                                       AND NVL(A.KCSL, 0) < DECODE(NVL(C.ZDKC, 0), 0, 1, C.ZDKC)
+                                                     ", DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + "-" + jzr);
+            //((NVL(C.DSNUM, 0) - NVL(B.NUM2, 0) - NVL(C.DSPOOL, 0)) - floor(A.KCSL/c.NUM1)) > 0 
+            //定数数量  - 待出定数 - INT（库存数/定数含量）= 建议申领定数
+
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND C.DEPTID='{0}'", ddlDEPTID.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(tbxGDSEQ.Text))
+            {
+                sbSql.AppendFormat(" AND (G.GDSEQ LIKE '%{0}%' OR G.GDNAME LIKE '%{0}%' OR G.ZJM LIKE '%{0}%' OR  G.BAR1 LIKE '%{0}%')", tbxGDSEQ.Text.Trim());
+            }
+            sbSql.Append("  ORDER BY D.CODE,G.GDSEQ");
+
+            return sbSql.ToString();
+        }
+
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                int num = int.Parse(row["PRINTNUM"].ToString());
+                if (num > 0)
+                {
+                    highlightRowsGreen.Text += e.RowIndex.ToString() + ",";
+                }
+            }
+        }
+
+        protected void btnAudit_Click(object sender, EventArgs e)
+        {
+            if (ddlDEPTOUT.SelectedValue.Length < 1)
+            {
+                Alert.Show("请选择【出库部门】!");
+                return;
+            }
+            if (GridList.SelectedRowIndexArray.Length <= 0) return;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            string billno = DbHelperOra.GetSingle("SELECT SEQ_PUBLIC.NEXTVAL FROM DUAL").ToString();
+
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            MyTable mtCom = new MyTable("DAT_DSCK_LIST");
+
+            foreach (int index in GridList.SelectedRowIndexArray)
+            {
+                mtCom.ColRow["SEQNO"] = billno;
+                mtCom.ColRow["ROWNO"] = index + 1;
+                mtCom.ColRow["DEPTOUT"] = ddlDEPTOUT.SelectedValue;
+                mtCom.ColRow["DEPTIN"] = table.Rows[index]["DEPTID"].ToString();
+                mtCom.ColRow["GDSEQ"] = table.Rows[index]["GDSEQ"].ToString();
+                mtCom.ColRow["GDNAME"] = table.Rows[index]["GDNAME"].ToString();
+                mtCom.ColRow["UNIT"] = table.Rows[index]["UNIT"].ToString();
+                mtCom.ColRow["GDSPEC"] = table.Rows[index]["GDSPEC"].ToString();
+                mtCom.ColRow["PRODUCER"] = table.Rows[index]["PRODUCER"].ToString();
+                mtCom.ColRow["DSSL"] = table.Rows[index]["DSNUM"].ToString();
+                mtCom.ColRow["DSHL"] = table.Rows[index]["NUM1"].ToString();
+                mtCom.ColRow["DSKC"] = table.Rows[index]["KCSL"].ToString();
+                mtCom.ColRow["DSDC"] = table.Rows[index]["NUM2"].ToString();
+                mtCom.ColRow["DSYH"] = table.Rows[index]["YCDS"].ToString();
+                mtCom.ColRow["HSJJ"] = table.Rows[index]["HSJJ"].ToString();
+                mtCom.ColRow["OPERGH"] = UserAction.UserID;
+
+                cmdList.Add(mtCom.Insert());
+            }
+
+            OracleParameter[] parameters = new OracleParameter[] { new OracleParameter("V_seqno", OracleDbType.Varchar2) };
+            parameters[0].Value = billno;
+            cmdList.Add(new CommandInfo("P_DS2CK", parameters, CommandType.StoredProcedure));
+
+            if (!DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("生成定数出库单失败！", "错误提示", MessageBoxIcon.Error);
+                return;
+            }
+            else
+            {
+                Alert.Show("生成定数出库单成功！", "消息提示", MessageBoxIcon.Information);
+
+                ddlDEPTOUT.SelectedValue = "";
+                ddlDEPTID.SelectedValue = "";
+                tbxGDSEQ.Text = "";
+                DataSearch();
+            }
+        }
+
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Formlist);
+                DataSearch();
+        }
+
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+    }
+}

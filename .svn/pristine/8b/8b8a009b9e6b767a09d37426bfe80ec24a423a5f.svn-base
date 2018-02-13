@@ -1,0 +1,491 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+
+namespace SPDProject.SpdXM.SD_HZZYY
+{
+    public partial class StorageSummary : PageBase
+    {
+        //lvj 20161228 使用这个页面请注意,勾选后会排除库房，下面是默认的库房ID：
+        protected string strMRKF = "000001"; //默认库房
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                BindDDL();
+                hfdISRK.Text = "Y";
+            }
+        }
+
+        protected void BindDDL()
+        {
+            //DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, docDEPTID);
+            docDEPTID.DataSource = DbHelperOra.Query(string.Format(@"SELECT CODE, NAME
+                                  FROM (SELECT '' CODE， '--请选择--' NAME
+                                          FROM DUAL
+                                        UNION ALL
+                                        SELECT CODE, '['||CODE||']'||NAME NAME
+                                          FROM SYS_DEPT
+                                         WHERE  TYPE IN('1') AND F_CHK_DATARANGE(CODE, '{0}') = 'Y')
+                                 ORDER BY CODE DESC                            
+                                ", UserAction.UserID));
+            docDEPTID.DataTextField = "NAME";
+            docDEPTID.DataValueField = "CODE";
+            docDEPTID.DataBind();
+            docDEPTID.SelectedIndex = 1;
+
+            tgbDate1.Text = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd HH:mm:ss");
+            tgbDate2.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+        private void DataSearch()
+        {
+            int total = 0;
+            string msg = "";
+            NameValueCollection nvc = new NameValueCollection();
+
+            //DataTable dtData = GetGoodsList(GridGoods.PageIndex, GridGoods.PageSize, nvc, ref total, ref msg);
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            DataTable dtBill = DbHelperOra.Query(string.Format(GetSearchSql())).Tables[0];
+            decimal SLTotal = 0, JETotal = 0;
+            foreach (DataRow row in dtBill.Rows)
+               {
+                    JETotal += Convert.ToDecimal(row["SL"] ?? "0");
+                    SLTotal += Convert.ToDecimal(row["JE"] ?? "0");
+               }  
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "总合计");
+            summary.Add("SL", JETotal.ToString("F2"));
+            summary.Add("JE", SLTotal.ToString());
+            GridGoods.SummaryData = summary;
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        private string GetSearchSql()
+        {
+            string strSql = @"SELECT A.GDSEQ,
+                                       B.GDNAME,
+                                       B.GDSPEC,
+                                       F_GETDEPTNAME(A.DEPTID) DEPTID,
+                                       f_getunitname(B.UNIT) UNITNAME,
+                                       A.HSJJ,
+                                       SUM(A.SL) SL,
+                                       SUM(A.SL * A.HSJJ) JE,
+                                       A.PH,
+                                       A.RQ_SC,
+                                       A.YXQZ,
+                                       f_getsupname(B.PRODUCER) PRODUCERNAME,
+                                       A.HWID,
+                                       A.SUPID,
+                                        (CASE WHEN A.PSSID = '00001' THEN '初始库存'
+                                        ELSE 'SPD库存' END) SUPNAME,
+                                       B.HISCODE，TO_CHAR(A.RQSJ,'YYYY-MM-DD') RQSJ";
+
+            if (rbtnRKD.Checked)
+            {
+                strSql += @" FROM (SELECT *
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('RKD')
+                                         AND A.KCADD = '1'
+                 
+                                     UNION ALL
+                                     SELECT *
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('THD')
+                                         AND A.KCADD = '-1'
+                                    ) A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)";
+            }
+            else if (rbtnCKD.Checked)
+            {
+                strSql += @" FROM (SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('LCD','CKD','DSC')
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                 
+                                     UNION ALL
+                                       SELECT GDSEQ, DEPTID, HSJJ, ABS(SL) SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                        FROM DAT_GOODSJXC A
+                                       WHERE A.BILLTYPE IN ('XSG')
+                                             AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    UNION ALL
+
+                                     SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('XST')
+                                         AND A.KCADD = '-1'
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    UNION ALL
+                                     SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('DST','LTD')
+                                         AND A.KCADD = '-1' 
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    ) A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)";
+            }
+            string strSearch = "";
+            if (tgbGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" and (A.GDSEQ LIKE UPPER('%{0}%') OR B.GDNAME LIKE UPPER('%{0}%') OR B.NAMEJC  LIKE UPPER('%{0}%') OR  B.BAR3 LIKE UPPER('%{0}%') OR B.ZJM  LIKE UPPER('%{0}%'))", tgbGDSEQ.Text.Trim());
+            }
+            if (tgbDate1.Text.Trim().Length > 0 && tgbDate2.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(@" AND A.RQSJ BETWEEN
+                                            TO_DATE('{0}', 'YYYY-MM-DD HH24:MI:SS') and
+                                            TO_DATE('{1}', 'YYYY-MM-DD HH24:MI:SS')", tgbDate1.Text.Trim(), tgbDate2.Text.Trim());
+            }
+            if (!string.IsNullOrWhiteSpace(docDEPTID.SelectedValue))
+            {
+                strSearch += string.Format(" AND A.DEPTID = '{0}'", docDEPTID.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(docSUPID.SelectedValue))
+            {
+                if (docSUPID.SelectedValue == "Y")
+                    strSearch += string.Format(" AND A.PSSID = '00001'");
+                else
+                    strSearch += string.Format(" AND A.PSSID <> '00001'");
+
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+
+            strSql += string.Format(" GROUP BY A.GDSEQ, B.GDNAME, B.GDSPEC,A.DEPTID, B.UNIT, A.HSJJ, A.PH, A.RQ_SC, A.YXQZ, B.PRODUCER, A.HWID, A.SUPID,A.PSSID,B.HISCODE，TO_CHAR(A.RQSJ,'YYYY-MM-DD')");
+            strSql += " ORDER BY TO_CHAR(A.RQSJ, 'YYYY-MM-DD'),A.DEPTID,A.GDSEQ";
+            return strSql;
+        }
+        /// <summary>
+        /// 获取商品数据信息
+        /// </summary>
+        /// <param name="pageNum">第几页</param>
+        /// <param name="pageSize">每页显示天数</param>
+        /// <param name="nvc">查询条件</param>
+        /// <param name="total">总的条目数</param>
+        /// <param name="errMsg"></param>
+        /// <returns></returns>
+        public DataTable GetGoodsList(int pageNum, int pageSize, NameValueCollection nvc, ref int total, ref string errMsg)
+        {
+            string strSql = @"SELECT A.GDSEQ,
+                                       B.GDNAME,
+                                       B.GDSPEC,
+                                       F_GETDEPTNAME(A.DEPTID) DEPTID,
+                                       f_getunitname(B.UNIT) UNITNAME,
+                                       A.HSJJ,
+                                       SUM(A.SL) SL,
+                                       SUM(A.SL * A.HSJJ) JE,
+                                       A.PH,
+                                       A.RQ_SC,
+                                       A.YXQZ,
+                                       f_getsupname(B.PRODUCER) PRODUCERNAME,
+                                       A.HWID,
+                                       A.SUPID,
+                                        (CASE WHEN A.SUPID = '00001' THEN '初始库存'
+                                        ELSE 'SPD库存' END) SUPNAME,
+                                       B.HISCODE，TO_CHAR(A.RQSJ,'YYYY-MM-DD') RQSJ";
+
+            if (rbtnRKD.Checked)
+            {
+                strSql += @" FROM (SELECT *
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('RKD')
+                                         AND A.KCADD = '1'
+                 
+                                     UNION ALL
+                                     SELECT *
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('THD')
+                                         AND A.KCADD = '-1') A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)";
+            }
+            else if (rbtnCKD.Checked)
+            {
+                strSql += string.Format(@" FROM (SELECT *
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('LCD','CKD','DSC')
+                                         AND A.DEPTID <> '{0}'
+                 
+                                     UNION ALL
+                                     SELECT *
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('XST')
+                                         AND A.KCADD = '-1'
+                                         AND A.DEPTID <> '{0}'
+                                    UNION ALL
+                                     SELECT *
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('DST','LTD')
+                                         AND A.KCADD = '-1' 
+                                         AND A.DEPTID <> '{0}') A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)", strMRKF);
+            }
+            string strSearch = "";
+            if (tgbGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" and (A.GDSEQ LIKE UPPER('%{0}%') OR B.GDNAME LIKE UPPER('%{0}%') OR B.NAMEJC  LIKE UPPER('%{0}%') OR  B.BAR3 LIKE UPPER('%{0}%') OR B.ZJM  LIKE UPPER('%{0}%'))", tgbGDSEQ.Text.Trim());
+            }
+            if (tgbDate1.Text.Trim().Length > 0 && tgbDate2.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(@" AND A.RQSJ BETWEEN
+                                            TO_DATE('{0}', 'YYYY-MM-DD HH24:MI:SS') and
+                                            TO_DATE('{1}', 'YYYY-MM-DD HH24:MI:SS')", tgbDate1.Text.Trim(), tgbDate2.Text.Trim());
+            }
+            if (!string.IsNullOrWhiteSpace(docDEPTID.SelectedValue))
+            {
+                strSearch += string.Format(" AND A.DEPTID = '{0}'", docDEPTID.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(docSUPID.SelectedValue))
+            {
+                if (docSUPID.SelectedValue == "Y") 
+                    strSearch += string.Format(" AND A.SUPID = '00001'");
+                else
+                    strSearch += string.Format(" AND A.SUPID <> '00001'");
+
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            
+            strSql += string.Format(" GROUP BY A.GDSEQ, B.GDNAME, B.GDSPEC,A.DEPTID, B.UNIT, B.HSJJ, A.PH, A.RQ_SC, A.YXQZ, B.PRODUCER, A.HWID, A.SUPID,B.HISCODE，TO_CHAR(A.RQSJ,'YYYY-MM-DD')");
+            strSql += " ORDER BY TO_CHAR(A.RQSJ, 'YYYY-MM-DD'),A.DEPTID,A.GDSEQ";
+            return GetDataTable(pageNum, pageSize, strSql, ref total);
+        }
+        /*protected void btnExp_Click(object sender, EventArgs e)
+        {
+            if (GridGoods.Rows.Count < 1)
+            {
+                Window1.Hidden = true;
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            Response.ClearContent();
+            Response.AddHeader("content-disposition", "attachment; filename=入库单汇总查询.xls");
+            Response.ContentType = "application/excel";
+            Response.Write(PubFunc.GridToHtml(GridGoods));
+            Response.End();
+            btnExp.Enabled = true;
+        }*/
+        protected void btnExp_Click(object sender, EventArgs e)
+        {
+            string strSql = @"SELECT A.GDSEQ 商品编码,
+                                   B.GDNAME 商品名称,
+                                   B.GDSPEC 商品规格,
+                                   F_GETDEPTNAME(A.DEPTID) 科室,
+                                   f_getunitname(B.UNIT) 单位,
+                                   A.HSJJ 含税进价,
+                                   SUM(A.SL) 数量,
+                                   SUM(A.SL * A.HSJJ) 金额,
+                                   A.PH 批号,
+                                   A.RQ_SC 生产日期,
+                                   A.YXQZ 有效期至,
+                                   f_getsupname(B.PRODUCER) 生产厂商,
+                                   A.HWID 货位ID,
+                                    (CASE WHEN A.SUPID = '00001' THEN '初始库存'                    
+                                     ELSE 'SPD库存' END) 库存类型,
+                                   B.HISCODE HIS编码,
+                                   TO_CHAR(A.RQSJ,'YYYY-MM-DD') 操作日期";
+            string strDT = "";
+            if (rbtnRKD.Checked)
+            {
+                strSql += @" FROM (SELECT *
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('RKD')
+                                         AND A.KCADD = '1'
+                 
+                                     UNION ALL
+                                     SELECT *
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('THD')
+                                         AND A.KCADD = '-1') A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)";
+                strDT = "入库单";
+            }
+            else if (rbtnCKD.Checked)
+            {
+                strSql += @" FROM (SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                    FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('LCD','CKD','DSC')
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                 
+                                     UNION ALL
+                                       SELECT GDSEQ, DEPTID, HSJJ, ABS(SL) SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                        FROM DAT_GOODSJXC A
+                                       WHERE A.BILLTYPE IN ('XSG')
+                                             AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    UNION ALL
+
+                                     SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('XST')
+                                         AND A.KCADD = '-1'
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    UNION ALL
+                                     SELECT GDSEQ, DEPTID, HSJJ, SL, PH, RQ_SC, YXQZ, HWID, SUPID, PSSID, RQSJ
+                                     FROM DAT_GOODSJXC A
+                                   WHERE A.BILLTYPE IN ('DST','LTD')
+                                         AND A.KCADD = '-1' 
+                                         AND A.DEPTID NOT IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1','2'))
+                                    ) A, DOC_GOODS B, SYS_DEPT C                 
+                                         WHERE A.GDSEQ = B.GDSEQ(+)
+                                         AND A.DEPTID = C.CODE(+)";
+                strDT = "出库单";
+            }
+            string strSearch = "";
+            if (tgbGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" and (A.GDSEQ LIKE UPPER('%{0}%') OR B.GDNAME LIKE UPPER('%{0}%') OR B.NAMEJC  LIKE UPPER('%{0}%') OR  B.BAR3 LIKE UPPER('%{0}%') OR B.ZJM  LIKE UPPER('%{0}%'))", tgbGDSEQ.Text.Trim());
+            }
+            if (tgbDate1.Text.Trim().Length > 0 && tgbDate2.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(@" AND A.RQSJ BETWEEN
+                                            TO_DATE('{0}', 'YYYY-MM-DD HH24:MI:SS') and
+                                            TO_DATE('{1}', 'YYYY-MM-DD HH24:MI:SS')", tgbDate1.Text.Trim(), tgbDate2.Text.Trim());
+            }
+            string strDept = "";
+            if (!string.IsNullOrWhiteSpace(docDEPTID.SelectedValue))
+            {
+                strSearch += string.Format(" AND A.DEPTID = '{0}'", docDEPTID.SelectedValue);
+                strDept = docDEPTID.SelectedText;
+            }
+            if (!string.IsNullOrWhiteSpace(docSUPID.SelectedValue))
+            {
+                if (docSUPID.SelectedValue == "Y")
+                    strSearch += string.Format(" AND A.SUPID = '00001'");
+                else
+                    strSearch += string.Format(" AND A.SUPID <> '00001'");
+
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            
+            strSql += string.Format(" GROUP BY A.GDSEQ, B.GDNAME, B.GDSPEC,A.DEPTID, B.UNIT, A.HSJJ, A.PH, A.RQ_SC, A.YXQZ, B.PRODUCER, A.HWID, A.SUPID, B.HISCODE，TO_CHAR(A.RQSJ,'YYYY-MM-DD')");
+            strSql += " ORDER BY TO_CHAR(A.RQSJ, 'YYYY-MM-DD'),A.DEPTID,A.GDSEQ";
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            
+            
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, string.Format("{0}汇总查询", strDT), string.Format("{0}{1}汇总查询_", strDept, strDT) + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls");
+        }
+
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            tgbDate1.Text = DateTime.Now.ToString();
+            tgbDate2.Text = DateTime.Now.ToString();
+        }
+
+        protected void tgbGDSEQ_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+            DataTable table = PubFunc.GridDataGet(GridGoods);
+            DataTable tbnew = table.Clone();
+            tbnew.Columns["HSJJ"].DataType = typeof(double);//指定HSJJ为double类型
+            tbnew.Columns["JE"].DataType = typeof(double);//指定JE为double类型
+            tbnew.Columns["SL"].DataType = typeof(int);//指定SL为int类型
+            foreach (DataRow s in table.Rows)
+            {
+                tbnew.ImportRow(s);//导入旧数据
+            }
+            DataView view1 = tbnew.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            GridGoods.DataSource = view1;
+            GridGoods.DataBind();
+        }
+
+        protected void btnPrint_Click(object sender, EventArgs e)
+        {
+            //int[] selections = GridGoods.SelectedRowIndexArray;
+            int selections = GridGoods.Rows.Count;
+            if (selections == 0)
+            {
+                Alert.Show("请选择要打印的数据！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            PageContext.RegisterStartupScript("PrintLable()");
+        }
+
+        protected void rbtnRKD_CheckedChanged(object sender, CheckedEventArgs e)
+        {
+            ToolbarText.Text = "操作信息：按商品 <b>入库</b> 情况汇总！";
+            docDEPTID.Label = "入库库房";
+            //DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, docDEPTID);
+            docDEPTID.DataSource = DbHelperOra.Query(string.Format(@"SELECT CODE, NAME
+                                  FROM (SELECT '' CODE， '--请选择--' NAME
+                                          FROM DUAL
+                                        UNION ALL
+                                        SELECT CODE, '['||CODE||']'||NAME NAME
+                                          FROM SYS_DEPT
+                                         WHERE  TYPE IN('1') AND F_CHK_DATARANGE(CODE, '{0}') = 'Y')
+                                 ORDER BY CODE DESC                            
+                                ", UserAction.UserID));
+            docDEPTID.DataTextField = "NAME";
+            docDEPTID.DataValueField = "CODE";
+            docDEPTID.DataBind();
+            docDEPTID.SelectedIndex = 1;
+
+            hfdISRK.Text = "Y";
+            DataSearch();
+        }
+
+        protected void rbtnCKD_CheckedChanged(object sender, CheckedEventArgs e)
+        {
+            ToolbarText.Text = "操作信息：按商品 <b>出库</b> 情况汇总！";
+            docDEPTID.Label = "收货科室";
+            //PubFunc.DdlDataGet("DDL_SYS_DEPTDEF", docDEPTID);
+            docDEPTID.DataSource = DbHelperOra.Query(string.Format(@"SELECT CODE, NAME
+                              FROM (SELECT '' CODE, '--请选择--' NAME
+                                      FROM DUAL
+                                    UNION ALL
+                                    SELECT CODE, '[' || CODE || ']' || NAME NAME
+                                      FROM SYS_DEPT
+                                     WHERE TYPE IN ('3','4')
+                                       AND CODE<>'01'
+                                       AND CODE<>'00'
+                                       AND F_CHK_DATARANGE(CODE, '{0}') = 'Y'
+                                     ORDER BY CODE)
+                             ORDER BY NAME ", UserAction.UserID));
+            docDEPTID.DataTextField = "NAME";
+            docDEPTID.DataValueField = "CODE";
+            docDEPTID.DataBind();
+            docDEPTID.SelectedIndex = 1;
+
+            hfdISRK.Text = "N";
+            DataSearch();
+        }
+    }
+}

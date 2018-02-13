@@ -1,0 +1,566 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.Spdxm.XJ_CJRM
+{
+    public partial class CKDChecking : BillBase
+    {
+        protected string KSSYCKD = "/grf/kssyckd.grf";
+        public CKDChecking()
+        {
+            BillType = "CKH";
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billNew();
+            }
+        }
+        protected override void billNew()
+        {
+            GridGoods.DataSource = null;
+            GridGoods.DataBind();
+            PubFunc.FormLock(FormDoc, false);
+            docBILLTYPE.SelectedValue = "DSH";
+            ddlCATID.SelectedValue = "2";
+        }
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_SYS_DEPT", lstDEPTID, docDEPTID, ddlDEPTOUT, ddlDEPTID);
+            PubFunc.DdlDataGet("DDL_USER", lstLRY, docLRY, ddlLRY);
+            PubFunc.DdlDataGet("DDL_DOC_SUPPLIERNULL", ddlSUPID, lstSUPID);
+            PubFunc.DdlDataGet("DDL_GOODSTYPE", ddlCATID);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            docBEGRQ.Text = DateTime.Now.ToString("yyyy-MM-dd") + " 00:00:00";
+            docENDRQ.Text = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd") + " 00:00:00";
+            ddlSUPID.SelectedValue = Doc.DbGetSysPara("SUPPLIER");
+            hfdCurrent.Text = UserAction.UserID;
+
+            //获取客户化GRF文件地址  By YuanPeng 2016年8月26日20:33:57 At 新疆昌吉
+            string grf = Doc.DbGetGrf("KSSYCKD");
+            if (!string.IsNullOrWhiteSpace(grf))
+            {
+                KSSYCKD = grf;
+            }
+        }
+
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+        private string GetQuerySql()
+        {
+            string strSql = @"SELECT A.SEQNO,A.BILLNO,DECODE(FLAG,'N','新单','Y','已审核','R','已驳回','新单') FLAG,F_GETDEPTNAME(A.DEPTID) DEPTID,F_GETDEPTNAME(A.DEPTOUT) DEPTOUT,
+                                                  F_GETSUPNAME(A.PSSID) PSSNAME,A.SUBSUM,A.SUBNUM,F_GETUSERNAME(A.LRY) LRY,A.LRRQ,A.MEMO,A.STR1||'~'||A.STR2 DJQJ,
+                                                  NVL((SELECT FUNCTIME FROM SYS_FUNCPRNNUM WHERE FUNCNO = A.SEQNO),0) PRINTNUM
+                                        FROM DAT_JZ_DOC A WHERE XSTYPE='1' ";
+            string strSearch = "";
+
+            if (!string.IsNullOrWhiteSpace(lstLRY.SelectedValue))
+            {
+                strSearch += string.Format(" AND A.LRY='{0}'", lstLRY.SelectedValue);
+            }
+            if (lstDEPTID.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            if (lstSUPID.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND DEPTOUT='{0}'", lstSUPID.SelectedItem.Value);
+            }
+            if (!string.IsNullOrWhiteSpace(lstBILLNO.Text.Trim()))
+            {
+                strSearch += string.Format(" AND A.SEQNO LIKE '%{0}%'", lstBILLNO.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(trbSEQNO.Text.Trim()))
+            {
+                strSearch += string.Format(" AND A.SEQNO IN (SELECT SEQNO FROM DAT_JZ_COM WHERE JSBILLNO LIKE '%{0}%')", trbSEQNO.Text);
+            }
+            if (lstDEPTID.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            strSearch += string.Format(@" AND (CASE WHEN A.STR1 IS NOT NULL THEN
+                                                                                     TO_DATE(A.STR1, 'YYYY-MM-DD')
+                                                                             ELSE A.LRRQ
+                                                                           END) >= TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            strSearch += string.Format(@" AND (CASE WHEN A.STR2 IS NOT NULL THEN
+                                                                                     TO_DATE(A.STR2, 'YYYY-MM-DD')
+                                                                             ELSE A.LRRQ END) < TO_DATE('{0}','YYYY-MM-DD') + 1", lstLRRQ2.Text);
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY A.LRRQ DESC";
+            return strSql;
+        }
+        protected override void billSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("输入条件录入日期不正确！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            highlightRowsNavajo.Text = "";
+            DataTable table = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            GridList.DataSource = table;
+            GridList.DataBind();
+            //计算合计数量
+            decimal subsum = 0, subnum = 0;
+            foreach (DataRow row in table.Rows)
+            {
+                subsum += Convert.ToDecimal(row["SUBSUM"]);
+                subnum += Convert.ToDecimal(row["SUBNUM"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("DEPTOUT", "本页合计");
+            summary.Add("SUBSUM", subsum.ToString("F2"));
+            summary.Add("SUBNUM", subnum.ToString("F2"));
+            GridList.SummaryData = summary;
+        }
+
+        protected override void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            billOpen(GridList.Rows[e.RowIndex].DataKeys[0].ToString());
+        }
+
+        protected override void billOpen(string strBillno)
+        {
+            //表头进行赋值
+            string strDocSql = "SELECT SEQNO, DEPTID, DEPTOUT, STR1 BEGRQ, STR2 ENDRQ,LRY,LRRQ,SUBSUM FROM DAT_JZ_DOC WHERE SEQNO = '{0}'";
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            if (dtDoc != null && dtDoc.Rows.Count > 0)
+            {
+                tbxBILLNO.Text = dtDoc.Rows[0]["SEQNO"].ToString();
+                tbxSUBSUM.Text = dtDoc.Rows[0]["SUBSUM"].ToString();
+                ddlLRY.SelectedValue = dtDoc.Rows[0]["LRY"].ToString();
+                dpkLRRQ.Text = dtDoc.Rows[0]["LRRQ"].ToString();
+                ddlDEPTOUT.SelectedValue = dtDoc.Rows[0]["DEPTOUT"].ToString();
+                ddlDEPTID.SelectedValue = dtDoc.Rows[0]["DEPTID"].ToString();
+                dpkBEGRQ.Text = dtDoc.Rows[0]["BEGRQ"].ToString();
+                dpkENDRQ.Text = dtDoc.Rows[0]["ENDRQ"].ToString();
+            }
+            //表体赋值
+            string sql = @"SELECT B.RQSJ,
+                                             A.JSBILLNO BILLNO,
+                                             A.JSROWNO ROWNO,
+                                             B.GDSEQ,
+                                             A.GDNAME,
+                                             F_GETUNITNAME(A.UNIT) UNIT,
+                                             A.GDSPEC,
+                                             A.HSJJ,
+                                             A.HSJE,
+                                             A.PH,
+                                             A.RQ_SC,
+                                             A.YXQZ,
+                                             A.PZWH,
+                                             F_GETSUPNAME(A.PSSID) SUPNAME,
+                                             F_GETPRODUCERNAME(A.PRODUCER) PRODUCER
+                                   FROM DAT_JZ_COM A, DAT_GOODSJXC B
+                                 WHERE A.JSBILLNO = B.BILLNO
+                                     AND A.JSROWNO = B.ROWNO
+                                     AND A.SEQNO = '{0}'";
+            DataTable dtBill = DbHelperOra.Query(string.Format(sql, strBillno)).Tables[0];
+            GridCom.DataSource = dtBill;
+            GridCom.DataBind();
+
+            //计算合计数量
+            decimal subhsje = 0;
+            foreach (DataRow row in dtBill.Rows)
+            {
+                subhsje += Convert.ToDecimal(row["HSJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("HSJE", subhsje.ToString("F2"));
+            GridCom.SummaryData = summary;
+
+            TabStrip1.ActiveTabIndex = 2;
+            PubFunc.FormLock(FormCom, true);
+        }
+        protected void btnCreateHZ_Click(object sender, EventArgs e)
+        {
+            if (ckbALL.Checked)
+            {
+                // 按时间生成单据 昌吉
+                DateTime get = DateTime.Parse(docBEGRQ.Text);
+                DateTime end = DateTime.Parse(docENDRQ.Text);
+                DateTime ks = Convert.ToDateTime(get.AddDays(1).ToString("yyyy-MM-dd ") + "  00:00:00");
+                DateTime js = Convert.ToDateTime(get.ToString("yyyy-MM-dd ") + "  23:59:59");
+                bool b = true;
+                //计算时间差
+                System.TimeSpan NowValue = new TimeSpan(get.Ticks);
+                System.TimeSpan TimeValue = new TimeSpan(end.Ticks);
+                System.TimeSpan KsValue = new TimeSpan(ks.Ticks);
+                System.TimeSpan JsValue = new TimeSpan(js.Ticks);
+                int seconds = TimeValue.Seconds - NowValue.Seconds;
+                int minutes = TimeValue.Minutes - NowValue.Minutes;
+                int hours = TimeValue.Hours - NowValue.Hours;
+                int daytemp = TimeValue.Days - NowValue.Days;
+                int second = (daytemp * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+                int day = (int)second / 86400;
+                int m = second % 86400;
+                DateTime start = get;
+                if (day < 1 && m < 1)
+                {
+                    Alert.Show("结束时间要大于开始时间！！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                else if (day < 1)
+                {
+                    int seconds1 = JsValue.Seconds - NowValue.Seconds;
+                    int minutes1 = JsValue.Minutes - NowValue.Minutes;
+                    int hours1 = JsValue.Hours - NowValue.Hours;
+                    int daytemp1 = JsValue.Days - NowValue.Days;
+                    int second1 = (daytemp * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+                    if (second < second1)
+                    {
+                        try
+                        {
+                            CreateHZ(start, end);
+                        }
+                        catch (Exception ex)
+                        {
+                            Alert.Show(SPDUtility.errorParse(ex.Message), "消息提示", MessageBoxIcon.Warning);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < 2; i++)
+                        {
+                            if (i == 0)
+                            {
+                                try
+                                {
+                                    CreateHZ(start, js);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Alert.Show(SPDUtility.errorParse(ex.Message), "消息提示", MessageBoxIcon.Warning);
+                                    return;
+                                }
+                            }
+                            else if (i == 1)
+                            {
+                                try
+                                {
+                                    CreateHZ(ks, end);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Alert.Show(SPDUtility.errorParse(ex.Message), "消息提示", MessageBoxIcon.Warning);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                }
+                else
+                {
+                    for (int i = 0; i <= day + 1; i++)
+                    {
+                        start = get.AddDays(i);
+                        js = Convert.ToDateTime(start.ToString("yyyy-MM-dd ") + "  23:59:59");
+                        if (i == 0)
+                        {
+                            ks = get;
+                        }
+                        if (end < js)
+                        {
+                            js = end;
+                            i = day + 2;
+                        }
+                        try
+                        {
+                            CreateHZ(ks, js);
+                        }
+                        catch (Exception ex)
+                        {
+                            Alert.Show(SPDUtility.errorParse(ex.Message), "消息提示", MessageBoxIcon.Warning);
+                            return;
+                        }
+                        ks = Convert.ToDateTime(start.AddDays(1).ToString("yyyy-MM-dd ") + "  00:00:00");
+                    }
+                }
+                Alert.Show("出库汇总单生成成功!", "消息提示", MessageBoxIcon.Information);
+                TabStrip1.ActiveTabIndex = 1;
+            }
+            else
+            {
+                //将选中行生成一张结算单
+                int[] selections = GridGoods.SelectedRowIndexArray;
+                if (selections.Count() < 1) return;
+                string str_bill = "";
+                foreach (int rowIndex in selections)
+                {
+                    str_bill += "" + GridGoods.DataKeys[rowIndex][0].ToString() + ",";
+                }
+                OracleParameter[] parameters = {
+                                               new OracleParameter("VIN_BILLNO", OracleDbType.Varchar2),
+                                               new OracleParameter("VIN_OPERUSER", OracleDbType.Varchar2,20) };
+                parameters[0].Value = str_bill.Trim(',');
+                parameters[1].Value = UserAction.UserID;
+
+                try
+                {
+                    DbHelperOra.RunProcedure("STOREDS.P_DSCHZ_BILLNO", parameters);
+                    Alert.Show("出库汇总单生成成功!", "消息提示", MessageBoxIcon.Information);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+
+            TabStrip1.ActiveTabIndex = 1;
+            lstLRRQ1.SelectedDate = DateTime.Parse(docBEGRQ.Text);
+            lstLRRQ2.SelectedDate = DateTime.Parse(docENDRQ.Text);
+            billSearch();
+        }
+        private void CreateHZ(DateTime dt1, DateTime dt2)
+        {
+
+            string billtype = string.Empty;
+            if (string.IsNullOrWhiteSpace(docBILLTYPE.SelectedValue))
+            {
+                billtype = "DSH,XSD";
+            }
+            else
+            {
+                billtype = docBILLTYPE.SelectedValue;
+            }
+            OracleParameter[] parameters = {
+                                               new OracleParameter("VIN_BILLTYPE", OracleDbType.Varchar2),
+                                               new OracleParameter("VIN_OPERUSER", OracleDbType.Varchar2,20),
+                                               new OracleParameter("VIN_BEGRQ", OracleDbType.Date),
+                                               new OracleParameter("VIN_ENDRQ", OracleDbType.Date) };
+            parameters[0].Value = billtype;
+            parameters[1].Value = UserAction.UserID;
+            parameters[2].Value = DateTime.Parse(dt1.ToString());
+            parameters[3].Value = DateTime.Parse(dt2.ToString());
+
+            try
+            {
+                DbHelperOra.RunProcedure("STOREDS.P_DSCHZ_CREATE", parameters);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+
+        }
+        private void DataQuery()
+        {
+            //查询需结算单据
+            string Sql = string.Format(@"SELECT A.BILLNO,A.DEPTID,A.DEPTOUT,C.RQSJ SHRQ,B.ROWNO,B.STR1 BARCODE,
+                                                                   B.GDSEQ,B.GDNAME,B.GDSPEC,C.PH,C.RQ_SC,C.YXQZ,C.SEQNO JXCSEQ,
+                                                                   ABS(C.HSJJ) HSJJ,ABS(C.SL) SL,ABS(C.HSJE) HSJE,
+                                                                   C.SUPID,F_GETSUPNAME(C.SUPID) SUPNAME,
+                                                                   F_GET_BILLTYPENAME(A.BILLTYPE) BILLTYPENAME,
+                                                                   F_GETBILLFLAG(A.FLAG) FLAGNAME,
+                                                                   F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                                                   F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,
+                                                                   F_GETUSERNAME(C.OPERGH) SHRNAME
+                                                          FROM DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC C
+                                                         WHERE A.SEQNO = B.SEQNO AND B.SEQNO = C.BILLNO
+                                                           AND B.ROWNO = C.ROWNO AND B.GDSEQ = C.GDSEQ 
+                                                           AND A.BILLTYPE IN ('XSD','DSH')
+                                                           AND C.SEQNO NOT IN (SELECT JXCSEQ FROM DAT_JZ_COM)
+                                                           AND C.RQSJ >= TO_DATE('{0}', 'YYYY-MM-DD HH24:MI:SS')
+                                                           AND C.RQSJ <= TO_DATE('{1}', 'YYYY-MM-DD HH24:MI:SS')
+                                                            ", docBEGRQ.Text, docENDRQ.Text);
+            string strSearch = "";
+            if (docDEPTID.SelectedValue.Length > 0)
+            { strSearch += string.Format(" AND A.DEPTID  LIKE '{0}'", docDEPTID.SelectedValue); }
+            if (ddlCATID.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND C.CATID IN  (SELECT CODE FROM SYS_CATEGORY WHERE TYPE = '%{0}%')", ddlCATID.SelectedValue);
+            }
+            if (docBILLTYPE.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.BILLTYPE = '{0}'", docBILLTYPE.SelectedValue);
+            }
+            if (ddlSUPID.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND C.SUPID = '{0}'", ddlSUPID.SelectedValue);
+            }
+            if (docLRY.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.LRY = '{0}'", docLRY.SelectedValue);
+            }
+            strSearch += " ORDER BY A.DEPTID,A.SEQNO DESC,C.ROWNO";
+
+            int total = 0;
+            GridGoods.DataSource = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, Sql + strSearch, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+        protected void btnQuery_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【使用日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            DataQuery();
+        }
+
+        protected void lstBILLNO_TriggerClick(object sender, EventArgs e)
+        {
+            billSearch();
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataView view1 = PubFunc.GridDataGet(GridList).DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            btnQuery_Click(null, null);
+        }
+
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+
+        }
+
+        protected void btnPrintAll_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridList.SelectedRowIndexArray;
+            if (selections.Length < 1)
+            {
+                Alert.Show("请选择要打印的单据信息！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string bills = string.Empty;
+            foreach (int index in selections)
+            {
+                bills = bills + GridList.DataKeys[index][0].ToString() + ",";
+            }
+
+            hfdBillNo.Text = bills.Trim(',');
+            PageContext.RegisterStartupScript("PrintCKD()");
+        }
+
+        protected void btnPrint_Click(object sender, EventArgs e)
+        {
+            hfdBillNo.Text = tbxBILLNO.Text;
+            PageContext.RegisterStartupScript("PrintCKD()");
+        }
+
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                int num = int.Parse(row["PRINTNUM"].ToString());
+                if (num > 0)
+                {
+                    highlightRowsNavajo.Text += e.RowIndex.ToString() + ",";
+                    e.RowAttributes["data-color"] = "color1";
+                }
+            }
+
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【结算日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+
+            DataTable table = new DataTable();
+            table.Columns.Add(new DataColumn("序号", typeof(int)));
+            foreach (DataColumn col in dtData.Columns)
+            {
+                table.Columns.Add(new DataColumn(col.ColumnName, col.DataType));
+            }
+            //计算汇总金额
+            decimal rowno = 0, subsum = 0, subnum = 0;
+            foreach (DataRow row in dtData.Rows)
+            {
+                DataRow dr = table.NewRow();
+                dr["序号"] = ++rowno;
+                foreach (DataColumn col in dtData.Columns)
+                {
+                    dr[col.ColumnName] = row[col.ColumnName];
+                }
+                table.Rows.Add(dr);
+
+                subsum += decimal.Parse(row["SUBSUM"].ToString());
+                subnum += decimal.Parse(row["SUBNUM"].ToString());
+            }
+            DataRow dr2 = table.NewRow();
+            dr2["DEPTOUT"] = "汇总合计";
+            dr2["SUBSUM"] = subsum;
+            dr2["SUBNUM"] = subnum;
+            table.Rows.Add(dr2);
+
+            List<string> colmns = new List<string>();
+            colmns.Add("序号");
+            for (int index = 1; index < GridList.Columns.Count; index++)
+            {
+                GridColumn column = GridList.Columns[index];
+                if (column is FineUIPro.BoundField && column.Hidden == false)
+                {
+                    table.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    colmns.Add(column.HeaderText);
+                }
+            }
+            ExcelHelper.ExportByWeb(table.DefaultView.ToTable(true, colmns.ToArray()), string.Format("{0:yyyy年MM月}", lstLRRQ2.SelectedDate) + "出库单信息", string.Format("出库单信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+    }
+}

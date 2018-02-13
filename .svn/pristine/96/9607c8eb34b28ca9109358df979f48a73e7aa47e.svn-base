@@ -1,0 +1,579 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using Oracle.ManagedDataAccess.Client;
+using System.Collections.Specialized;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Collections;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using XTBase.Utilities;
+
+namespace SPDProject.WeiGo
+{
+    public partial class SPDGoodsMatching : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                tgbExlBill.Text = "PPD001";
+            }
+        }
+        public SPDGoodsMatching()
+        {
+            BillType = "PPD";
+        }
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_HOSPITAL", ddlHis, ddlHisp);
+        }
+        #region one
+        protected void BtnErr_Click(object sender, EventArgs e)
+        {
+            SearchOne(true);
+        }
+        private void SearchOne(bool err = false)
+        {
+            string Stearch = "";
+            if (!PubFunc.StrIsEmpty(ddlHis.SelectedValue))
+            {
+                Stearch += string.Format(" AND A.CUSTID = '{0}'", ddlHis.SelectedValue);
+            }
+            //if (!PubFunc.StrIsEmpty(tgbExlBill.Text))
+            //{
+            //    Stearch += string.Format(" AND A.SEQNO LIKE '%{0}%'", tgbExlBill.Text);
+            //}
+            if (!PubFunc.StrIsEmpty(tgbExlGoods.Text))
+            {
+                Stearch += string.Format(" AND A.HISNAME LIKE '%{0}%'", tgbExlGoods.Text);
+            }
+            Stearch += " ORDER BY HISCODE";
+            int total = 0;
+            string mysql = "";
+            if (!err)
+            {
+                GridColumn MEMO = GridExcel.FindColumn("MEMO");
+                MEMO.Hidden = true;
+                mysql = @"SELECT A.*,B.NAME HOSNAME FROM DAT_UPLOAD_GOODS A,DOC_CUSTOMER B WHERE A.CUSTID = B.CODE(+) AND A.FLAG = 'N' ";
+            }
+            else
+            {
+                GridColumn MEMO = GridExcel.FindColumn("MEMO");
+                MEMO.Hidden = false;
+                mysql = @"SELECT A.*,B.NAME HOSNAME FROM DAT_UPLOAD_GOODS A,DOC_CUSTOMER B WHERE A.CUSTID = B.CODE(+) AND A.FLAG = 'C' ";
+            }
+
+            DataTable dtData = PubFunc.DbGetPage(GridExcel.PageIndex, GridExcel.PageSize, mysql + Stearch, ref total);
+            GridExcel.RecordCount = total;
+            GridExcel.DataSource = dtData;
+            GridExcel.DataBind();
+        }
+        private bool CheckFileExt(string fileNameExt)
+        {
+            if (String.IsNullOrEmpty(fileNameExt))
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        protected void btnIns_Click(object sender, EventArgs e)
+        {
+            //if (PubFunc.StrIsEmpty(ddlHis.SelectedValue))
+            //{
+            //    Alert.Show("请选择需导入的医院！");
+            //    return;
+            //}
+            if (this.fuDocument.HasFile)
+            {
+                string toFilePath = "~/SpdUpload/DownloadExcel/";
+
+                //获得文件扩展名
+                string fileNameExt = Path.GetExtension(this.fuDocument.FileName).ToLower();
+
+                if (!ValidateFileType(fileNameExt))
+                {
+                    Alert.Show("无效的文件类型！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+
+                //验证合法的文件
+                if (CheckFileExt(fileNameExt))
+                {
+                    //生成将要保存的随机文件名
+                    string fileName = this.fuDocument.FileName.Substring(0, this.fuDocument.FileName.IndexOf(".")) + DateTime.Now.ToString("yyyyMMddHHmmss") + fileNameExt;
+
+                    //按日期归类保存
+                    string datePath = DateTime.Now.ToString("yyyyMM") + "/" + DateTime.Now.ToString("dd") + "/";
+                    toFilePath += datePath;
+
+                    //获得要保存的文件路径
+                    string DownloadUrl = toFilePath + fileName;
+                    //物理完整路径                    
+                    string toFileFullPath = HttpContext.Current.Server.MapPath(toFilePath);
+
+                    //检查是否有该路径,没有就创建
+                    if (!Directory.Exists(toFileFullPath))
+                    {
+                        Directory.CreateDirectory(toFileFullPath);
+                    }
+
+                    //将要保存的完整物理文件名                
+                    string serverFileName = toFileFullPath + fileName;
+
+                    //获取保存的excel路径
+                    this.fuDocument.SaveAs(serverFileName);
+
+                    if (File.Exists(serverFileName))
+                    {
+                        DataTable table = new DataTable();
+
+                        if (fileNameExt == ".xlsx")
+                        {
+                            table = ExcelHelper.ImportExcelxtoDt(serverFileName, 0, 1); //导入excel2007
+                        }
+                        else
+                        {
+                            table = ExcelHelper.ImportExceltoDt(serverFileName, 0, 1);//导入excel2003
+                        }
+                        //清空匹配表
+                        DbHelperOra.ExecuteSql("TRUNCATE TABLE DAT_UPLOAD_GOODS");
+                        if (table != null && table.Rows.Count > 0)
+                        {
+                            string sql = @"INSERT INTO DAT_UPLOAD_GOODS(SEQNO,CUSTID,HISCODE,HISNAME,HISSPEC,HISUNIT,HSJJ,PRODUCER,PIZNO,GDSEQ,BAR3)
+                                                          VALUES(:SEQNO,:CUSTID,:HISCODE,:HISNAME,:HISSPEC,:HISUNIT,:HSJJ,:PRODUCER,:PIZNO,:GDSEQ,:BAR3)";
+                            OracleConnection con = new OracleConnection(DbHelperOra.connectionString);
+                            OracleDataAdapter da = new OracleDataAdapter(sql, con);
+                            //在批量添加数据前的准备工作
+                            da.InsertCommand = new OracleCommand(sql, con);
+                            OracleParameter param = new OracleParameter();
+
+                            OracleParameter para = new OracleParameter("SEQNO", OracleDbType.Varchar2, 20);
+                            //tgbExlBill.Text = BillSeqGet();
+                            //固定单号
+                            para.Value = "PPD001";
+                            param = da.InsertCommand.Parameters.Add(para);
+
+                            para = new OracleParameter("CUSTID", OracleDbType.Varchar2, 20);
+                            para.Value = PubFunc.DbGetPara("USERCODE");
+                            param = da.InsertCommand.Parameters.Add(para);
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("HISCODE", OracleDbType.Varchar2, 50));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "HIS编码";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("HISNAME", OracleDbType.Varchar2, 200));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "商品名称";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("HISSPEC ", OracleDbType.Varchar2, 100));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "规格";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("HISUNIT", OracleDbType.Varchar2, 15));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "单位";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("HSJJ", OracleDbType.Decimal, 15));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "价格";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("PRODUCER", OracleDbType.Varchar2, 200));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "生产厂家";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("PIZNO", OracleDbType.Varchar2, 100));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "注册证号";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("GDSEQ", OracleDbType.Varchar2, 20));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "SPD编码";
+
+                            param = da.InsertCommand.Parameters.Add(new OracleParameter("BAR3", OracleDbType.Varchar2, 20));
+                            param.SourceVersion = DataRowVersion.Current;
+                            param.SourceColumn = "ERP编码";
+
+                            //param = da.InsertCommand.Parameters.Add(new OracleParameter("SL", OracleDbType.Decimal, 16));
+                            //param.SourceVersion = DataRowVersion.Current;
+                            //param.SourceColumn = "数量";
+
+                            //param = da.InsertCommand.Parameters.Add(new OracleParameter("YWRQ", OracleDbType.Varchar2, 20));
+                            //param.SourceVersion = DataRowVersion.Current;
+                            //param.SourceColumn = "业务日期";
+                            //批量添加数据
+                            try
+                            {
+                                con.Open();
+                                da.Update(table);
+                                //处理导入数据的准确性
+                                OracleParameter[] parameters = new OracleParameter[]
+                                {
+                                     new OracleParameter("V_BILL",OracleDbType.Varchar2),
+                                     new OracleParameter("V_TYPE",OracleDbType.Varchar2),
+                                };
+                                parameters[0].Value = tgbExlBill.Text;
+                                parameters[1].Value = '1';
+                                DbHelperOra.RunProcedure("P_ExlGOODS", parameters);
+                                string allnum = DbHelperOra.GetSingle("SELECT COUNT(1) FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG IN('N','Y')").ToString();
+                                string Delnum = DbHelperOra.GetSingle("SELECT COUNT(1) FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG ='C'").ToString();
+                                if (Delnum == "0")
+                                { Alert.Show("Excel已匹配编码信息已自动导入匹配表中!\r\n共导入[" + allnum + "]条数据！", "消息提示", MessageBoxIcon.Information); }
+                                else
+                                { Alert.Show("[" + Delnum + "]条记录因重复或未填写商品信息未导入,成功导入[" + allnum + "]条数据！", "消息提示", MessageBoxIcon.Information); }
+
+                                SearchOne();
+                            }
+                            catch (Exception ex)
+                            {
+                                Alert.Show("数据库错误：" + ex.Message.ToString(), "异常信息", MessageBoxIcon.Warning);
+                            }
+                            finally
+                            {
+                                con.Close();
+                            }
+                        }
+
+                        File.Delete(serverFileName);
+                    }
+                }
+            }
+            else
+            {
+                Alert.Show("请选择excel文件！");
+            }
+        }
+        protected void btnExlSch_Click(object sender, EventArgs e)
+        {
+            SearchOne();
+        }
+        protected void GridExcel_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridExcel.PageIndex = e.NewPageIndex;
+            SearchOne();
+        }
+        protected void btnJQ_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.StrIsEmpty(tgbExlBill.Text))
+            {
+                Alert.Show("请首先输入完整导入单号!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (!DbHelperOra.Exists("SELECT 1 FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG = 'N'"))
+            {
+                Alert.Show("不存在需要匹配信息！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            OracleParameter[] parameters = new OracleParameter[]
+                                {
+                                     new OracleParameter("V_BILL",OracleDbType.Varchar2),
+                                     new OracleParameter("V_TYPE",OracleDbType.Varchar2),
+                                };
+            parameters[0].Value = tgbExlBill.Text;
+            parameters[1].Value = '2';
+            DbHelperOra.RunProcedure("P_ExlGOODS", parameters);
+            string allnum = DbHelperOra.GetSingle("SELECT COUNT(1) FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG ='Y' AND PPMODE = '1'").ToString();
+            Alert.Show("精确匹配成功!\r\n共匹配[" + allnum + "]条数据！", "消息提示", MessageBoxIcon.Information);
+            SearchOne();
+            //TgbBill.Text = tgbExlBill.Text;
+            btnGridOut_Click(null, null);
+        }
+        protected void btnMH_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.StrIsEmpty(tgbExlBill.Text))
+            {
+                Alert.Show("请首先输入完整导入单号!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (!DbHelperOra.Exists("SELECT 1 FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG = 'N'"))
+            {
+                Alert.Show("不存在需匹配信息！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            OracleParameter[] parameters = new OracleParameter[]
+                                {
+                                     new OracleParameter("V_BILL",OracleDbType.Varchar2),
+                                     new OracleParameter("V_TYPE",OracleDbType.Varchar2),
+                                };
+            parameters[0].Value = tgbExlBill.Text;
+            parameters[1].Value = '3';
+            DbHelperOra.RunProcedure("P_ExlGOODS", parameters);
+            string allnum = DbHelperOra.GetSingle("SELECT COUNT(1) FROM DAT_UPLOAD_GOODS WHERE SEQNO = '" + tgbExlBill.Text + "' AND FLAG ='Y' AND PPMODE = '2'").ToString();
+            Alert.Show("糊匹配成功!\r\n共匹配[" + allnum + "]条数据！", "消息提示", MessageBoxIcon.Information);
+            SearchOne();
+            //TgbBill.Text = tgbExlBill.Text;
+            btnGridOut_Click(null, null);
+        }
+        protected void btnExlDel_Click(object sender, EventArgs e)
+        {
+            int[] selGoods = GridExcel.SelectedRowIndexArray;
+            if (selGoods.Count() < 1)
+            {
+                Alert.Show("请选择商品列表中的商品！");
+                return;
+            }
+            DbHelperOra.ExecuteSql(string.Format("UPDATE DAT_UPLOAD_GOODS SET FLAG = 'D' WHERE HISCODE = '{0}' AND SEQNO = '{1}'", GridExcel.DataKeys[selGoods[0]][0].ToString(), GridExcel.DataKeys[selGoods[0]][1].ToString()));
+            SearchOne();
+        }
+        protected void GridExcel_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            int[] selGoods = GridGoods.SelectedRowIndexArray;
+            if (selGoods.Count() < 1)
+            {
+                Alert.Show("请选择商品列表中的商品！");
+                return;
+            }
+            Match(e.RowIndex, GridExcel.DataKeys[e.RowIndex][0].ToString(), GridExcel.DataKeys[e.RowIndex][1].ToString(), GridGoods.DataKeys[selGoods[0]][0].ToString());
+        }
+        #endregion
+
+        #region Two
+        private void SearchTwo()
+        {
+            //从数据平台取得数据
+            DataTable dt = new DataTable();
+            try
+            {
+                JObject result = ApiClientService.query("DOC_GOODS_All", (GridGoods.PageIndex * GridGoods.PageSize).ToString(), ((GridGoods.PageIndex + 1) * GridGoods.PageSize).ToString(), ddlGoodsState.SelectedValue.Trim(), trbSearch.Text.Trim());
+                if ("success".Equals(result.Value<String>("result")))
+                {
+                    String serJa = JsonConvert.SerializeObject(result.Value<JArray>("data"));
+                    dt = JsonConvert.DeserializeObject<DataTable>(serJa);
+                    GridGoods.RecordCount = Convert.ToInt32((dt.Rows[0]["TOTAL"] ?? "0"));
+                    GridGoods.DataSource = dt;
+                    GridGoods.DataBind();
+                }
+                else
+                {
+                    String reason = result.Value<String>("reason");
+                    Exception ex = new Exception(reason);
+                    throw ex;
+                }
+            }
+            catch (Exception ex)
+            {
+                Alert.Show(ex.Message + ex.StackTrace, "获取商品信息时超时,请重新再试！", MessageBoxIcon.Error);
+            }
+            //            string Stearch = "";
+            //            if (!PubFunc.StrIsEmpty(trbSearch.Text))
+            //            {
+            //                Stearch += string.Format(" AND (A.GDSEQ LIKE '%{0}%' OR A.GDNAME LIKE '%{0}%' OR A.BAR3 LIKE '%{0}%')", trbSearch.Text);
+            //            }
+            //            Stearch += " ORDER BY GDSEQ";
+            //            int total = 0;
+            //            string mysql = @"SELECT A.*,DECODE(A.FLAG,'Y','正常','未下传') FLAGNAME,C.NAME UNITNAME,B.name PRODUCERNAME 
+            //                    FROM DOC_GOODS A,DOC_PRODUCER B,DOC_GOODSUNIT C
+            //                    WHERE A.UNIT = C.CODE(+) AND A.PRODUCER = B.code(+) ";
+            //            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, mysql + Stearch, ref total);
+            //            GridGoods.RecordCount = total;
+            //            GridGoods.DataSource = dtData;
+            //            GridGoods.DataBind();
+        }
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            SearchTwo();
+        }
+        protected void btnSrch_Click(object sender, EventArgs e)
+        {
+            SearchTwo();
+        }
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            int[] selExl = GridExcel.SelectedRowIndexArray;
+            if (selExl.Count() < 1)
+            {
+                Alert.Show("请选择Excel列表中的商品");
+                return;
+            }
+            Match(selExl[0], GridExcel.DataKeys[selExl[0]][0].ToString(), GridExcel.DataKeys[selExl[0]][1].ToString(), GridGoods.Rows[e.RowIndex].Values[1].ToString());
+        }
+
+        protected void btnMatch_Click(object sender, EventArgs e)
+        {
+            int[] selExl = GridExcel.SelectedRowIndexArray;
+            if (selExl.Count() < 1)
+            {
+                Alert.Show("请选择Excel列表中的商品！");
+                return;
+            }
+            int[] selGoods = GridGoods.SelectedRowIndexArray;
+            if (selGoods.Count() < 1)
+            {
+                Alert.Show("请选择商品列表中的商品！");
+                return;
+            }
+            Match(selExl[0], GridExcel.DataKeys[selExl[0]][0].ToString(), GridExcel.DataKeys[selExl[0]][1].ToString(), GridGoods.DataKeys[selGoods[0]][0].ToString());
+        }
+        private void Match(int ExlIndex, string HisCode, string Bill, string Gdseq)
+        {
+            //增加判断此HISCODE是否已经匹配
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_GOODS WHERE GDSEQ <>'{0}' AND NVL(HISCODE,'#') = '{1}'", Gdseq, HisCode)))
+            {
+                Alert.Show("HIS编码【" + HisCode + "】已经匹配另外商品,请检查", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            //string scprit = Confirm.GetShowReference("您是否为商品匹配ERP编码", "提示！", MessageBoxIcon.Question, PageManager1.GetCustomEventReference("OK"), PageManager1.GetCustomEventReference("Cancel"));
+            //FineUIPro.PageContext.RegisterStartupScript(scprit); 
+            DbHelperOra.ExecuteSql(string.Format(@"UPDATE DAT_UPLOAD_GOODS SET FLAG = 'Y',PPMODE='3',UPTTIME = sysdate,GDSEQ = '{0}' 
+                        WHERE SEQNO ='{1}' AND HISCODE = '{2}' AND FLAG = 'N'", Gdseq, Bill, HisCode));
+            SearchOne();
+            btnGridOut_Click(null, null);
+        }
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            //DataRowView row = e.DataItem as DataRowView;
+            //if (row != null)
+            //{
+            //    string flag = row["FLAG"].ToString();
+
+            //    if (flag == "N")
+            //    {
+            //        highlightRows.Text += e.RowIndex.ToString() + ",";
+            //    }
+            //}
+        }
+        #endregion
+
+        #region Three
+        protected void btnGridOut_Click(object sender, EventArgs e)
+        {
+            int total = 0;
+            string Sql = @"SELECT A.*,B.GDNAME,B.GDSPEC,B.PIZNO PZWH,f_getproducername(B.PRODUCER) PRODUCERNAME,D.NAME UNITNAME,C.NAME HOSNAME,B.BAR3 EAS_CODE,
+                    DECODE(B.FLAG,'Y','正常','未下传') FLAGNAME,DECODE(A.PPMODE,'1','精确匹配','2','模糊匹配','3','手工匹配','历史匹配') PPMODENAME 
+                    FROM DAT_UPLOAD_GOODS A,DOC_GOODS B,DOC_CUSTOMER C,DOC_GOODSUNIT D
+                    WHERE A.GDSEQ = B.GDSEQ(+) AND A.CUSTID = C.CODE(+) AND B.UNIT = D.CODE(+) AND A.FLAG = 'Y'";
+            string Stearch = "";
+            if (!PubFunc.StrIsEmpty(ddlHisp.SelectedValue))
+            {
+                Stearch += string.Format(" AND A.CUSTID = '{0}'", ddlHisp.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(ddlMode.SelectedValue))
+            {
+                Stearch += string.Format(" AND A.PPMODE = '{0}'", ddlMode.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(TgbBill.Text))
+            {
+                Stearch += string.Format(" AND A.SEQNO = '{0}'", TgbBill.Text);
+            }
+            if (!PubFunc.StrIsEmpty(tgbGoods.Text))
+            {
+                Stearch += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.BAR3 LIKE '%{0}%')", tgbGoods.Text);
+            }
+            Stearch += " ORDER BY A.UPTTIME DESC";
+            DataTable dtData = PubFunc.DbGetPage(GridOut.PageIndex, GridOut.PageSize, Sql + Stearch, ref total);
+            GridOut.RecordCount = total;
+            GridOut.DataSource = dtData;
+            GridOut.DataBind();
+        }
+
+        protected void GridOut_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridOut.PageIndex = e.NewPageIndex;
+            btnGridOut_Click(null, null);
+        }
+        protected void btnDel_Click(object sender, EventArgs e)
+        {
+            int[] selGoods = GridOut.SelectedRowIndexArray;
+            if (selGoods.Count() < 1) return;
+            DbHelperOra.ExecuteSql(string.Format("UPDATE DAT_UPLOAD_GOODS SET FLAG = 'N',GDSEQ ='#' WHERE HISCODE = '{0}' AND SEQNO = '{1}'", GridOut.DataKeys[selGoods[0]][1].ToString(), GridOut.DataKeys[selGoods[0]][0].ToString()));
+            tgbExlBill.Text = GridOut.DataKeys[selGoods[0]][0].ToString();
+            SearchOne();
+            btnGridOut_Click(null, null);
+        }
+        protected void btnExlOut_Click(object sender, EventArgs e)
+        {
+            string Sql = @"SELECT C.NAME 医院名称,A.HISCODE HIS编码,A.HISNAME 商品名称,B.GDSPEC 规格,D.NAME 单位,B.HSJJ 价格,E.name 生产厂家,B.PIZNO 注册证号,B.GDSEQ SPD编码,B.BAR3 ERP编码,
+                    DECODE(B.FLAG,'Y','正常','未下传') 商品状态,DECODE(A.PPMODE,'1','精确匹配','2','模糊匹配','3','手工匹配','历史匹配') 匹配模式 
+                    FROM DAT_UPLOAD_GOODS A,DOC_GOODS B,DOC_CUSTOMER C,DOC_GOODSUNIT D,DOC_PRODUCER E
+                    WHERE A.GDSEQ = B.GDSEQ(+) AND A.CUSTID = C.CODE(+) AND B.UNIT = D.CODE(+) AND A.FLAG = 'Y' AND B.PRODUCER=E.code(+)";
+            string Stearch = "";
+            if (!PubFunc.StrIsEmpty(ddlHisp.SelectedValue))
+            {
+                Stearch += string.Format(" AND A.CUSTID = '{0}'", ddlHisp.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(ddlMode.SelectedValue))
+            {
+                Stearch += string.Format(" AND A.PPMODE = '{0}'", ddlMode.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(TgbBill.Text))
+            {
+                Stearch += string.Format(" AND A.SEQNO = '{0}'", TgbBill.Text);
+            }
+            if (!PubFunc.StrIsEmpty(trbSearch.Text))
+            {
+                Stearch += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.BAR3 LIKE '%{0}%')", trbSearch.Text);
+            }
+            Stearch += " ORDER BY A.UPTTIME DESC";
+
+            DataTable dt = DbHelperOra.Query(Sql + Stearch).Tables[0];
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                Alert.Show("暂时没有符合要求的数据，无法导出", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            ExcelHelper.ExportByWeb(dt, "商品匹配信息", string.Format("商品匹配信息_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+            btnExlOut.Enabled = true;
+        }
+        #endregion
+
+        protected void btnExp_Click(object sender, EventArgs e)
+        {
+            string Sql = @"SELECT '' 医院名称,'' HIS编码,'' 商品名称,'' 规格,'' 单位,'' 价格,'' 生产厂家,'' 注册证号,'' SPD编码,'' ERP编码,
+                    '' 商品状态,'' 匹配模式 
+                    FROM DUAL";
+            DataTable dt = DbHelperOra.Query(Sql).Tables[0];
+            ExcelHelper.ExportByWeb(dt, "商品匹配信息", "商品匹配样表.xls");
+            btnExp.Enabled = true;
+        }
+
+        protected void btnSys_Click(object sender, EventArgs e)
+        {
+            OracleParameter[] parameters = new OracleParameter[]
+                                {
+                                     new OracleParameter("V_BILL",OracleDbType.Varchar2),
+                                     new OracleParameter("V_TYPE",OracleDbType.Varchar2),
+                                };
+            parameters[0].Value = "";
+            parameters[1].Value = "INSSYS";
+            DbHelperOra.RunProcedure("P_ExlGOODS", parameters);
+            Alert.Show("导入系统成功！", "消息提示", MessageBoxIcon.Information);
+            btnGridOut_Click(null, null);
+        }
+
+        protected void GridGoods_RowDataBound1(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                FineUIPro.BoundField flagcol = GridGoods.FindColumn("FLAGNAME") as FineUIPro.BoundField;
+                if (flag == "M")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+                if (flag == "N")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                if (flag == "R")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+        }
+    }
+}

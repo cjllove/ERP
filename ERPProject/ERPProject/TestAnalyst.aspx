@@ -1,0 +1,514 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="TestAnalyst.aspx.cs" Inherits="ERPProject.ERPProject.TestAnalyst" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>测试情况分析</title>
+    <script type="text/javascript" src="../res/js/ichart.1.2.min.js"></script>
+    <link rel="stylesheet" href="../res/css/demo.css" type="text/css" />
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="PanelMain" runat="server" />
+        <f:Panel ID="PanelMain" runat="server" Layout="Anchor" ShowBorder="false" BodyPadding="0px" ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar1" runat="server">
+                    <Items>
+                        <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                        <f:Button ID="btnSelect" CssStyle="margin-left: 15px;" Icon="Add" Text="导入" runat="server">
+                        </f:Button>
+                        <f:Button ID="btnNew" CssStyle="margin-left: 15px;" Icon="Add" Text="新增" runat="server">
+                        </f:Button>
+                        <f:Button ID="btnDelete" CssStyle="margin-left: 15px;" Icon="Delete"
+                            Text="删除" EnablePostBack="true" runat="server">
+                        </f:Button>
+                        <f:Button ID="btSearch" CssStyle="margin-left: 15px;margin-right: 11px;" OnClick="btSearch_Click"
+                            Icon="Magnifier" Text="查询" DisableControlBeforePostBack="false" ValidateForms="FormQuest" runat="server" />
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormQuest" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px 0px 10px"
+                    ShowHeader="False" LabelWidth="80px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:DropDownList ID="ddlXMBH" runat="server" Label="项目名称" Required="true" ShowRedStar="true">
+                                </f:DropDownList>
+                                <f:DropDownList ID="ddlQTYPE" runat="server" Label="问题类型"></f:DropDownList>
+                                <f:DatePicker ID="dpkCRETIME1" runat="server" Label="提出时间" />
+                                <f:DatePicker ID="dpkCRETIME2" runat="server" Label="　　至" LabelSeparator="" />
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow>
+                            <Items>
+                                <f:DropDownList ID="ddlCREUSER" runat="server" Label="提出人"></f:DropDownList>
+                                <f:DropDownList ID="ddlDOUSER" runat="server" Label="解决人"></f:DropDownList>
+                                <f:DatePicker ID="dpkDOTIME1" runat="server" Label="解决时间" />
+                                <f:DatePicker ID="dpkDOTIME2" runat="server" Label="　　至" LabelSeparator="" />
+
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Panel ID="pale" runat="server" AnchorValue="100% -90" Layout="Fit" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;" BodyPadding="0px">
+                    <Items>
+                        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right" OnTabIndexChanged="TabStrip1_TabIndexChanged"
+                            EnableTabCloseMenu="false" ActiveTabIndex="0" runat="server" AutoPostBack="true">
+                            <Tabs>
+                                <f:Tab Title="BUG数分析" Icon="Table" Layout="Fit" runat="server">
+                                    <Content>
+                                        <div id='canvasDiv'></div>
+                                    </Content>
+                                </f:Tab>
+                                <f:Tab Title="总BUG数分析" Icon="Table" Layout="Fit" runat="server">
+                                    <Content>
+                                        <div id='canvasDivTotal'></div>
+                                    </Content>
+                                </f:Tab>
+                                <f:Tab Title="人均绩效分析" Icon="PageWord" Layout="Fit" runat="server">
+                                    <Content>
+                                        <div id='canvasPie1' style="float:left;"></div>
+                                        <div id='canvasPie2' style="float:right;"></div>
+                                        <div style="clear:both; font-size:0; height:0;"></div>
+                                    </Content>
+                                </f:Tab>
+                                <f:Tab Title="人均BUG数分析" Icon="PageWord" Layout="Fit" runat="server">
+                                    <Content>
+                                        <div id='canvasChar'></div>
+                                    </Content>
+                                </f:Tab>
+                            </Tabs>
+                        </f:TabStrip>
+                    </Items>
+                </f:Panel>
+                <f:HiddenField ID="hfdSecond" runat="server" />
+                <f:HiddenField ID="hfdThird" runat="server" />
+                <f:HiddenField ID="hfdFourth" runat="server" />
+            </Items>
+        </f:Panel>
+    </form>
+    <script type="text/javascript">
+        function DrawLin(data) {
+            var line = new iChart.LineBasic2D({
+                render: data.render,
+                data: data.dataSource,
+                align: 'center',
+                title: data.title,
+                subtitle: data.subtitle,
+                footnote: data.footnote,
+                width: 890,
+                height: 480,
+                tip: {
+                    enable: true,
+                    shadow: true
+                },
+                legend: {
+                    enable: true,
+                    row: 1,//设置在一行上显示，与column配合使用
+                    column: 'max',
+                    valign: 'top',
+                    sign: 'bar',
+                    background_color: null,//设置透明背景
+                    offsetx: -80,//设置x轴偏移，满足位置需要
+                    border: true
+                },
+                crosshair: {
+                    enable: true,
+                    line_color: '#62bce9'
+                },
+                sub_option: {
+                    smooth: true,
+                    label: false,
+                    hollow: false,
+                    hollow_inside: false,
+                    point_size: 8
+                },
+                coordinate: {
+                    width: 720,
+                    height: 320,
+                    striped_factor: 0.18,
+                    grid_color: '#4e4e4e',
+                    axis: {
+                        color: '#252525',
+                        width: [0, 0, 4, 4]
+                    },
+                    axis: {
+                        color: '#9f9f9f',
+                        width: [0, 0, 2, 2]
+                    },
+                    grids: {
+                        vertical: {
+                            way: 'share_alike',
+                            value: 10
+                        }
+                    },
+                    scale: [{
+                        position: 'left',
+                        start_scale: 0,
+                        end_scale: data.end_scale,
+                        scale_space: data.scale_space,
+                        scale_size: 2,
+                        scale_color: '#9f9f9f'
+                    }, {
+                        position: 'bottom',
+                        labels: data.lbl
+                    }]
+                }
+            });
+
+            //开始画图
+            line.draw();
+        }
+
+        function DrawChar(data) {
+            var chart = new iChart.Column3D({
+                render: 'canvasChar',
+                data: data.dataSource,
+                title: {
+                    text: data.title,
+                    color: '#3e576f'
+                },
+                width: 800,
+                height: 480,
+                padding: 20,
+                shadow: true,
+                shadow_color: '#080808',
+                background_color: '#eceeef',
+                sub_option: {
+                    label: {
+                        color: '#2c2e2a',
+                        padding: 10
+                    }
+                },
+                coordinate: {
+                    left_board: false,
+                    scale: [{
+                        position: 'left',
+                        start_scale: 0,
+                        end_scale: data.end_scale,
+                        scale_space: data.scale_space,
+                        scale_enable: false,
+                        label: {
+                            fontsize: 11,
+                            fontweight: 600,
+                            color: '#666666'
+                        }
+                    }],
+                },
+                legend: {
+                    background_color: iChart.toRgba('#213e49', 0.6),
+                    border: { radius: 5 },
+                    enable: true,
+                    align: 'right',
+                    valign: 'top',
+                    row: 'max',
+                    color: '#fefefe',
+                    column: 1,
+                    line_height: 15
+                },
+                tip: {
+                    enable: true
+                }
+            });
+
+            chart.draw();
+        }
+
+        function DrawPie(data) {
+            var chart = new iChart.Donut2D({
+                render: data.render,
+                data: data.dataSource,
+                title: {
+                    text: data.title,
+                    color: '#3e576f'
+                },
+                center: {
+                    text: data.text,
+                    color: '#3e576f',
+                    shadow: true,
+                    shadow_blur: 2,
+                    shadow_color: '#557797',
+                    shadow_offsetx: 0,
+                    shadow_offsety: 0,
+                    fontsize: 40
+                },
+                sub_option: {
+                    label: {
+                        background_color: null,
+                        sign: false,//设置禁用label的小图标
+                        padding: '0 4',
+                        border: {
+                            enable: false,
+                            color: '#666666'
+                        },
+                        fontsize: 11,
+                        fontweight: 600,
+                        color: '#4572a7'
+                    },
+                    border: {
+                        width: 2,
+                        color: '#ffffff'
+                    }
+                },
+                shadow: true,
+                shadow_blur: 6,
+                shadow_color: '#aaaaaa',
+                shadow_offsetx: 0,
+                shadow_offsety: 0,
+                background_color: '#fefefe',
+                offset_angle: -120,//逆时针偏移120度
+                showpercent: true,
+                decimalsnum: 2,
+                width: 500,
+                height: 400,
+                radius: 120
+            });
+
+            chart.draw();
+        }
+    </script>
+</body>
+</html>
+
+<%--<script type="text/javascript">
+    function DrawLin(data) {
+        var line = new iChart.LineBasic2D({
+            render: 'canvasDiv',
+            data: data.dataSource,
+            align: 'center',
+            title: data.title,
+            subtitle: data.subtitle,
+            footnote: data.footnote,
+            width: 890,
+            height: 480,
+            tip: {
+                enable: true,
+                shadow: true
+            },
+            legend: {
+                enable: true,
+                row: 1,//设置在一行上显示，与column配合使用
+                column: 'max',
+                valign: 'top',
+                sign: 'bar',
+                background_color: null,//设置透明背景
+                offsetx: -80,//设置x轴偏移，满足位置需要
+                border: true
+            },
+            crosshair: {
+                enable: true,
+                line_color: '#62bce9'
+            },
+            sub_option: {
+                label: false,
+                point_hollow: false
+            },
+            coordinate: {
+                width: 720,
+                height: 320,
+                axis: {
+                    color: '#9f9f9f',
+                    width: [0, 0, 2, 2]
+                },
+                grids: {
+                    vertical: {
+                        way: 'share_alike',
+                        value: 10
+                    }
+                },
+                scale: [{
+                    position: 'left',
+                    start_scale: 0,
+                    end_scale: data.end_scale,
+                    scale_space: data.scale_space,
+                    scale_size: 2,
+                    scale_color: '#9f9f9f'
+                }, {
+                    position: 'bottom',
+                    labels: data.lbl
+                }]
+            }
+        });
+
+        //开始画图
+        line.draw();
+    }
+
+    function DrawChar(data) {
+        var chart = new iChart.Column2D({
+            render: 'canvasChar',
+            data: data.dataSource,
+            title: {
+                text: data.title,
+                color: '#4572a7',
+                textAlign: 'left',
+                padding: '0 40',
+                border: {
+                    enable: true,
+                    width: [0, 0, 4, 0],
+                    color: '#4572a7'
+                },
+                height: 40
+            },
+            footnote: {
+                text: data.footnote,
+                height: 30,
+                color: '#c52120',
+                fontweight: 600,
+                padding: '0 40'
+            },
+            width: 800,
+            height: 480,
+            padding: 0,
+            label: {
+                fontsize: 11,
+                fontweight: 600,
+                color: '#666666'
+            },
+            column_width: 62,
+            sub_option: {
+                label: {
+                    fontsize: 11,
+                    fontweight: 600,
+                    color: '#4572a7'
+                },
+                border: {
+                    width: 2,
+                    radius: '5 5 0 0',//上圆角设置
+                    color: '#ffffff'
+                }
+            },
+            coordinate: {
+                background_color: null,
+                grid_color: '#c0c0c0',
+                width: 680,
+                height: 300,
+                axis: {
+                    color: '#c0d0e0',
+                    width: [0, 0, 1, 0]
+                },
+                scale: [{
+                    position: 'left',
+                    start_scale: 0,
+                    end_scale: data.end_scale,
+                    scale_space: data.scale_space,
+                    scale_enable: false,
+                    label: {
+                        fontsize: 11,
+                        fontweight: 600,
+                        color: '#666666'
+                    }
+                }]
+            }
+        });
+
+        chart.draw();
+    }
+
+    function DrawPieChar(data) {
+        //是否启用动画
+        var animation = true;
+
+        var chart = new iChart.Column2D({
+            render: 'canvasPie',
+            data: data.dataSource,
+            title: {
+                text: data.title,
+                color: '#3e576f'
+            },
+            subtitle: {
+                text: data.subtitle,
+                color: '#6d869f'
+            },
+            width: 800,
+            height: 480,
+            animation: animation,
+            animation_duration: 600,
+            column_width: 68,
+            label: {
+                color: '#4c4f48'
+            },
+            sub_option: {
+                label: {
+                    color: '#4c4f48'
+                }
+            },
+            coordinate: {
+                striped_factor: 0.06,
+                height: '93%',
+                width: '93%',
+                scale: [{
+                    position: 'left',
+                    end_scale: data.end_scale,
+                    scale_space: data.scale_space,
+                    label: {
+                        color: '#4c4f48'
+                    }
+                }]
+            }
+        });
+        var pie = new iChart.Pie2D({
+            data: data.dataSource,
+            label: {
+                color: '#4c4f48'
+            },
+            sub_option: {
+                mini_label_threshold_angle: 60,//迷你label的阀值,单位:角度
+                mini_label: {//迷你label配置项
+                    fontsize: 10,
+                    fontweight: 600,
+                    color: '#ffffff'
+                },
+                label: {
+                    background_color: null,
+                    sign: false,//设置禁用label的小图标
+                    padding: '0 4',
+                    border: {
+                        enable: false,
+                        color: '#666666'
+                    },
+                    fontsize: 10,
+                    fontweight: 600,
+                    color: '#ffe383'
+                },
+                listeners: {
+                    parseText: function (d, t) {
+                        return d.get('value');//自定义label文本
+                    }
+                }
+            },
+            text_space: 16,
+            showpercent: true,
+            decimalsnum: 1,
+            align: 'left',
+            offsetx: chart.coo.get('originx') + 30,
+            offsety: -(chart.get('centery') - chart.coo.get('originy') - 90),
+            animation: animation,
+            radius: 60
+        });
+
+        chart.plugin(pie);
+
+        //利用自定义组件构造左侧说明文本。
+        //chart.plugin(new iChart.Custom({
+        //    drawFn: function () {
+        //        //计算位置
+        //        var coo = chart.getCoordinate(),
+        //            x = coo.get('originx'),
+        //            y = coo.get('originy'),
+        //            H = coo.height;
+        //        //在左侧的位置，渲染说明文字。
+        //        chart.target.textAlign('center')
+        //        .textBaseline('middle')
+        //        .textFont('600 13px Verdana')
+        //        .fillText('Sales Figure', x - 50, y + H / 2, false, '#6d869f', false, false, false, -90);
+
+        //    }
+        //}));
+
+        chart.draw();
+    }
+    </script>--%>

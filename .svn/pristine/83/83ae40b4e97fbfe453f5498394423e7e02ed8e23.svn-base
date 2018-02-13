@@ -1,0 +1,191 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Web;
+
+namespace SPDProject.captcha
+{
+    /// <summary>
+    /// FileUploader 
+    /// 用于使用WebUploader控件上传的后台代码
+    /// </summary>
+    public class FileUploader : IHttpHandler
+    {
+
+        public void ProcessRequest(HttpContext context)
+        {
+            context.Response.ContentType = "text/plain";
+
+            //owner 为传递的参数，用于向数据库存值，应为商品id等唯一编码
+            string owner = context.Request.Form["owner"];
+
+            if (context.Request.Files.Count == 0)
+            {
+                ResponseError(context);
+                return;
+            }
+
+            if (String.IsNullOrEmpty(owner))
+            {
+                ResponseError(context);
+                return;
+            }
+            System.Guid guid = new Guid();
+            guid = Guid.NewGuid();
+            
+            string rowno = guid.ToString();
+
+            HttpPostedFile postedFile = context.Request.Files[0];
+            // 文件名完整路径
+            string fileName = postedFile.FileName;
+            // 文件名保存的服务器路径
+            string savedFileName = GetSavedFileName(fileName);
+            //路径加入 年/月日 防止同目录文件数溢出
+            string monthPath = GetMonthPath();
+            //最终完整的路径
+            string finalPath = "~/spdupload/GoodsPic/" + monthPath;
+            //最终完整的路径+文件名
+            string finalPathFile = finalPath + savedFileName;
+            if (!Directory.Exists(context.Server.MapPath(finalPath)))
+            {
+                Directory.CreateDirectory(context.Server.MapPath(finalPath));
+            }
+            postedFile.SaveAs(context.Server.MapPath(finalPathFile));
+
+            string shortFileName = GetFileName(fileName);
+            string fileType = GetFileType(fileName);
+            int fileSize = postedFile.ContentLength;
+
+            #region 向数据库存储值
+            JObject fileObj = new JObject();
+            string fileId = Guid.NewGuid().ToString();
+
+            fileObj.Add("rowno", rowno);
+            fileObj.Add("name", shortFileName);
+            fileObj.Add("picname", savedFileName);
+            fileObj.Add("type", fileType);
+            fileObj.Add("path", finalPathFile);
+            fileObj.Add("size", fileSize);
+            fileObj.Add("id", fileId);
+
+            SaveToDatabase(context, owner, fileObj);
+            #endregion
+
+            context.Response.Write("Success");
+
+        }
+
+        private JObject GetFileObject(JArray source, string fileId)
+        {
+            for (int i = 0, count = source.Count; i < count; i++)
+            {
+                JObject item = source[i] as JObject;
+
+                if (item.Value<string>("id") == fileId)
+                {
+                    return item;
+                }
+            }
+            return null;
+        }
+
+
+        //TODO 保存到数据库
+        private void SaveToDatabase(HttpContext context, string owner, JObject fileObj)
+        {
+            //写你自己的sql语句执行即可
+            //上传商品图片时，owner可为商品id
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            
+            
+
+            MyTable mtType = new MyTable("DOC_GOODSPICTURE");
+            mtType.ColRow["ROWNO"] = fileObj["rowno"];
+            mtType.ColRow["GDSEQ"] = owner;
+            mtType.ColRow["GDPICT"] = fileObj["name"];
+            mtType.ColRow["PICPATH"] = fileObj["path"];
+            mtType.ColRow["STR1"] = fileObj["picname"];
+            mtType.ColRow["FLAG"] = "N";
+            
+            cmdList.Add(new CommandInfo(string.Format("update doc_goods set ISFLAG4 = 'Y' where gdseq='{0}'", owner), null));
+            cmdList.Add(mtType.Insert());
+            DbHelperOra.ExecuteSqlTran(cmdList);
+            
+
+
+
+            //if (context.Session[sessionName] == null)
+            //{
+            //    context.Session[sessionName] = new JArray();
+            //}
+
+            //JArray source = context.Session[sessionName] as JArray;
+            //source.Add(fileObj);
+
+            //context.Session[sessionName] = source;
+        }
+
+        private string GetFileType(string fileName)
+        {
+            string fileType = String.Empty;
+            int lastDotIndex = fileName.LastIndexOf(".");
+            if (lastDotIndex >= 0)
+            {
+                fileType = fileName.Substring(lastDotIndex + 1).ToLower();
+            }
+
+            return fileType;
+        }
+
+        private string GetFileName(string fileName)
+        {
+            string shortFileName = fileName;
+            int lastSlashIndex = shortFileName.LastIndexOf("\\");
+            if (lastSlashIndex >= 0)
+            {
+                shortFileName = shortFileName.Substring(lastSlashIndex + 1);
+            }
+
+            return shortFileName;
+        }
+
+        private string GetSavedFileName(string fileName)
+        {
+            fileName = fileName.Replace(":", "_").Replace(" ", "_").Replace("\\", "_").Replace("/", "_");
+            fileName = DateTime.Now.Ticks.ToString() + "_" + fileName;
+
+            return fileName;
+        }
+
+        private string GetMonthPath()
+        {
+            string result = "";
+            DateTime date = DateTime.Now;
+            string year = date.Year.ToString();
+            string month = date.Month.ToString();
+            string day = date.Day.ToString();
+            result = year + "/" + month + day + "/";
+            return result;
+        }
+
+        private void ResponseError(HttpContext context)
+        {
+            // 出错了
+            context.Response.StatusCode = 500;
+            context.Response.Write("No file");
+        }
+
+        public bool IsReusable
+        {
+            get
+            {
+                return false;
+            }
+        }
+    }
+}

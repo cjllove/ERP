@@ -1,0 +1,182 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Collections.Specialized;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class WorkPanal : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+                btnSearch_Click(null, null);
+                getEcharsData2();
+            }
+        }
+
+        private void BindDDL()
+        {
+            // 绑定到下拉列表
+            PubFunc.DdlDataGet("DDL_SYS_DEPTRANGE", UserAction.UserID, ddlDEPTID);
+            lisDATE.SelectedDate = DateTime.Now;
+            dpkTime.SelectedDate = DateTime.Now;
+        }
+        private DataTable DataSearch()
+        {
+            String sql = @"SELECT A.CODE,'('||DECODE((DECODE(TO_CHAR(TO_DATE('{0}','yyyy-MM-dd'),'day'),'星期一',A.DHZQ1,'星期二',A.DHZQ2,'星期三',A.DHZQ3,'星期四',A.DHZQ4,'星期五',A.DHZQ5,'星期六',A.DHZQ6,A.DHZQ7)),'P','下午配送','上午配送')||')'||A.NAME NAME,
+                            DECODE((DECODE(TO_CHAR(TO_DATE('{0}','yyyy-MM-dd'),'day'),'星期一',A.DHZQ1,'星期二',A.DHZQ2,'星期三',A.DHZQ3,'星期四',A.DHZQ4,'星期五',A.DHZQ5,'星期六',A.DHZQ6,A.DHZQ7)),'P','下午','上午') PSTIME,
+                            f_getusername(A.STR4) PSNAME,NVL(B.DSSL,0) + NVL(C.DJSL,0) WSSL,NVL(D.PSSL,0) PSSL,NVL(E.YSSL,0) YSSL,
+                            NVL(DECODE(NVL(DSSL,0),0,'','科室定数待配送品规：<strong>'||DSSL||'</strong>')||' '||DECODE(NVL(DJSL,0),0,'','科室非定数待配送品规：<strong>'||DJSL||'</strong>'),'已完成') DSXQ,
+                            DECODE(NVL(PSSL,0),0,'已完成','正在配送品规：<strong>'||PSSL||'</strong>') PSXQ,
+                            DECODE(A.DHZQ1,'N','','true') XQ1,
+                            DECODE(A.DHZQ2,'N','','true') XQ2,
+                            DECODE(A.DHZQ3,'N','','true') XQ3,
+                            DECODE(A.DHZQ4,'N','','true') XQ4,
+                            DECODE(A.DHZQ5,'N','','true') XQ5,
+                            DECODE(A.DHZQ6,'N','','true') XQ6,
+                            DECODE(A.DHZQ7,'N','','true') XQ7
+                            FROM SYS_DEPT A,
+                                                                ( --定数未送品规
+                                            SELECT SA.DEPTID, COUNT(1) DSSL
+                                              FROM DOC_GOODSCFG SA
+                                             WHERE SA.NUM1 > 0
+                                               AND SA.DSNUM > 0
+                                               AND SA.DSNUM > SA.NUM3 + SA.DSPOOL
+                                               AND NOT EXISTS (SELECT 1
+                                                      FROM V_KCSP SP
+                                                     WHERE SP.DEPTID = SA.DEPTID
+                                                       AND SP.GDSEQ = SA.GDSEQ)
+                                             GROUP BY SA.DEPTID) B,
+                                           ( --单据未送品规
+                                            SELECT SB.DEPTID, COUNT(1) DJSL FROM (SELECT DISTINCT CC.DEPTID,CC.GDSEQ FROM V_KCSP CC ) SB GROUP BY SB.DEPTID) C,
+                                           ( --配送中品规
+                                           SELECT AA.DEPTID,COUNT(1) PSSL FROM (
+                                            SELECT DISTINCT SA.DEPTID,SB.GDSEQ
+                                              FROM DAT_CK_DOC SA, DAT_CK_COM SB
+                                             WHERE SA.SEQNO = SB.SEQNO
+                                               AND SA.FLAG = 'S') AA GROUP BY AA.DEPTID) D,
+                                           ( --已配送
+                                            SELECT BB.DEPTID, COUNT(1) YSSL
+                                            FROM (SELECT DISTINCT SA.DEPTID,SB.GDSEQ
+                                              FROM DAT_CK_DOC SA, DAT_CK_COM SB
+                                             WHERE SA.SEQNO = SB.SEQNO
+                                               AND SA.FLAG IN ('Y', 'G')
+                                               AND TO_CHAR(SA.SHRQ, 'yyyy-MM-dd') = '{0}') BB
+                                             GROUP BY BB.DEPTID)  E
+                            WHERE {1}
+                            A.CODE = B.DEPTID(+) AND A.CODE = C.DEPTID(+) AND A.CODE = D.DEPTID(+) AND A.CODE = E.DEPTID(+) AND A.TYPE = '3'
+                            ORDER BY DECODE((DECODE(TO_CHAR(TO_DATE('{0}','yyyy-MM-dd'),'day'),'星期一',A.DHZQ1,'星期二',A.DHZQ2,'星期三',A.DHZQ3,'星期四',A.DHZQ4,'星期五',A.DHZQ5,'星期六',A.DHZQ6,A.DHZQ7)),'P','4','2')";
+            String strDate = "";
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                strDate = dpkTime.Text;
+            }
+            else
+            {
+                strDate = lisDATE.Text;
+            }
+            String strWhere = "";
+            if (!ckbAll.Checked)
+                strWhere = " DECODE(to_char(TO_DATE('" + strDate + "','yyyy-MM-dd'),'day'),'星期一',A.DHZQ1,'星期二',A.DHZQ2,'星期三',A.DHZQ3,'星期四',A.DHZQ4,'星期五',A.DHZQ5,'星期六',A.DHZQ6,A.DHZQ7) <> 'N' AND ";
+            DataTable dt = DbHelperOra.Query(String.Format(sql, strDate, strWhere)).Tables[0];
+            return dt;
+        }
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            getEcharsData2();
+            DataTable dt = DataSearch();
+            grdWeak.DataSource = dt;
+            grdWeak.DataBind();
+            hfdArray.Text = "";
+            hfdVal1.Text = "";
+            hfdVal2.Text = "";
+            hfdVal3.Text = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                hfdArray.Text += dr["NAME"] + ",";
+                hfdVal1.Text += dr["WSSL"] + ",";
+                hfdVal2.Text += dr["PSSL"] + ",";
+                hfdVal3.Text += dr["YSSL"] + ",";
+            }
+            hfdArray.Text = hfdArray.Text.TrimEnd(',');
+            hfdVal1.Text = hfdVal1.Text.TrimEnd(',');
+            hfdVal2.Text = hfdVal2.Text.TrimEnd(',');
+            hfdVal3.Text = hfdVal3.Text.TrimEnd(',');
+            PageContext.RegisterStartupScript("getEcharsData();");
+        }
+        protected void ChgShow_Click(object sender, EventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 1;
+        }
+
+        protected void Chag_Click(object sender, EventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 0;
+        }
+        protected void getEcharsData2()
+        {
+            //String wcl = "";
+            //String sql = @"SELECT round(SUM(DECODE(NVL(SB.DEPTID,'#'),'#',0,1))/COUNT(1),4)*100
+            //            FROM
+            //            (SELECT A.CODE
+            //            FROM SYS_DEPT A
+            //            WHERE DECODE(to_char(TO_DATE(to_char(sysdate,'yyyy-MM-dd'),'yyyy-MM-dd'),'day'),'星期一',A.DHZQ1,'星期二',A.DHZQ2,'星期三',A.DHZQ3,'星期四',A.DHZQ4,'星期五',A.DHZQ5,'星期六',A.DHZQ6,A.DHZQ7) <> 'N')
+            //            SA,
+            //            (
+            //            SELECT DISTINCT B.DEPTID
+            //            FROM DAT_GOODSJXC B
+            //            WHERE B.RQSJ > TO_DATE(to_char(sysdate,'yyyy-MM-dd'),'yyyy-MM-dd')
+            //            ) SB
+            //            WHERE SA.CODE = SB.DEPTID(+)";
+            //try
+            //{
+            //    wcl = DbHelperOra.GetSingle(sql).ToString() + "";
+            //}
+            //catch
+            //{
+            //    wcl = "0.00";
+            //}
+            string wcl = "0.00";
+            DataTable dt = DataSearch();
+            decimal zssl = 0;
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                zssl = dt.Rows.Count;
+                DataRow[] dr = dt.Select(" wssl >0 or pssl > 0 ");
+                wcl = (Math.Round((zssl - dr.Length) / zssl, 4) * 100).ToString();
+            }
+            hfdVal4.Text = wcl;
+            PageContext.RegisterStartupScript("getEcharsData2(" + wcl + ");");
+        }
+
+        protected void btnMX_Click(object sender, EventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 0;
+            btnSearch_Click(null, null); ;
+        }
+
+        protected void btnHz_Click(object sender, EventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 2;
+            getEcharsData2();
+        }
+
+        protected void ckbAll_CheckedChanged(object sender, CheckedEventArgs e)
+        {
+            DataTable dt = DataSearch();
+            grdWeak.DataSource = dt;
+            grdWeak.DataBind();
+        }
+    }
+}

@@ -1,0 +1,226 @@
+﻿using FineUIPro;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using XTBase;
+
+namespace SPDProject.SpdWorkbench
+{
+    public partial class IndexDept : PageBase
+    {
+        static string xq;
+        protected string MyMemo = "";
+
+        public IndexDept()
+        {
+            ISCHECK = false;
+        }
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                try
+                {
+                    xq = DbHelperOra.GetSingle("select value from SYS_PARA where code = 'YXQZDAYS'").ToString();
+                }
+                catch
+                {
+                    xq = "30";
+                }
+                GridLoadData();
+                btnSearch();
+                GridGoodsList.EmptyText = String.Format("<img src=\"{0}\" alt=\"No Data Found!\"/>", ResolveUrl("~/res/images/no_data_found.png"));
+            }
+        }
+        private void GridLoadData()
+        {
+            try
+            {
+                string sql = @"SELECT G.GDSEQ, G.GDNAME, G.GDSPEC, F_GETUNITNAME(G.UNIT) UNITNAME, G.HSJJ
+                                          FROM DOC_GOODS G
+                                         WHERE G.GDSEQ IN
+                                               (SELECT DISTINCT P.GDSEQ
+                                                  FROM DOC_GOODSCFG P
+                                                 WHERE P.SPLB='Y' AND P.DEPTID IN
+                                                       (SELECT CODE
+                                                          FROM SYS_DEPT
+                                                         WHERE F_CHK_DATARANGE(CODE, '" + UserAction.UserID + @"') = 'Y'))";
+                int total = 0;
+                GridGoodsList.DataSource = PubFunc.DbGetPage(GridGoodsList.PageIndex, GridGoodsList.PageSize, sql, ref total);
+                GridGoodsList.RecordCount = total;
+                GridGoodsList.DataBind();
+            }
+            catch (Exception ex)
+            {
+                //有异常也不抛出,防止影响系统主界面运行 YuanPeng 20150414
+                return;
+            }
+
+            //GridToDoList.DataSource = dtDaiBan;
+            //GridToDoList.DataBind();
+            //GridBillStatus.DataSource = dtDD;
+            // GridBillStatus.DataBind();
+
+            //if (dtYuJing != null && dtYuJing.Rows.Count > 0)
+            //{
+            //    List<object> list = new List<object>();
+            //    foreach (DataRow row in dtYuJing.Rows)
+            //    {
+            //if (row["TOTAL"].ToString() == "0") continue;
+            //FineUI.HyperLink link = new FineUI.HyperLink();
+            //link.ID = row["DOTYPE"].ToString();
+            //link.Text = string.Format(row["INSTRUCTIONS"].ToString(), row["TOTAL"].ToString());
+            //link.NavigateUrl = "javascript:" + mainTabStrip.GetAddTabReference(row["FUNCID"].ToString(), row["RUNWHAT"].ToString(), row["FUNCNAME"].ToString(), "~/extjs/res/ext-theme-classic/images/tree/leaf.gif", true);
+            //FineUI.LinkButton btnLink = new FineUI.LinkButton();
+            //btnLink.ID = "btn_" + row["SEQNO"].ToString();
+            //btnLink.ShowLabel = false;
+            //btnLink.Label = row["SEQNO"].ToString() + "," + row["FUNCID"].ToString() + "," + row["RUNWHAT"].ToString() + "," + row["FUNCNAME"].ToString() + "," + row["EXECTYPE"].ToString();
+            //if (row["DOTYPE"].ToString() == "DO_2")
+            //{
+            //    list.Add(new
+            //    {
+            //        PARA = row["SEQNO"].ToString() + "," + row["FUNCID"].ToString() + "," + row["RUNWHAT"].ToString() + "," + row["FUNCNAME"].ToString() + "," + row["EXECTYPE"].ToString(),
+            //        INSTRUCTIONS = "部门『" + row["DEPT"].ToString() + "』" + string.Format(row["INSTRUCTIONS"].ToString(), row["TOTAL"].ToString())
+            //    });
+            //btnLink.Text = "部门『" + row["DEPT"].ToString() + "』" + string.Format(row["INSTRUCTIONS"].ToString(), row["TOTAL"].ToString());
+            //}
+            //else
+            //{
+            //    if (row["DOTYPE"].ToString() == "ksjxq")
+            //    {
+            //        string[] total_number = row["TOTAL"].ToString().Split(';');
+            //        list.Add(new
+            //        {
+            //            PARA = row["SEQNO"].ToString() + "," + row["FUNCID"].ToString() + "," + row["RUNWHAT"].ToString() + "," + row["FUNCNAME"].ToString() + "," + row["EXECTYPE"].ToString(),
+            //            INSTRUCTIONS = string.Format(row["INSTRUCTIONS"].ToString(), total_number[0], total_number[1])
+            //        });
+            //    }
+            //    else
+            //    if (row["DOTYPE"].ToString() != "DO_1")
+            //    {
+            //        list.Add(new
+            //        {
+            //            PARA = row["SEQNO"].ToString() + "," + row["FUNCID"].ToString() + "," + row["RUNWHAT"].ToString() + "," + row["FUNCNAME"].ToString() + "," + row["EXECTYPE"].ToString(),
+            //            INSTRUCTIONS = string.Format(row["INSTRUCTIONS"].ToString(), row["TOTAL"].ToString())
+            //        });
+            //        // btnLink.Text = string.Format(row["INSTRUCTIONS"].ToString(), row["TOTAL"].ToString());
+            //    }
+            //}
+
+            ////btnLink.OnClientClick = mainTabStrip.GetAddTabReference(row["FUNCID"].ToString(), row["RUNWHAT"].ToString(), row["FUNCNAME"].ToString(), "~/extjs/res/ext-theme-classic/images/tree/leaf.gif", true);
+            //btnLink.Click += new EventHandler(btnLink_Click);
+            //btnLink.EnablePostBack = true;
+            //Panel3.Items.Add(btnLink);
+            //}
+            //GridYuJing.DataSource = list;
+            //GridYuJing.DataBind();
+            //}
+        }
+        public string getPersonNamesString(string PersonIDs)
+        {
+            string retval = string.Empty;
+            string strSQL = string.Empty;
+            if (PersonIDs.Length > 0)
+            {
+                strSQL = "SELECT userName From sys_operuser where userid in ('" + PersonIDs.Replace(",", "','") + "')";
+                DataTable dtuser = DbHelperOra.Query(strSQL).Tables[0];
+                if (dtuser.Rows.Count > 0)
+                {
+                    foreach (DataRow dr in dtuser.Rows)
+                    {
+                        retval += dr["UserName"].ToString() + ",";
+                    }
+                }
+            }
+            return retval.TrimEnd(',');
+        }
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+        protected void btnSearch()
+        {
+            string strSQL = @"SELECT * FROM (
+                                       SELECT A.DEPTIN,A.OUTRQ,
+                                                   A.OUTBILLNO,
+                                                   A.GDSEQ,
+                                                   B.GDNAME,
+                                                   B.GDSPEC,B.ZJM,
+                                                   F_GETUNITNAME(B.UNIT) UNITNAME,
+                                                   C.NUM1 SL,
+                                                   A.BARCODE,
+                                                   '定数' BTYPE,
+                                                   DECODE(A.FLAG, 'N', ' 未回收', 'Y', '已回收', '已退货') FLAGCH
+                                              FROM DAT_GOODSDS_LOG A, DOC_GOODS B, DOC_GOODSCFG C
+                                             WHERE A.GDSEQ = B.GDSEQ
+                                               AND A.GDSEQ = C.GDSEQ
+                                               AND A.DEPTIN = C.DEPTID
+                                               AND A.FLAG = 'N'
+                                            UNION ALL
+                                            SELECT A.DEPTIN,A.INS_TIME,
+                                                   A.SEQNO,
+                                                   A.GDSEQ,
+                                                   B.GDNAME,
+                                                   B.GDSPEC,B.ZJM,
+                                                   F_GETUNITNAME(B.UNIT) UNITNAME,
+                                                   A.DHSL,
+                                                   A.BARCODE,
+                                                   '非定数' BTYPE,
+                                                   DECODE(A.FLAG, 'Y', '已回收', '未回收') FLAGCH
+                                              FROM DAT_CK_BARCODE A, DOC_GOODS B
+                                             WHERE A.GDSEQ = B.GDSEQ
+                                               AND A.FLAG = 'N') 
+                                     WHERE DEPTIN IN (SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '" + UserAction.UserID + @"') = 'Y') ";
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text.Trim()))
+            {
+                strSQL += string.Format("  AND (GDSEQ LIKE '%{0}%' OR UPPER(GDNAME) LIKE '%{0}%' OR UPPER(ZJM) LIKE '%{0}%' OR GDSPEC LIKE '%{0}%')", trbSearch.Text.Trim().ToUpper());
+            }
+            strSQL += "  ORDER BY OUTRQ";
+            int total = 0;
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSQL, ref total);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+
+        protected void Timer1_Tick(object sender, EventArgs e)
+        {
+            GridLoadData();
+            btnSearch();
+        }
+
+        protected void GridGoodsList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoodsList.PageIndex = e.NewPageIndex;
+            GridLoadData();
+        }
+
+        protected void btnClose_Click(object sender, EventArgs e)
+        {
+            DbHelperOra.ExecuteSql(string.Format("UPDATE SYS_MYMEMO_USER SET FLAG='C',LOOKRQ=SYSDATE WHERE SEQNO='{0}' AND LOOKPER='{1}'", hfdSeqNo.Text, UserAction.UserID));
+            WindowMemo.Hidden = true;
+        }
+
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            btnSearch();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            btnSearch();
+        }
+    }
+}

@@ -1,0 +1,361 @@
+﻿using FineUIPro;
+using SPDHub;
+using System;
+using System.Data;
+using System.Web.Security;
+using System.Web.UI;
+using System.Configuration;
+using Newtonsoft.Json;
+
+
+namespace SPDProject.SpdXM.WH_WDZX
+{
+    public partial class _default : PageBase
+    {
+
+        protected string Refresh = "";
+
+        public _default()
+        {
+            ISCHECK = false;
+        }
+        protected void Page_Init(object sender, EventArgs e)
+        {
+            Page.Title = ConfigurationManager.AppSettings["APPNAME"] + "智能化物资管理平台";
+            appname.Text = Page.Title;
+            btnUser.Text = UserAction.UserName;
+
+            // 工具栏上的帮助菜单
+            //JArray ja = JArray.Parse(ConfigHelper.HelpList);
+            //foreach (JObject jo in ja)
+            //{
+            //    MenuButton menuItem = new MenuButton();
+            //    menuItem.EnablePostBack = false;
+            //    menuItem.Text = jo.Value<string>("Text");
+            //    menuItem.Icon = IconHelper.String2Icon(jo.Value<string>("Icon"), true);
+            //    menuItem.OnClientClick = String.Format("addExampleTab('{0}','{1}','{2}')", jo.Value<string>("ID"), ResolveUrl(jo.Value<string>("URL")), jo.Value<string>("Text"));
+
+            //    btnHelp.Menu.Items.Add(menuItem);
+            //}
+
+            // 用户可见的菜单列表
+
+            if (MenuInit() == 0)
+            {
+                Response.Write("系统管理员尚未给你配置菜单！");
+                Response.End();
+
+                return;
+            }
+            // 注册客户端脚本，服务器端控件ID和客户端ID的映射关系
+            //JObject ids = GetClientIDS(regionPanel, regionLeft, mainTabStrip);
+            //Accordion accordionMenu = InitAccordionMenu(menus);
+            //ids.Add("treeMenu", accordionMenu.ClientID);
+            //ids.Add("menuType", "accordion");
+
+            //string idsScriptStr = String.Format("window.DATA={0};", ids.ToString(Newtonsoft.Json.Formatting.None));
+            //PageContext.RegisterStartupScript(idsScriptStr);
+
+
+            #region  工作台模版加载
+            string strWorkSql = @"SELECT B.INDEXFILE FROM SYS_OPERROLE A,SYS_DO_MODE B 
+                WHERE INSTR('{0}',A.ROLEID)>0 AND ROWNUM=1 AND LENGTH(A.DEFFUNC)=1 AND A.DEFFUNC=B.ID AND B.FLAG='Y' order by a.roleid asc ";
+            object Url = DbHelperOra.GetSingle(string.Format(strWorkSql, UserAction.UserRole));
+            if (Url != null && Url.ToString() != "")
+            {
+                mainTab.EnableIFrame = true;
+                mainTab.IFrameUrl = Url.ToString();
+                reloadFlag.Text = "Y";
+            }
+            else
+            {
+                mainTab.EnableIFrame = false;
+                mainTab.BodyStyle = "background-image:url(../res/images/welcome.jpg);";
+                reloadFlag.Text = "N";
+            }
+            #endregion
+        }
+
+
+        #region InitMenu
+
+        private int MenuInit()
+        {
+            //UserAction.UserRole	
+            int i = 0;
+            #region 常用功能
+            DataTable dtCustom = DbHelperOra.Query("select * from SYS_USERDEFINEPAGE t   left join sys_function on pageguid = funcid where (t.roleid = '" + UserAction.UserRole + "' or t.userid = '" + UserAction.UserID + "') order by orderid").Tables[0];
+            if (dtCustom != null&& dtCustom.Rows.Count != 0)
+            {
+                //hfData.Text = JsonConvert.SerializeObject(dt);
+                foreach (DataRow row in dtCustom.Rows) {
+                    FineUIPro.Button btn = new FineUIPro.Button();
+                    btn.ID = "btn_" + row["funcid"].ToString();
+                    btn.Text = row["funcname"].ToString();
+                    btn.IconAlign = IconAlign.Top;
+                    btn.Size = ButtonSize.Large;
+                    btn.EnableDefaultState = false;
+                    btn.IconFont = IconFont.File;
+                    btn.OnClientClick = "F.addMainTab(F('"+mainTabStrip.ClientID+ "'), {id: '"+ row["funcid"].ToString() + "', iframeUrl: '"+ row["runwhat"].ToString() + "?fid=" + row["funcid"].ToString() + "', title: '"+ row["funcname"].ToString() + "', closable: true, refreshWhenExist: false});";
+
+                    #region 购物车数量
+                    if ("购物车".Equals(row["funcname"].ToString())) {
+
+                        string sl = (DbHelperOra.GetSingle("SELECT  NVL(count(gdseq),0) FROM DAT_CART WHERE USERID = '" + UserAction.UserID + "'") ?? "0").ToString();
+                        btn.CssClass = "cart";
+                        btn.Attributes.Add("cart-count", sl);
+                        if ("0".Equals(sl))
+                        {
+                            btn.CssClass += " blue ";
+                        }
+                    }
+                    #endregion
+
+                    #region 图标显示
+                    string iconString = row["funico"].ToString();
+                    if (!string.IsNullOrWhiteSpace(iconString))
+                    {
+
+                        //SPD图标
+                        if (iconString.IndexOf("icon-") > -1)
+                        {
+                            btn.CssClass += " iconfont " + row["funico"].ToString();
+                        }
+                        //FineUI pro 系统图标
+                        else {
+                            foreach (string icon in Enum.GetNames(typeof(IconFont)))
+                            {
+                                IconFont iconType = (IconFont)Enum.Parse(typeof(IconFont), icon);
+                                if (icon == iconString)
+                                {
+                                    btn.IconFont = iconType;
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                    topRegionToolbar.Items.Insert(3 + i, btn);
+                    i++;
+                }
+
+            }
+            #endregion
+
+
+            int indexFirst = i;
+
+            DataTable dt = DbHelperOra.Query("select * from SYS_FUNCROLE t where roleid = '" + UserAction.UserRole + "'  order by treeid,itemsort,funcid").Tables[0];
+
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                return 0;
+            }
+            hfMenuData.Text = JsonConvert.SerializeObject(dt);
+
+            DataRow[] dr = dt.Select("TREELEVEL = 1 ");
+
+            foreach (DataRow row in dr)
+            {
+                FineUIPro.Button btn = new FineUIPro.Button();
+
+                btn.ID = "btn_" + row["funcid"].ToString();
+                btn.Text = row["funcname"].ToString();
+
+                btn.IconAlign = IconAlign.Top;
+                btn.Size = ButtonSize.Large;
+                btn.EnableDefaultState = false;
+                btn.IconFont = IconFont.File;
+                //if (row["funico"].ToString().Length < 3)
+                //{
+                //    btn.IconUrl = "~/res/images/16/" + (i + 1).ToString() + ".png";
+                //}
+                //else
+                //{
+                //    btn.IconUrl = "~/res/images/menu/" + row["funico"].ToString();
+                //}
+
+                if (i == indexFirst) //默认选定第一个功能节点树
+                {
+                    btn.CssClass = "mymenu ui-state-active";
+                    // 生成树		 
+                    int nodeCount = MenuTree(row["funcid"].ToString(), dt, MenuTree1.Nodes);
+                }
+                else
+                {
+                    btn.CssClass = "mymenu";
+                }
+
+
+                //TODO  读取icon
+                #region 图标显示
+                string iconString = row["funico"].ToString();
+                if (!string.IsNullOrWhiteSpace(iconString))
+                {
+
+                    //SPD图标
+                    if (iconString.IndexOf("icon-") > -1)
+                    {
+                        btn.CssClass += " iconfont " + row["funico"].ToString();
+                    }
+                    //FineUI pro 系统图标
+                    else {
+                        foreach (string icon in Enum.GetNames(typeof(IconFont)))
+                        {
+                            IconFont iconType = (IconFont)Enum.Parse(typeof(IconFont), icon);
+                            if (icon == iconString)
+                            {
+                                btn.IconFont = iconType;
+                            }
+                        }
+                    }
+                }
+                #endregion
+
+
+
+                //btn.OnClientClick = "f_MenuClickEven('"+ row["funcid"].ToString() + "')";
+                topRegionToolbar.Items.Insert(3 + i, btn);
+                i++;
+            }
+            return 1;
+        }
+        private int MenuTree(string strTree, DataTable dt, FineUIPro.TreeNodeCollection TreeNodes)
+        {
+            DataRow[] dr = dt.Select("TREEID = '" + strTree + "'");
+            if (dr.Length < 1) return 0;
+            int cnt = 0;
+            foreach (DataRow row in dr)
+            {
+                FineUIPro.TreeNode node = new FineUIPro.TreeNode();
+                TreeNodes.Add(node);
+
+                node.NodeID = row["FUNCID"].ToString();// + "_" + menu.IsFuncArea;
+                node.Text = row["FUNCNAME"].ToString();
+
+                if (row["ISLAST"].ToString() == "N") //
+                {
+                    if (row["TREELEVEL"].ToString() == "2" & cnt == 0) node.Expanded = true;
+                    cnt++;
+                    MenuTree(row["funcid"].ToString(), dt, node.Nodes);
+                }
+                else
+                {
+                    //node.IconUrl = ResolveUrl("~/res/images/leaf.gif");
+                    if (row["RUNWHAT"].ToString().IndexOf('?') > 0)
+                    {
+                        node.NavigateUrl = ResolveUrl(row["RUNWHAT"].ToString() + "&fid=" + node.NodeID);
+                    }
+                    else
+                    {
+                        node.NavigateUrl = ResolveUrl(row["RUNWHAT"].ToString() + "?fid=" + node.NodeID);
+                    }
+                }
+                #region 图标显示
+                string iconString = row["funico"].ToString();
+                if (!string.IsNullOrWhiteSpace(iconString))
+                {
+
+                    //SPD图标
+                    if (iconString.IndexOf("icon-") > -1)
+                    {
+                        node.CssClass += " iconfont " + row["funico"].ToString();
+                    }
+                    //FineUI pro 系统图标
+                    else {
+                        foreach (string icon in Enum.GetNames(typeof(IconFont)))
+                        {
+                            IconFont iconType = (IconFont)Enum.Parse(typeof(IconFont), icon);
+                            if (icon == iconString)
+                            {
+                                node.IconFont = iconType;
+                            }
+                        }
+                    }
+                }
+                #endregion
+            }
+
+            return 0;
+        }
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            if (e.EventArgument.IndexOf("TreeInit") >= 0)
+            {
+                // 生成树
+                string strFunc = e.EventArgument.Replace("TreeInit_", "");
+                string strSql = "select * from (select * from SYS_FUNCROLE where roleid = '" + UserAction.UserRole + "' ) t   start with t.funcid = '" + strFunc + "' connect by t.treeid = prior t.funcid";
+
+                DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+                MenuTree1.Nodes.Clear();
+                int nodeCount = MenuTree(strFunc, dt, MenuTree1.Nodes);
+            }
+            //else if (e.EventArgument == "gwc")
+            //{
+            //    //string sl = (DbHelperOra.GetSingle("SELECT COUNT(1) FROM DAT_CART WHERE USERID = '" + UserAction.UserID + "'") ?? "0").ToString();
+            //    //btn_cart.Text = "购物车<font color='red'>" + sl + "</font>";
+            //}
+        }
+        #endregion	initMenu
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                #region 帮助链接，获取Json数据
+                string sql = "SELECT FUNCID,HELPURL FROM SYS_FUNCTION WHERE ISVISIBLE = 'Y' AND RUNHOW = 'S'";
+                DataTable dt = DbHelperOra.Query(sql).Tables[0];
+                hfdTabData.Text = JsonConvert.SerializeObject(dt);
+                #endregion
+
+                LoadData();
+            }
+        }
+
+        private void LoadData()
+        {
+            //System.Web.UI.WebControls.HyperLink link = regionTop.FindControl("linkSystemTitle") as System.Web.UI.WebControls.HyperLink;
+            //if (link != null)
+            //{
+            //    link.Text = ConfigHelper.Title;
+            //}
+            //appname.title = ConfigurationManager.AppSettings["APPNAME"] + "智能化物资管理平台";
+            //购物车状态
+            //if (DbHelperOra.Exists("SELECT 1 FROM SYS_DEPT WHERE CODE = '" + UserAction.UserDept + "' AND TYPE = '3'"))
+            //{
+            //	cplGWC.Hidden = false;
+            //}
+        }
+
+
+        #region Events
+
+        protected void btnExit_Click(object sender, EventArgs e)
+        {
+            FormsAuthentication.SignOut();
+            Session.Abandon();
+
+            FormsAuthentication.RedirectToLoginPage();
+        }
+
+        protected void btnUser_Click(object sender, EventArgs e)
+        {
+            FineUIPro.PageContext.RegisterStartupScript(WindowUser.GetShowReference("~/SpdBasic/UserEdith.aspx?look=Y" + "&" + "id=" + UserAction.UserID, "用户【" + UserAction.UserName + "】信息查看"));
+        }
+        protected void btnPwd_Click(object sender, EventArgs e)
+        {
+            WindowPwd.Hidden = false;
+        }
+
+        protected void btnPwdOK_Click(object sender, EventArgs e)
+        {
+            //string strSql = "Update sys_operuser set USERPWD ='" + EncryptionUtil.StringToMD5Hash(tbxPasswordNew.Text) + "' where USERID='" + UserAction.UserID + "'";
+            string strSql = "Update sys_operuser set USERPWD ='" + SPDHub.Utilities.PasswordUtil.CreateDbPassword(tbxPasswordNew.Text) + "' where USERID='" + UserAction.UserID + "'";
+            DbHelperOra.ExecuteSql(strSql);
+
+            FineUIPro.Alert.Show("修改密码成功，请重新登录！", string.Empty, "parent.window.location.href='/login.aspx'");
+        }
+        #endregion
+    }
+
+}

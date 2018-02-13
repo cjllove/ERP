@@ -1,0 +1,210 @@
+﻿Object Report
+	Version='5.8.0.6'
+	Title='库房货位标签'
+	PageDivideCount=3
+	PageDivideLine=T
+	Object Font
+		Name='宋体'
+		Size=105000,0
+		Weight=400
+		Charset=134
+	End
+	Object Printer
+		LeftMargin=0
+		TopMargin=0
+		RightMargin=0
+		BottomMargin=0
+	End
+	Object DetailGrid
+		BorderStyles=[]
+		BorderWidth=0
+		ColLineWidth=0
+		RowLineWidth=0
+		PageColumnDirection=AcrossDown
+		PageColumnCount=2
+		Object Recordset
+			ConnectionString='Provider=OraOLEDB.Oracle.1;Persist Security Info=False;User ID=spd_wdzx;Password=spd_wdzx;Data Source=SPD_ENIF;Extended Properties=""'
+			QuerySQL='SELECT A.GDSEQ, A.GDNAME, A.GDSPEC, A.HISCODE, A.BAR3 EASCODE\r\n  FROM DOC_GOODS A, DOC_GOODSCFG B\r\n WHERE A.GDSEQ = B.GDSEQ\r\n   AND B.DEPTID = '00000''
+			Items Field
+				Item
+					Name='GDSEQ'
+				End
+				Item
+					Name='GDNAME'
+				End
+				Item
+					Name='GDSPEC'
+				End
+				Item
+					Name='HISCODE'
+				End
+				Item
+					Name='EASCODE'
+				End
+			End
+		End
+		Items Column
+			Item
+				Name='Column1'
+				Width=10.0013
+			End
+		End
+		Object ColumnContent
+			Height=2.98979
+			Items ColumnContentCell
+				Item
+					Column='Column1'
+					FreeCell=T
+					Items Control
+						Item
+							Type=MemoBox
+							Name='MemoBox16'
+							BorderStyles=[DrawTop|DrawRight|DrawBottom]
+							Left=2.03729
+							Top=0.132292
+							Width=7.75229
+							Height=0.899583
+							Text=' [#GDNAME#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox22'
+							BorderStyles=[DrawRight|DrawBottom]
+							Left=2.03729
+							Top=1.03188
+							Width=2.75167
+							Height=0.899583
+							Text=' [#GDSPEC#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox23'
+							BorderStyles=[DrawLeft|DrawTop|DrawRight|DrawBottom]
+							Left=6.56167
+							Top=1.00542
+							Width=3.22792
+							Height=0.926042
+							TextAlign=MiddleCenter
+							Text='[#HJCODE1#]'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox2'
+							BorderStyles=[DrawBottom]
+							Left=4.78896
+							Top=1.93146
+							Width=1.79917
+							Height=0.899583
+							Object Font
+								Name='宋体'
+								Size=105000,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='EAS编码'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox25'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=6.56167
+							Top=1.93146
+							Width=3.22792
+							Height=0.899583
+							TextAlign=MiddleCenter
+							Text='[#EASCODE#]'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox3'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=4.7625
+							Top=1.03188
+							Width=1.82563
+							Height=0.9
+							Object Font
+								Name='宋体'
+								Size=105000,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='货位'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox4'
+							BorderStyles=[DrawLeft|DrawTop|DrawRight|DrawBottom]
+							Left=0.211667
+							Top=0.132292
+							Width=1.82563
+							Height=0.899583
+							Object Font
+								Name='宋体'
+								Size=105000,0
+								Bold=T
+								Charset=134
+							End
+							Text='商品名称'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox5'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.211667
+							Top=1.03188
+							Width=1.82563
+							Height=0.899583
+							Object Font
+								Name='宋体'
+								Size=105000,0
+								Bold=T
+								Charset=134
+							End
+							Text='规　　格'
+						End
+						Item
+							Type=StaticBox
+							Name='StaticBox8'
+							BorderStyles=[DrawLeft|DrawBottom]
+							Left=0.211667
+							Top=1.93146
+							Width=1.79917
+							Height=0.899583
+							Object Font
+								Name='宋体'
+								Size=105000,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='SPD编码'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox27'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=2.01083
+							Top=1.93146
+							Width=2.77813
+							Height=0.899583
+							TextAlign=MiddleCenter
+							Text='[#GDSEQ#]'
+						End
+					End
+				End
+			End
+		End
+		Object ColumnTitle
+			Height=0
+			Items ColumnTitleCell
+				Item
+					GroupTitle=F
+					Column='Column1'
+					Text='Column1'
+				End
+			End
+		End
+	End
+End

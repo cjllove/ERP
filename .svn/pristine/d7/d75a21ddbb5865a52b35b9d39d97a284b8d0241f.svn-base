@@ -1,0 +1,132 @@
+﻿<%@ Page  Language="C#" AutoEventWireup="true" CodeBehind="Dd_Remind.aspx.cs" Inherits="SPDProject.SpdQuery.Dd_Remind" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+        <style type="text/css" media="all">
+        .f-grid-row.color-red,
+        .f-grid-row.color-red .ui-icon,
+        .f-grid-row.color-red a {
+            background-color: #3AA02C;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server"></f:PageManager>
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBOX"
+            ShowHeader="false">
+            <items>
+                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                    Layout="VBOX" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar2" runat="server">
+                            <Items>
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <f:Button ID="btnClear" Icon="ArrowRotateClockwise" Text="清 空" OnClick="btnClear_Click" EnablePostBack="true" runat="server"  EnableDefaultState="false"/>                              
+                                <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出" OnClick="btnExport_Click" ConfirmText="是否导出当前信息?" DisableControlBeforePostBack="false" Enabled="true"
+                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" EnableDefaultState="false" Hidden="true" />                                
+                                <f:Button ID="btnSearch" Icon="Magnifier" Text="查 询" OnClick="btnSearch_Click" runat="server" EnableDefaultState="false" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormSearch" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                            ShowHeader="False" LabelWidth="85px" runat="server">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                         
+                                        <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px 5px 5px 5px"
+                                            ShowHeader="False" LabelWidth="100px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="lstSUPPLIER" runat="server" Label="供应商"  EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="lstISGZ" runat="server" Label="是否高值"  EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="lstBILLFLAG" runat="server" Label="订单状态"  EnableEdit="true" ForceSelection="true" />
+                                                        <f:Label runat="server"></f:Label>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+                <f:Grid ID="GridCom"  BoxFlex="1" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridCom_RowDoubleClick"
+                    EnableColumnLines="true" EnableTextSelection="true" AutoScroll="true" runat="server" DataKeyNames="SEQNO"
+                    IsDatabasePaging="true" AllowPaging="true" PageSize="20" OnPageIndexChange="GridCom_PageIndexChange"
+                    OnSort="GridCom_Sort" SortField="SEQNO" SortDirection="DESC" OnRowCommand="GridCom_RowCommand" OnRowDataBound="GridCom_RowDataBound">
+                    <Columns>
+                        <f:RowNumberField Width="30px" TextAlign="Center" />                                             
+                        <f:BoundField Width="120px" ColumnID="SEQNO" DataField="SEQNO" SortField="SEQNO" HeaderText="平台单号" ></f:BoundField>
+                        <f:BoundField Width="120px" DataField="DDCODE" SortField="DDCODE" HeaderText="医院单号" TextAlign="center"  />
+                        <f:BoundField Width="200px" DataField="SUPNAME" SortField="SUPNAME" HeaderText="供应商" TextAlign="Left" />
+                        <f:BoundField Width="80px" DataField="USERNAME" SortField="USERNAME" ColumnID="USERNAME" HeaderText="业务员" />
+                        <f:BoundField Width="100px" DataField="STAFFTEL" SortField="STAFFTEL" HeaderText="手机号码" />
+                        <f:BoundField Width="60px" DataField="ISGZ" SortField="ISGZ" HeaderText="是否高值" TextAlign="left" />
+                         <f:BoundField Width="60px" DataField="BILLFLAG" SortField="BILLFLAG" HeaderText="订单状态" TextAlign="left" />
+                        <f:BoundField Width="120px" DataField="XDRQ" SortField="XDRQ" HeaderText="下单时间"  TextAlign="left"  />     
+                        <f:BoundField Width="60px" DataField="ISSEND" SortField="ISSEND" HeaderText="是否发送短信"  TextAlign="left"  Hidden="true" />    
+                        <f:BoundField Width="120px" DataField="SENDTIME" SortField="SENDTIME" HeaderText="短信发送时间"  TextAlign="left"  />  
+                        <f:BoundField Width="80px" DataField="ISSENDR" SortField="ISSENDR" HeaderText="重发状态"  TextAlign="left"  />    
+                        <f:BoundField Width="120px" DataField="SENDTIMER" SortField="SENDTIMER" HeaderText="短信重发时间"  TextAlign="left"  />                   
+                        <f:LinkButtonField  HeaderText="重发短信" Text="重发短信" CommandName="SendMessage" Width="130px" Icon="PageEdit"  ></f:LinkButtonField>
+                        <f:LinkButtonField  HeaderText="填写备注" Text="填写备注" CommandName="Modify" Width="130px" Icon="PageEdit"  ></f:LinkButtonField>
+                         <f:TemplateField ColumnID="expander" RenderAsRowExpander="true">
+                            <ItemTemplate>
+                                <div class="expander">
+                                    <p>
+                                        <strong>短信内容：</strong>
+                                        <p><%# Eval("MSGCONTENT").ToString() %></p>
+                                         <strong>备注：</strong>
+                                        <p><%# Eval("MEMO").ToString() %></p>
+                                    </p>
+                                </div>
+                            </ItemTemplate>
+                        </f:TemplateField>
+                       </Columns>                    
+                </f:Grid>
+            </items>
+        </f:Panel>
+        <f:HiddenField ID="hfdSEQNO" runat="server"></f:HiddenField>
+    </form>
+
+   <f:Window ID="WindowMemo" Icon="PageEdit" BodyPadding="0px 0px 0px 0px" IsModal="true"
+        Hidden="true" Title="填写备注！" Target="Self" Width="600px" Height="190px" Layout="VBox"
+        runat="server">
+        <Items>
+            <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                ShowHeader="False" LabelWidth="85px" runat="server">
+                <Rows>
+                    <f:FormRow>
+                        <Items>
+                            <f:TextArea ID="txtMemo" runat="server" Label="备注"  EmptyText="填写备注">
+                            </f:TextArea>
+                        </Items>
+                    </f:FormRow>
+                </Rows>
+            </f:Form>
+        </Items>
+        <Toolbars>
+            <f:Toolbar ID="Toolbar1" Position="Bottom" runat="server">
+                <Items>
+                    <f:ToolbarText ID="ToolbarText1" Text="" runat="server" />
+                    <f:Label ID="Label1" runat="server" Width="320px" CssStyle="font-size:12px;">
+                    </f:Label>
+                    <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                    <f:Button ID="Button1" CssStyle="margin-left: 5px;" Icon="Disk" Text="保存备注"  OnClick="btnMemoOK_Click" EnableDefaultState="false"
+                        runat="server" />
+                </Items>
+            </f:Toolbar>
+        </Toolbars>
+    </f:Window>
+</body>
+</html>

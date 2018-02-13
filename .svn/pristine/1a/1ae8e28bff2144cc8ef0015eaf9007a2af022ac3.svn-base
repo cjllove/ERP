@@ -1,0 +1,384 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsConfigureManage.aspx.cs" Inherits="SPDProject.SpdDictionary.GoodsConfigureManage" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>商品配置管理</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right" EnableTabCloseMenu="false" ActiveTabIndex="0" runat="server">
+            <Tabs>
+                <f:Tab Title="商品配置管理" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="PanelDetail" ShowBorder="false" AnchorValue="100% -140px" BodyPadding="0px" Layout="HBox"
+                                    BoxConfigAlign="Stretch" BoxConfigPosition="Start" ShowHeader="False" runat="server">
+                                    <Items>
+                                        <f:Grid ID="GridGoods" ShowBorder="false" ShowHeader="false" AllowSorting="false" CssStyle="border-top: 0px solid #99bce8;border-right: 1px solid #99bce8;"
+                                            BoxFlex="1" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" PageSize="50" IsDatabasePaging="true" EnableMultiSelect="true"
+                                            AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange" EnableColumnLines="true">
+                                            <Toolbars>
+                                                <f:Toolbar ID="Toolbar1" Layout="VBox" runat="server">
+                                                    <Items>
+                                                        <f:Panel ID="Panel10" AnchorValue="100%" runat="server" BodyPadding="0px" ShowBorder="false" ShowHeader="false"
+                                                            Layout="HBox" BoxConfigAlign="Stretch" BoxConfigPosition="Start">
+                                                            <Items>
+                                                                <f:Panel ID="Panel9" Title="" BoxFlex="1" runat="server"
+                                                                    BodyPadding="0px" ShowBorder="false" ShowHeader="false">
+                                                                    <Items>
+                                                                        <f:DropDownList Label="商品种类" ID="ddlGoodsType" LabelWidth="70px" runat="server" EnableEdit="true" ForceSelection="true" />
+                                                                    </Items>
+                                                                </f:Panel>
+                                                                <f:Panel ID="Panel11" BoxFlex="1" Title="" runat="server"
+                                                                    BodyPadding="0px" ShowBorder="false" ShowHeader="false">
+                                                                    <Items>
+                                                                        <f:DropDownList Label="出库库房" ID="ddlStoreType" LabelWidth="70px" runat="server" EnableEdit="true" />
+                                                                    </Items>
+                                                                </f:Panel>
+
+                                                            </Items>
+                                                        </f:Panel>
+
+                                                        <f:TriggerBox Label="商品信息" ID="tgbSearch" LabelWidth="70px" MarginTop="5px" runat="server" EmptyText="商品编码或名称" TriggerIcon="Search" OnTriggerClick="btnSearch_Click" />
+
+                                                    </Items>
+                                                </f:Toolbar>
+                                            </Toolbars>
+                                            <Columns>
+                                                <f:BoundField DataField="GDSEQ" Hidden="true" />
+                                                <f:BoundField Width="100px" DataField="GDID" HeaderText="商品编码" />
+                                                <f:BoundField Width="230px" DataField="GDNAME" HeaderText="商品名称" />
+                                                <f:BoundField Width="50px" DataField="FLAG_CN" HeaderText="状态" TextAlign="Center" />
+                                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                                <f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" Hidden="true" />
+                                                <f:BoundField Width="50px" DataField="ISGZ" HeaderText="高值" TextAlign="Center" />
+                                                <f:BoundField DataField="FLAG" Hidden="true" />
+                                            </Columns>
+                                        </f:Grid>
+                                        <f:Panel ID="Panel3" Width="58px" runat="server" BodyPadding="5px" ShowBorder="false" ShowHeader="false"
+                                            Layout="VBox" BoxConfigAlign="Stretch" BoxConfigPosition="Start" BodyStyle="background-color:#d9e7f8;">
+                                            <Items>
+                                                <f:Panel ID="Panel2" Title="面板1" BoxFlex="1" runat="server" BodyStyle="background-color:#d9e7f8;"
+                                                    BodyPadding="5px" ShowBorder="false" ShowHeader="false">
+                                                    <Items>
+                                                    </Items>
+                                                </f:Panel>
+                                                <f:Panel ID="Panel4" Height="74px" runat="server" BodyStyle="background-color:#d9e7f8;"
+                                                    BodyPadding="7px" ShowBorder="false" ShowHeader="false">
+                                                    <Items>
+                                                        <f:Button ID="btnAddRight" runat="server" Text=">>" CssStyle="margin-bottom:15px;" OnClick="btnAddRight_Click"></f:Button>
+                                                        <f:Button ID="btnAddLeft" runat="server" Text="<<" OnClick="btnAddLeft_Click"></f:Button>
+                                                    </Items>
+                                                </f:Panel>
+                                                <f:Panel ID="Panel5" BoxFlex="1" Margin="0" BodyStyle="background-color:#d9e7f8;"
+                                                    runat="server" BodyPadding="5px" ShowBorder="false" ShowHeader="false">
+                                                    <Items>
+                                                    </Items>
+                                                </f:Panel>
+                                            </Items>
+                                        </f:Panel>
+                                        <f:Grid ID="GridCFGGoods" ShowBorder="false" ShowHeader="false" AllowSorting="true" BoxFlex="1" CssStyle="border-top: 0px solid #99bce8;border-left: 1px solid #99bce8;"
+                                            AutoScroll="true" runat="server" DataKeyNames="GDSEQ" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridCFGGoods_RowDoubleClick"
+                                            PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridCFGGoods_PageIndexChange" EnableMultiSelect="true" EnableColumnLines="true"
+                                            OnSort="GridCFGGoods_Sort" SortField="ISGZ">
+                                            <Toolbars>
+                                                <f:Toolbar ID="Toolbar2" Layout="VBox" runat="server" ColumnWidth="50% 50%">
+                                                    <Items>
+                                                        <f:DropDownList Label="配置部门" LabelWidth="70px" ID="ddlDept" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlDept_SelectedIndexChanged" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                        <f:TriggerBox ID="trbSearch" LabelWidth="70px" runat="server" EmptyText="商品编码" MarginTop="5px" Label="商品信息" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick" />
+                                                    </Items>
+                                                </f:Toolbar>
+                                            </Toolbars>
+                                            <Columns>
+                                                <f:BoundField DataField="GDSEQ" Hidden="true" />
+                                                <f:BoundField Width="100px" DataField="GDID" HeaderText="商品编码" />
+                                                <f:BoundField Width="230px" DataField="GDNAME" HeaderText="商品名称" />
+                                                <f:BoundField Width="50px" DataField="ISCFG_CN" HeaderText="状态" TextAlign="Center" />
+                                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                                <f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" Hidden="true" />
+                                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                                <f:BoundField Width="50px" DataField="ISGZ" SortField="ISGZ" HeaderText="高值" TextAlign="Center" />
+                                                <f:BoundField Width="50px" DataField="ISPD" HeaderText="盘点" TextAlign="Center" />
+                                                <f:BoundField Width="50px" DataField="ISJF" HeaderText="计费" TextAlign="Center" />
+                                                <f:BoundField Width="90px" DataField="HJCODE1" HeaderText="货位ID" />
+                                            </Columns>
+                                        </f:Grid>
+                                    </Items>
+                                </f:Panel>
+                                <f:Panel ID="Panel7" ShowBorder="false" Height="140px" BodyPadding="0px" Layout="HBox" CssStyle="border-top: 1px solid #99bce8;"
+                                    BoxConfigAlign="Stretch" BoxConfigPosition="Start" ShowHeader="False" runat="server">
+                                    <Items>
+                                        <f:Form ID="FormConfig" BoxFlex="1" ShowBorder="false" AutoScroll="false" BodyPadding="10px" ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25%  25%  25%  13% 12%  ">
+                                                    <Items>
+                                                        <f:TextBox ID="tbxGDSEQ" runat="server" Label="商品编码" EmptyText="设定后不可更改" Required="true"
+                                                            ShowRedStar="true" Enabled="false">
+                                                        </f:TextBox>
+                                                        <f:TriggerBox ID="trbHJCODE1" runat="server" Label="拆零货位" TriggerIcon="Search" MaxLength="10" EnableEdit="false" ShowRedStar="true" Required="true" OnTriggerClick="trbHJCODE1_TriggerClick"></f:TriggerBox>
+                                                        <f:NumberBox ID="tbnZGKC" runat="server" Label="最高库存" MaxLength="14" MinValue="0"></f:NumberBox>
+                                                        <f:CheckBox ID="chkISCFGID" runat="server" Label="启用" CssStyle="color: red;    font-weight: bold;" Checked="true" LabelSeparator="" />
+                                                        <f:CheckBox ID="cbxISJF" runat="server" Label="计费商品" LabelSeparator="" ShowRedStar="true" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow ColumnWidths="50%   25%  13% 12%">
+                                                    <Items>
+                                                        <f:TextBox ID="tbsGDNAME" runat="server" Label="商品名称" EmptyText="设定后不可更改" Required="true"
+                                                            ShowRedStar="true" Enabled="false" />
+                                                        <f:NumberBox ID="tbnZDKC" runat="server" Label="最低库存" MaxLength="14" MinValue="0"></f:NumberBox>
+                                                        <f:CheckBox ID="cbxTB" runat="server" Label="同步货位" LabelSeparator="" Enabled="true" AutoPostBack="true" Checked="true" OnCheckedChanged="cbxTB_CheckedChanged"></f:CheckBox>
+                                                        <f:CheckBox ID="chkISPD" runat="server" Label="是否盘点" Checked="true" LabelSeparator="" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow ColumnWidths="25% 25% 25% 25%">
+                                                    <Items>
+                                                        <%--<f:DatePicker ID="dpkBEGRQ" runat="server" Label="开始日期">
+                                                        </f:DatePicker>
+                                                        <f:DatePicker ID="dpkENDRQ" runat="server" Label="结束日期">
+                                                        </f:DatePicker>--%>
+                                                        <f:NumberBox ID="nbxDAYSL" runat="server" Label="备货天数" Text="0" MaxLength="14" MinValue="0" />
+                                                        <f:NumberBox ID="nbxDHXS" runat="server" Label="订货系数" MaxLength="14" MinValue="0"></f:NumberBox>
+                                                        <f:Label runat="server"></f:Label>
+                                                        <f:CheckBox ID="ddlISAUTO" runat="server" LabelWidth="120px" Label="自动订货/定数下限" LabelSeparator="" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow ColumnWidths="25% 25% 25% 25%">
+                                                    <Items>
+                                                        <f:NumberBox ID="nbxDSNUM" runat="server" Label="定数数量" Text="0" MaxLength="10" MinValue="0" NoDecimal="true" Enabled="false" />
+                                                        <f:NumberBox ID="NubNUM1" runat="server" Label="定数含量" Text="0" MinValue="0" NoDecimal="true" MaxLength="10" Enabled="false" />
+                                                        <f:NumberBox ID="NubDSPOOL" runat="server" Label="预出定数" Text="0" MinValue="0" NoDecimal="true" MaxLength="10" Enabled="false" />
+                                                        <f:NumberBox ID="txbNUM3" runat="server" Label="待收定数" Text="0" MinValue="0" Enabled="false" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:CheckBox ID="chkSPLB" runat="server" Label="库存品" LabelSeparator="" Hidden="true" />
+                                                        <f:NumberBox ID="nbxHLKC" runat="server" Label="合理库存" Text="0" Hidden="true" />
+                                                        <f:NumberBox ID="NubnNUM2" runat="server" Label="定数流水" Hidden="true" />
+                                                        <f:HiddenField ID="hfdDEPTID" runat="server" />
+                                                        <f:TextBox Hidden="true" ID="tbxHJCODE2" runat="server" Label="整件货位" MaxLength="10">
+                                                        </f:TextBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                        <f:Form ID="FormButton" Width="120px" ShowBorder="false" CssStyle="border-left: 1px solid #99bce8;" AutoScroll="false" BodyPadding="10px" ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:Button ID="btnSave" OnClick="btnSave_Click"
+                                                            Icon="Disk" Text="保 存" DisableControlBeforePostBack="false" runat="server" EnableDefaultState="false" ValidateForms="FormConfig" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:Label ID="Label3" runat="server" Text=" 　" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:Button ID="ExportBtn" runat="server" Icon="DatabaseGo" Text="导 出" EnableDefaultState="false" EnableAjax="false" EnablePostBack="true" DisableControlBeforePostBack="false" OnClick="ExportBtn_Click"></f:Button>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="商品科室批量配置" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel8" ShowBorder="false" BoxFlex="1" AnchorValue="100% -45" BodyPadding="0px"
+                            Layout="Hbox"
+                            BoxConfigPadding="0" BoxConfigChildMargin="0" ShowHeader="False" runat="server">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar5" runat="server">
+                                    <Items>
+                                        <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="商品科室批量配置界面" runat="server" />
+                                        <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                            <f:Button ID="btnCopy" EnableDefaultState="false" OnClick="btnCopy_Click" Icon="DatabaseRefresh"
+                                            Text="配置复制" EnablePostBack="true" runat="server">
+                                        </f:Button>
+                                        <f:Button ID="btnGoodsConfig" EnableDefaultState="false" OnClick="btnGoodsConfig_Click" Icon="Disk"
+                                            Text="保 存" EnablePostBack="true" runat="server" ValidateForms="FormCond">
+                                        </f:Button>
+
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Items>
+                                <f:Grid ID="GridGoodsConfig" BoxFlex="3" ShowBorder="false" ShowHeader="false"
+                                    AllowSorting="true" AutoScroll="true" runat="server" CssStyle="border-right: 1px solid #99bce8;" DataKeyNames="GDID"
+                                    EnableCheckBoxSelect="true" EnableMultiSelect="false" EnableColumnLines="true" KeepCurrentSelection="true"
+                                    EnableRowDoubleClickEvent="false" EnableRowClickEvent="true" OnRowClick="GridGoodsConfig_RowDoubleClick"
+                                    PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoodsConfig_PageIndexChange">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar6" runat="server">
+                                            <Items>
+                                                <f:TriggerBox runat="server" ID="trbGoodsSearch" TriggerIcon="Search" OnTriggerClick="btnGoodScreen_Click"></f:TriggerBox>
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+
+                                                <f:Button ID="btnGoodScreen" EnableDefaultState="false" OnClick="btnGoodScreen_Click" Icon="SystemSearch"
+                                                    Text="商品筛选" EnablePostBack="true" runat="server" ValidateForms="FormCond">
+                                                </f:Button>
+                                                <f:Button ID="btnClearGoods" EnableDefaultState="false" OnClick="btnClearGoods_Click" Icon="Erase"
+                                                    Text="清空" EnablePostBack="true" runat="server" ValidateForms="FormCond">
+                                                </f:Button>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" runat="server"></f:RowNumberField>
+                                        <f:BoundField Width="100px" DataField="GDID" HeaderText="商品编码" />
+                                        <f:BoundField Width="230px" DataField="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="50px" DataField="FLAG_CN" HeaderText="科室使用" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                        <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" Hidden="true" />
+                                        <f:BoundField Width="50px" DataField="ISGZ" HeaderText="高值" TextAlign="Center" />
+                                        <f:BoundField DataField="FLAG" Hidden="true" />
+                                    </Columns>
+                                </f:Grid>
+                                <f:Grid ID="GridDepartment" BoxFlex="1" ShowBorder="false" ShowHeader="false" AutoScroll="true" runat="server"
+                                    AllowSorting="true" EnableCheckBoxSelect="true" EnableMultiSelect="true" EnableColumnLines="true" KeepCurrentSelection="true"
+                                    DataKeyNames="CODE,NAME">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar7" runat="server">
+                                            <Items>
+                                                <f:TriggerBox runat="server" ID="trbDepartSearch" TriggerIcon="Search" Hidden="true"></f:TriggerBox>
+                                                <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+
+                                                <f:Button ID="btnDeptScreen" EnableDefaultState="false" OnClick="btnDeptScreen_Click" Icon="SystemSearch"
+                                                    Text="科室筛选" EnablePostBack="true" runat="server" ValidateForms="FormCond" Hidden="true">
+                                                </f:Button>
+                                                <f:Button ID="btnClearDept" EnableDefaultState="false" OnClick="btnClearDept_Click" Icon="Erase"
+                                                    Text="清空" EnablePostBack="true" runat="server" ValidateForms="FormCond">
+                                                </f:Button>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:BoundField Width="0px" Hidden="true" DataField="CODE" HeaderText="科室编码" />
+                                        <f:BoundField Width="230px" DataField="DEPTNAME" HeaderText="科室名称" />
+                                        <f:BoundField Hidden="true" DataField="DEPTTYPE" HeaderText="科室类别"></f:BoundField>
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="商品配置导入" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel6" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Grid ID="gridGoodsCfg" AnchorValue="100% -3px" ShowBorder="false" ShowHeader="false" EnableCheckBoxSelect="false" EnableColumnLines="true"
+                                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" AllowPaging="true" PageSize="20"
+                                    DataKeyNames="GDSEQ" OnPageIndexChange="gridGoodsCfg_PageIndexChange" AllowCellEditing="true" ClicksToEdit="1">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar3" runat="server">
+                                            <Items>
+                                                <f:ToolbarText runat="server" Text="批量导入配置表更新拣零货位:" />
+                                                <f:FileUpload runat="server" ID="fuDocument" EmptyText="导入EXCEL文件" Width="400" AutoPostBack="true" OnFileSelected="btnHWUpload_Click" ShowRedStar="true" />
+                                                <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                                <f:Button runat="server" Text="清除" Icon="Delete" ID="btnClear" ConfirmText="确认清除吗？" OnClick="btnClear_Click" EnableDefaultState="false"></f:Button>
+                                                <f:Button runat="server" Text="执行更新" Icon="PageBreakInsert" OnClick="btnUpdate_Click" EnableDefaultState="false"></f:Button>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:BoundField DataField="GDSEQ" Hidden="true" />
+                                        <f:BoundField Width="100px" DataField="DEPTID" HeaderText="管理部门" />
+                                        <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" />
+                                        <f:BoundField Width="180px" DataField="GDNAME" HeaderText="商品名称" ExpandUnusedSpace="true" />
+                                        <f:BoundField Width="50px" DataField="FLAG" HeaderText="状态" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                        <f:BoundField Width="50px" DataField="UNIT" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HJCODE1" ColumnID="STR1" HeaderText="拣零货位" TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+
+        <f:HiddenField ID="highlightRows" runat="server"></f:HiddenField>
+    </form>
+    <f:Window ID="Window1" Title="货位资料管理" Hidden="true" EnableIFrame="false" runat="server"
+        EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Layout="Anchor" Width="600px" Height="360px">
+        <Items>
+            <f:Form ID="FormSearch" ShowBorder="false" AutoScroll="false" BodyPadding="5px 30px 0px 30px"
+                ShowHeader="False" LabelWidth="75px" runat="server">
+                <Rows>
+                    <f:FormRow ColumnWidths="93% 6%">
+                        <Items>
+                            <f:TriggerBox ID="trbSearch1" runat="server" Label="查询信息" TriggerIcon="Search" AutoPostBack="true" OnTriggerClick="trbSearch1_TriggerClick"></f:TriggerBox>
+                        </Items>
+                    </f:FormRow>
+                </Rows>
+            </f:Form>
+            <f:Grid ID="HwList" AnchorValue="100% -30" ShowBorder="true" ShowHeader="false" EnableRowDoubleClickEvent="true" OnRowDoubleClick="HwList_RowDoubleClick"
+                AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="HWID" EnableMultiSelect="false" EnableCheckBoxSelect="true" IsDatabasePaging="true"
+                PageSize="50" AllowPaging="true" OnPageIndexChange="HwList_PageIndexChange" OnSort="HwList_Sort" SortField="KFBHNAME" SortDirection="ASC">
+                <Columns>
+                    <f:BoundField Width="80px" DataField="HWID" HeaderText="货位编码" TextAlign="Center" />
+                    <f:BoundField Width="120px" DataField="KFBH" HeaderText="所属库房" ExpandUnusedSpace="true" />
+                    <f:BoundField Width="80px" DataField="KFBH" HeaderText="库房" Hidden="true" />
+                    <f:BoundField Width="80px" DataField="QYBH" HeaderText="区域编号" />
+                    <f:BoundField Width="60px" DataField="PAI" HeaderText="排号" />
+                    <f:BoundField Width="60px" DataField="LIE" HeaderText="列号" />
+                    <f:BoundField Width="60px" DataField="CENG" HeaderText="层号" />
+                    <f:BoundField Width="80px" DataField="ABC" HeaderText="ABC分类" Hidden="True" />
+                </Columns>
+            </f:Grid>
+        </Items>
+        <Toolbars>
+            <f:Toolbar ID="Toolbar4" runat="server" Position="Bottom" ToolbarAlign="Right">
+                <Items>
+                    <f:HiddenField ID="hfdRowIndex" runat="server" />
+                    <f:Button ID="btnClosePostBack" Text="确定" Icon="SystemSave" EnableDefaultState="false" runat="server" OnClick="btnClosePostBack_Click">
+                    </f:Button>
+                </Items>
+            </f:Toolbar>
+        </Toolbars>
+    </f:Window>
+        <f:Window ID="winCopy" Title="科室商品配置复制" Hidden="true" EnableIFrame="false" runat="server"
+        EnableMaximize="false" EnableResize="true" Layout="Fit" Width="360px" Height="260px">
+        <Items>
+            <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                ShowHeader="False" LabelWidth="75px" runat="server">
+                <Rows>
+                    <f:FormRow>
+                        <Items>
+                            <f:DropDownList ID="ddlDeptFrom" runat="server" Label="从科室" EnableEdit="true"></f:DropDownList>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:DropDownList ID="ddlDeptTo" runat="server" Label="复制到" EnableEdit="true" EnableMultiSelect="true" ></f:DropDownList>
+                        </Items>
+                    </f:FormRow>
+                </Rows>
+            </f:Form>
+        </Items>
+        <Toolbars>
+            <f:Toolbar ID="Toolbar8" runat="server" Position="Bottom" ToolbarAlign="Right">
+                <Items>
+                    <f:Button ID="btnCopyClosePost" Text="确定" Icon="SystemSave" EnableDefaultState="false" runat="server" OnClick="btnCopyClosePost_Click">
+                    </f:Button>
+                </Items>
+            </f:Toolbar>
+        </Toolbars>
+    </f:Window>
+</body>
+</html>

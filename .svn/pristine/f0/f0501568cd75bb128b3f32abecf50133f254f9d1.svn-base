@@ -1,0 +1,340 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using XTBase;
+using FineUIPro;
+using System.Data;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace SPDProject.SpdReport
+{
+    public partial class InventoryCompare : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        protected override void BindDDL()
+        {
+            // 绑定到下拉列表（启用模拟树功能）          MyCache.DdlDataGet(ddlTree, "DDL_FUNCTREE");
+            //PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPT");
+
+            //DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID);
+            PubFunc.DdlDataGet(ddlCATID, "DDL_SYS_CATLNULL");
+            //PubFunc.DdlDataGet(ddlSUPID, "DDL_DOC_SUPPLIERNULL");
+        }
+
+
+        private void DataSearch()
+        {
+            string strWhere = " 0=0 ";
+            if (ViewState["where"]!=null)
+            {
+                strWhere = ViewState["where"].ToString();
+            }
+            int pageNum = GridGoods.PageSize;
+            //比较库存表V_INVENTORY_SUMMARY与EAS库存表EAS_STOCK_COMPARE
+            String strSql = @"select * from (select NULL MEMO,c.*,d.gdname,d.gdspec,d.zjm,F_GETUNITNAME(d.unit)UNIT,d.bar3,d.catid,rownum rn from
+                            (
+                            select a.*,B.PHID PHID_EAS,B.SL SL_EAS from
+                            (select GDSEQ,PHID,SUM(sumkcsl) sumkcsl from V_INVENTORY_SUMMARY 
+                            GROUP BY GDSEQ,PHID) a
+                            left join (select GDSEQ,PHID,SL FROM EAS_STOCK_COMPARE ) b
+                            on a.GDSEQ=b.GDSEQ AND a.PHID=b.PHID
+                            union
+                            select a.GDSEQ,null PHID,null sumkcsl,a.PHID PHID_EAS,a.SL SL_eas from
+                            (select GDSEQ,PHID,SL from EAS_STOCK_COMPARE ) a
+                            where  not EXISTS ( select * from (select GDSEQ,PHID,SUM(sumkcsl) SL from V_INVENTORY_SUMMARY GROUP BY GDSEQ,PHID) b where a.GDSEQ=b.GDSEQ AND a.PHID=b.PHID)
+                            ) c,doc_goods d where c.gdseq=d.gdseq(+) and {0} order by c.GDSEQ asc)  where rn>" + GridGoods.PageIndex * pageNum + " and rn<=" + (GridGoods.PageIndex+1) * pageNum;
+
+            strSql = string.Format(strSql, strWhere);
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+            string GreenRowsList = "";
+            string RedRowsList = "";
+            string YellowRowsList = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                string strPHID = "";
+                if (dr["PHID"] != null && !"".Equals(dr["PHID"].ToString()))
+                {
+                    strPHID = dr["PHID"].ToString();
+                }
+                else
+                {
+                    //如果PHID是NULL或者空值，说明DAT_GOODSSTOCK中没有该批号,标识黄色
+                    YellowRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "SPD没有EAS有";
+                    continue;
+                }
+                string strPHID_EAS = "";
+                if (dr["PHID_EAS"] != null && !"".Equals(dr["PHID_EAS"].ToString()))
+                {
+                    strPHID_EAS = dr["PHID_EAS"].ToString();
+                }
+                else
+                {
+                    //如果PHID_EAS是NULL或者空值，说明EAS_STOCK_COMPARE中没有该批号,标识白色
+                    dr["MEMO"] = "SPD有EAS没有";
+                    continue;
+                }
+
+                Decimal SL = 0;
+                if (dr["sumkcsl"] != null && !"".Equals(dr["sumkcsl"].ToString()))
+                {
+                    try
+                    {
+                        SL = Convert.ToDecimal(dr["sumkcsl"]);
+                    }
+                    catch
+                    { }
+                }
+                Decimal SL_EAS = Convert.ToDecimal(dr["SL_EAS"]);
+                if (SL == SL_EAS)
+                {
+                    GreenRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "完全匹配";
+                }
+                else
+                {
+                    RedRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "数量不匹配";
+                }
+            }
+            GridGoods.DataSource = dt;
+            GridGoods.DataBind();
+            PageContext.RegisterStartupScript("onGridDataLoad2('" + RedRowsList + "','" + GreenRowsList + "','" + YellowRowsList + "','" + GridGoods.ClientID + "');");
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            //先下传EAS库存到临时表EAS_STOCK_COMPARE
+            downloadInventory();
+        }
+
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+        //    DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+        //    if (dtData == null || dtData.Rows.Count == 0)
+        //    {
+        //        Alert.Show("没有数据,无法导出！");
+        //        return;
+        //    }
+        //    DataTable resultDt = dtData.Copy();
+        //    try
+        //    {
+        //        String warehouse = ApiUtil.GetConfigCont("QUERYINVENTORY_WAREHOUSE");//仓库存储在配置中
+        //        //String result = ApiService.getInventory(warehouse, "");
+        //        //JObject jo = JObject.Parse(result);
+        //        JObject joCli = ApiClientService.queryInventory(warehouse, "");
+        //        JObject jo = new JObject();
+        //        if ("success".Equals(joCli.Value<String>("result")))
+        //        {
+        //            jo = JsonConvert.DeserializeObject<JObject>(joCli.Value<String>("data"));
+        //        }
+        //        else
+        //        {
+        //            Exception ex = new Exception(joCli.Value<String>("reason"));
+        //            throw ex;
+        //        }
+        //        if (jo.HasValues && "success".Equals(jo.Value<String>("result")))
+        //        {
+        //            JArray data = jo.Value<JArray>("data");
+        //            foreach (DataRow dr in resultDt.Rows)
+        //            {
+        //                foreach (JToken jt in data)
+        //                {
+        //                    JObject resultJo = (JObject)jt;
+        //                    if (dr["BAR3"].ToString().Equals(resultJo.Value<String>("MATERIALNUMBER")) && dr["PHID"].ToString().Equals(resultJo.Value<String>("FLOT")))
+        //                    {
+
+        //                        dr["EASPHID"] = resultJo.Value<String>("FLOT");
+        //                        dr["EASKCSL"] = resultJo.Value<String>("FCURSTOREQTY");
+        //                    }
+        //                }
+        //            }
+
+        //        }
+        //        DataTable dtTemp = getMinusInventory();
+        //        resultDt.Merge(dtTemp);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Alert.Show("在查询库存时发生了错误：\n\r" + ex.Message, "错误信息", MessageBoxIcon.Error);
+        //    }
+
+
+        //    string[] columnNames = new string[GridGoods.Columns.Count - 1];
+        //    for (int index = 1; index < GridGoods.Columns.Count; index++)
+        //    {
+        //        GridColumn column = GridGoods.Columns[index];
+        //        if (column is FineUIPro.BoundField)
+        //        {
+        //            //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+        //            resultDt.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+        //            columnNames[index - 1] = column.HeaderText;
+        //        }
+        //    }
+
+        //    //((FineUIPro.Button)sender).Enabled = false;
+        //    ExcelHelper.ExportByWeb(resultDt.DefaultView.ToTable(true, columnNames), "商品库存信息", string.Format("商品库存报表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        //    //((FineUIPro.Button)sender).Enabled = true;
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+
+        protected void btnCompare_Click(object sender, EventArgs e)
+        {
+            string strWhere = " 0=0 ";
+            if (!PubFunc.StrIsEmpty(ddlCATID.SelectedValue)) strWhere += " and d.CATID like '" + ddlCATID.SelectedValue + "%'";
+
+            //if (!PubFunc.StrIsEmpty(ddlSUPID.SelectedValue)) strWhere += " and SUPID = '" + ddlSUPID.SelectedValue + "'";
+
+            //if (!PubFunc.StrIsEmpty(tbxZPBH.Text)) strWhere += " and ZPBH = '" + tbxZPBH.Text + "'";
+
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text)) strWhere += " and (d.gdseq like '%" + tbxGOODS.Text + "%' or d.zjm like '%" + tbxGOODS.Text + "%' or d.gdname like '%" + tbxGOODS.Text + "%')";
+
+            String strSqlCount = @"select count(1) from
+                            (
+                            select a.*,B.PHID PHID_EAS,B.SL SL_EAS from
+                            (select GDSEQ,PHID,SUM(sumkcsl) sumkcsl from V_INVENTORY_SUMMARY  
+                            GROUP BY GDSEQ,PHID) a
+                            left join (select GDSEQ,PHID,SL FROM EAS_STOCK_COMPARE ) b
+                            on a.GDSEQ=b.GDSEQ AND a.PHID=b.PHID
+                            union
+                            select a.GDSEQ,null PHID,null sumkcsl,a.PHID PHID_EAS,a.SL SL_eas from
+                            (select GDSEQ,PHID,SL from EAS_STOCK_COMPARE ) a
+                            where  not EXISTS ( select * from (select GDSEQ,PHID,SUM(sumkcsl) SL from V_INVENTORY_SUMMARY  GROUP BY GDSEQ,PHID) b where a.GDSEQ=b.GDSEQ AND a.PHID=b.PHID)
+                            ) c ,doc_goods d where c.gdseq=d.gdseq(+) and {0}";
+            strSqlCount = string.Format(strSqlCount, strWhere);
+            int countRow = Convert.ToInt32(DbHelperOra.GetSingle(strSqlCount));
+            GridGoods.RecordCount = countRow;
+            ViewState["where"] = strWhere;
+            DataSearch();
+        }
+
+        #region 下传EAS库存到临时表EAS_STOCK_COMPARE
+        private void downloadInventory()
+        {
+            String warehouse = ApiUtil.GetConfigCont("QUERYINVENTORY_WAREHOUSE");
+            try
+            {
+                //先查询EAS库存的行数
+                JObject joCli = ApiClientService.queryInventoryByPage(warehouse, 0, 1);
+                int countRow = 0;
+                if ("success".Equals(joCli.Value<String>("result")))
+                {
+                    try
+                    {
+                        countRow = Convert.ToInt32(joCli.Value<String>("data"));
+                    }
+                    catch
+                    { }
+                }
+                //清除库存临时表
+                DbHelperOra.ExecuteSql("delete from EAS_STOCK_COMPARE ");
+
+                int pageNum = 100;
+                int sumPage = countRow % pageNum > 0 ? countRow / pageNum + 1 : countRow / pageNum;
+                for (int i = 1; i <= sumPage; i++)
+                {
+                    joCli = ApiClientService.queryInventoryByPage(warehouse, pageNum, i);
+                    JObject jo = new JObject();
+                    if ("success".Equals(joCli.Value<String>("result")))
+                    {
+                        foreach (JToken jt in joCli.Value<JArray>("data"))
+                        {
+                            insertInventory(jt);
+                        }
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Alert.Show("下载EAS库存失败！");
+            }
+            
+        }
+        #endregion
+
+        #region 插入eas库存信息
+        private Boolean insertInventory(JToken data)
+        {
+            List<CommandInfo> list = new List<CommandInfo>();
+
+            if (JsonConvert.SerializeObject(data).Length <= 2)
+            {
+                return false;
+            }
+
+            String gdseq = data.Value<String>("MATERIALNUMBER");
+            String phid = data.Value<String>("FLOT");
+            String qty = data.Value<String>("FBASEQTY");
+            String unit = data.Value<String>("UNITNUMBER");
+
+            String sql = @"insert into EAS_STOCK_COMPARE (SEQNO,RQ,GDSEQ,UNIT,PHID,SL) values (SEQ_EAS_STOCK_COMPARE.Nextval,SYSDATE,F_GETGDSEQBYEASCODE('" + gdseq + "'),'" + unit + "','" + phid + "'," + qty + "）";
+            list.Add(new CommandInfo(sql, null));
+
+            try
+            {
+                DbHelperOra.ExecuteSqlTran(list);
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        #endregion
+     
+
+        private DataTable GetPagedTable(DataTable dt, int PageIndex, int PageSize)
+        {
+            if (PageIndex == 0)
+                return dt;
+            DataTable newdt = dt.Copy();
+            newdt.Clear();
+            int rowbegin = PageIndex * PageSize;
+            int rowend = (PageIndex + 1) * PageSize;
+            if (rowbegin >= dt.Rows.Count)
+            { return newdt; }
+            if (rowend > dt.Rows.Count)
+            { rowend = dt.Rows.Count; }
+            for (int i = rowbegin; i <= rowend - 1; i++)
+            {
+                DataRow newdr = newdt.NewRow();
+                DataRow dr = dt.Rows[i];
+                foreach (DataColumn column in dt.Columns)
+                    newdr[column.ColumnName] = dr[column.ColumnName];
+                newdt.Rows.Add(newdr);
+            }
+            return newdt;
+        }
+    }
+}

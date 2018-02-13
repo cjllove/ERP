@@ -1,0 +1,171 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+
+
+namespace SPDProject.SpdXM.TJ_YKGZ
+{
+    public partial class GoodsKsSl : BillBase
+    {
+        protected static string DefaultDEPT="155";
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+      private  void BindDDL()
+        {
+            DepartmentBind.BindDDL("deptSql",UserAction.UserID,ddlDEPTID);
+            DepartmentBind.BindDDL("deptOutSql", UserAction.UserID, ddlDEPTIDKF);
+            PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPTDEF");
+          PubFunc.DdlDataGet(ddlDEPTIDKF,"DDL_SYS_DEPOT");
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            lisDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            lisDATE2.SelectedDate = DateTime.Now;
+
+        }
+
+     
+        protected void btnSch_Click(object sender, EventArgs e)
+        {
+          
+            string strSql = "";
+            if (PubFunc.StrIsEmpty(lisDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(lisDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (lisDATE1.SelectedDate > lisDATE2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+
+            strSql = string.Format(@"SELECT SA.DEPTID,(SELECT NAME FROM SYS_DEPT WHERE CODE=SA.DEPTID)DEPTNAME,SUM(SA.SLSL)SLSL,  SUM(SB.CKSL) CKSL,TO_CHAR(TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD')BEGRQ,TO_CHAR(TO_DATE('{1}','YYYY-MM-DD HH24:MI:SS'),'YYYY-MM-DD')ENDRQ 
+                                                  FROM (SELECT A.SEQNO,
+                                                               A.DEPTID,
+                                                               A.DEPTOUT,
+                                                               B.GDSEQ,
+                                                               SUM(B.DHSL) SLSL,
+                                                               A.STR2
+                                                          FROM DAT_SL_DOC A, DAT_SL_COM B
+                                                         WHERE A.SEQNO = B.SEQNO
+                                                           AND A.FLAG IN ('Y', 'S', 'W', 'D')
+                                                           AND A.XSRQ BETWEEN TRUNC(TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS'), 'dd') AND TRUNC(TO_DATE('{1}','YYYY-MM-DD HH24:MI:SS'), 'dd')
+                                                         GROUP BY A.SEQNO, B.GDSEQ, A.STR2, A.DEPTID, A.DEPTOUT) SA,
+                                                       (SELECT A.SEQNO, A.DEPTID, A.DEPTOUT, B.GDSEQ, SUM(B.XSSL) CKSL
+                                                          FROM DAT_CK_DOC A, DAT_CK_COM B
+                                                         WHERE A.SEQNO = B.SEQNO
+                                                           AND A.FLAG IN ('Y', 'G')
+                                                           AND A.XSRQ BETWEEN TRUNC(TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS'), 'dd') AND TRUNC(TO_DATE('{1}','YYYY-MM-DD HH24:MI:SS'), 'dd')        
+                                                         GROUP BY A.SEQNO, B.GDSEQ, A.DEPTID, A.DEPTOUT) SB
+                                                 WHERE SA.STR2 = SB.SEQNO(+)
+                                                   AND SA.GDSEQ = SB.GDSEQ
+                                                   AND SA.DEPTID LIKE NVL('{2}','%') AND SA.DEPTOUT LIKE NVL('{3}','%')
+                                                     GROUP BY SA.DEPTID
+                                                     ORDER BY SA.DEPTID
+                                                     ", dpkDATE1.SelectedDate, dpkDATE2.SelectedDate,ddlDEPTID.SelectedValue,ddlDEPTIDKF.SelectedValue);
+           
+           
+            string strWhere = "";
+           // if (!PubFunc.StrIsEmpty(lisBILL.Text.Trim())) strWhere += " AND A.SEQNO LIKE '%" + lisBILL.Text.Trim() + "%'";
+            //if (!PubFunc.StrIsEmpty(ddlFLAG.SelectedValue.Trim()))
+            //{
+            //    if (ddlFLAG.SelectedValue == "N") strWhere += " AND NVL(B.SEQNO,'#') = '#'";
+            //    if (ddlFLAG.SelectedValue == "Y") strWhere += " AND NVL(B.SEQNO,'#') <>'#'";
+            //}
+            if (strWhere.Trim().Length > 0) strSql = strSql + strWhere;
+
+            GridGoods.DataSource = DbHelperOra.QueryForTable(strSql);
+            GridGoods.DataBind();             
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            btnSch_Click(null,null);
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            btnSch_Click(null,null);
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+                dpkDATE2.SelectedDate = DateTime.Now;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                lisBILL.Text = string.Empty;
+                lisDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+                lisDATE2.SelectedDate = DateTime.Now;
+            }
+
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                if (GridGoods.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=科室汇总分析.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridGoods));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                if (GridList.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=单据到货分析.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridList));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 1;
+            lisDATE1.SelectedDate = dpkDATE1.SelectedDate;
+            lisDATE2.SelectedDate = dpkDATE2.SelectedDate;
+            DateTime BEGRQ = Convert.ToDateTime(lisDATE1.SelectedDate);
+            DateTime ENDRQ = Convert.ToDateTime(lisDATE2.SelectedDate);
+            string DEPTID = GridGoods.Rows[GridGoods.SelectedRowIndex].DataKeys[0].ToString();
+            string strSql = @"SELECT DISTINCT(DXC.GDSEQ),DXC.XSSL,DXC.HSJE
+FROM  DAT_XS_DOC DXD, DAT_XS_COM DXC
+         WHERE DXD.SEQNO = DXC.SEQNO(+)
+         AND DXD.DEPTID='{0}' AND DXC.GDSEQ IS NOT NULL AND TRUNC(DXD.SHRQ,'dd') BETWEEN TRUNC('{1}','dd') AND TRUNC('{2}','dd')";
+            GridList.DataSource = DbHelperOra.QueryForTable(string.Format(strSql, BEGRQ, ENDRQ));
+            GridList.DataBind();
+        }
+
+
+
+
+    }
+}

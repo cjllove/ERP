@@ -1,0 +1,129 @@
+
+--spd
+
+--doc_supplier
+  --增加列是否代购 doc_supplier.isdg char(1) 'N'
+  alter table doc_supplier add (isdg char(1));
+  alter table doc_supplier modify isdg default('N');
+  comment on column DOC_SUPPLIER.isdg
+  is '是否代购';
+  update doc_supplier set isdg = 'N' where isdg is null;
+
+  alter table dat_xs_doc add(supid varchar2(20));
+   comment on column dat_xs_doc.supid
+	  is '供应商id';
+   update dat_xs_doc set supid='00002' where supid is null;
+  commit;
+--增加菜单
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9', '代管管理', '00', 'BS', null, 'FUN', 'Y', null, 'N', '#', null, 'Y', 9, 1, null, null);
+--代管基础资料管理菜单
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('91', '代管基础资料管理','9', 'BS', null, 'FUN', 'Y', null, 'N', '#', null, 'Y', 91, 2, null, null);
+     
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9101', '代管供应商管理', '91', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdEntrust/SupplierEntrust.aspx', null, 'Y', 9101, 3, null, null);
+--代管库房管理菜单
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('92', '代管库房管理','9', 'BS', null, 'FUN', 'Y', null, 'N', '#', null, 'Y', 92, 2, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9201', '代管补货管理','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/GoodsOrder.aspx?oper=input&dg=1', null, 'Y', 9201, 3, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9202', '代管补货审核','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/GoodsOrder.aspx?oper=audit&dg=1', null, 'Y', 9202, 3, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9203', '代管入库管理','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/GoodsStorage.aspx?oper=input&dg=1', null, 'Y', 9203, 3, null, null);
+  
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9204', '代管入库审核','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/GoodsStorage.aspx?oper=audit&dg=1', null, 'Y', 9204, 3, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9205', '代管退货管理','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/SalesReturn.aspx?oper=input&dg=1', null, 'Y', 9205, 3, null, null);
+  
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9206', '代管退货审核','92', 'BS', null, 'FUN', 'Y', null, 'S', '/SpdStorage/SalesReturn.aspx?oper=audit&dg=1', null, 'Y', 9206, 3, null, null);
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9207', '代管损益管理','92', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9207, 3, null, null);
+--代管科室管理(使用)菜单
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('93', '代管使用管理','9', 'BS', null, 'FUN', 'Y', null, 'N', '#', null, 'Y', 93, 2, null, null);
+  
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9301', '代管使用申请','93', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9301, 3, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9302', '代管使用确认','93', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9302, 3, null, null);
+
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9303', '代管使用退货申请','93', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9303, 3, null, null);
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9304', '代管使用退货审批','93', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9304, 3, null, null);
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9305', '代管使用退货审核','93', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9305, 3, null, null);
+--代管报表菜单
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('94', '代管报表管理','9', 'BS', null, 'FUN', 'Y', null, 'N', '#', null, 'Y', 94, 2, null, null);
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9401', '代管商品进销存明细','94', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9401, 2, null, null);
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9402', '代管商品消耗明细','94', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9402, 2, null, null); 
+  insert into SYS_FUNCTION
+    (funcid,funcname, treeid, system, funico, funtype, isvisible, micohelp, runhow, runwhat, runpara, isfuncarea, itemsort, treelevel, ipadname, method)
+  values
+    ('9403', '代管库存查询','94', 'BS', null, 'FUN', 'Y', null, 'S', '#', null, 'Y', 9403, 2, null, null); 
+  commit;
+
+
+--update sys_report
+update sys_report set ( type, name, flag, colkey, colsort, colsum, colnum, condnum, pagesize, str1, str2, str3, selectsql)=
+ (select  'DDLLIST', 'DDL_DOC_SUPPLIER', 'Y', null, null, null, 0, 0, 0, null, null, '0', 'select  CODE,NAME from (' || chr(10) || 'SELECT ''--请选择--'' NAME,'''' CODE   FROM dual' || chr(10) || 'union all' || chr(10) || 'SELECT ''[''||SUPID||'']''||SUPNAME NAME,SUPID CODE FROM DOC_SUPPLIER where isdg = ''N'' ' || chr(10) || ')' || chr(10) || 'ORDER BY DECODE(CODE,'''',99,0) DESC ,CODE ASC' from dual)
+where seqno = 'DDL_DOC_SUPPLIERNULL';
+
+
+insert into sys_report  ( seqno,type, name, flag, colkey, colsort, colsum, colnum, condnum, pagesize, str1, str2, str3, selectsql)
+values ( 'DDL_DOC_SUPPLIER_DG' ,'DDLLIST', 'DDL_DOC_SUPPLIER_DG', 'Y', null, null, null, 0, 0, 0, null, null, '0', 'select  CODE,NAME from (' || chr(10) || 'SELECT ''--请选择--'' NAME,'''' CODE   FROM dual' || chr(10) || 'union all' || chr(10) || 'SELECT ''[''||SUPID||'']''||SUPNAME NAME,SUPID CODE FROM DOC_SUPPLIER where isdg = ''Y'' ' || chr(10) || ')' || chr(10) || 'ORDER BY DECODE(CODE,'''',99,0) DESC ,CODE ASC' );
+commit;
+

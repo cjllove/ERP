@@ -1,0 +1,322 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsManage.aspx.cs" Inherits="SPDProject.SpdDictionary.GoodsManage" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+	<title>商品资料管理</title>
+</head>
+<body>
+	<form id="form1" runat="server">
+		<f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="PanelDetail" 
+			runat="server" />
+		<f:Panel ID="PanelDetail" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="False">
+			<Items>
+				<f:Grid ID="GridGoods" AnchorValue="100% -260px" ShowBorder="false" ShowHeader="false" AllowSorting="false"
+					AutoScroll="true" runat="server" DataKeyNames="GDSEQ" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridGoods_RowDoubleClick"
+					PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange" EnableColumnLines="true">
+					<Toolbars>
+						<f:Toolbar ID="Toolbar1" runat="server">
+							<Items>
+								<f:DropDownList ID="srhCATID0" LabelWidth="70px" Width="160px" Label="商品种类" runat="server" CssStyle="margin-left:5px;" EnableEdit="true" ForceSelection="true" />
+								<f:DropDownList ID="srhFLAG" LabelWidth="60px" Width="160px" Label="状态" runat="server" CssStyle="margin-left:5px;" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+								<f:DropDownList ID="srhISFLAG7" LabelWidth="60px" Width="160px" Label="本地" runat="server" CssStyle="margin-left:5px;" EnableEdit="true" ForceSelection="true">
+									<f:ListItem Text="--请选择--" Value="" />
+									<f:ListItem Text="是" Value="Y" />
+									<f:ListItem Text="否" Value="N" />
+								</f:DropDownList>
+								<f:TriggerBox ID="trbSearch" LabelWidth="70px" Width="330px" runat="server" Label="查询信息" ShowTrigger="false" CssStyle="margin-left:5px;" EmptyText="商品编码,商品名称,助记码,生产商" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick" />
+								<f:ToolbarFill ID="ToolbarFill2" runat="server" />
+								<f:Button ID="btnNew" OnClick="btnNew_Click" Icon="Add" EnableDefaultState="false"
+									Text="新 增" EnablePostBack="true" runat="server">
+								</f:Button>
+								<f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+								<f:Button ID="btnDelete" OnClick="btnDelete_Click" Icon="Delete" Hidden="true" EnableDefaultState="false"
+									Text="删 除" EnablePostBack="true" ConfirmText="是否删除选中信息?" runat="server">
+								</f:Button>
+								<f:Button ID="btnSave" OnClick="btnSave_Click" Icon="Disk" EnableDefaultState="false"
+									Text="保 存" DisableControlBeforePostBack="false" ValidateForms="FormMain,FormAssist" runat="server">
+								</f:Button>
+								<f:Button ID="btExp" Icon="DatabaseGo" Text="导 出" OnClick="btExp_Click" ConfirmText="是否导出当前商品信息?" DisableControlBeforePostBack="false" EnableDefaultState="false"
+									EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" />
+								<f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+								<f:Button ID="btnSearch" Icon="Magnifier" Text="查 询" EnablePostBack="true" runat="server" OnClick="btnSearch_Click" EnableDefaultState="false" />
+							</Items>
+						</f:Toolbar>
+					</Toolbars>
+					<Columns>
+						<f:RowNumberField Width="35" TextAlign="Center" EnablePagingNumber="true" />
+						<f:BoundField Width="105px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+						<f:BoundField Width="140px" DataField="GDNAME" HeaderText="商品名称" TextAlign="Left" ExpandUnusedSpace="true" />
+						<f:BoundField Width="130px" DataField="GDSPEC" HeaderText="规格·容量" />
+						<%--<f:BoundField Width="105px" DataField="HISCODE" HeaderText="HIS编码" TextAlign="Center" />
+                        <f:BoundField Width="120px" DataField="HISNAME" HeaderText="HIS名称" TextAlign="Left" />
+                        <f:BoundField Width="130px" DataField="STR3" HeaderText="HIS规格" />--%>
+						<f:BoundField Width="80px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+						<f:BoundField Width="55px" DataField="FLAG_CN" HeaderText="状态" TextAlign="Center" />
+						<f:BoundField Width="60px" DataField="BZHL" HeaderText="包装含量" Hidden="true" />
+						<f:BoundField Width="100px" DataField="HSJJ" HeaderText="含税进价" TextAlign="Right" DataFormatString="{0:F4}" />
+						<f:BoundField Width="80px" DataField="CATID0NAME" HeaderText="商品种类" TextAlign="Center" />
+						<f:BoundField Width="0px" DataField="CATID0NAME_F" HeaderText="商品分类" TextAlign="Center" Hidden="true" />
+						<f:BoundField Width="140px" DataField="PIZNO" HeaderText="注册证号" />
+						<f:BoundField Width="140px" DataField="PRODUCERNAME" HeaderText="生产商" />
+						<f:BoundField Width="80px" DataField="LSJ" HeaderText="售价" TextAlign="Right" DataFormatString="{0:F4}" Hidden="true" />
+						<f:BoundField Hidden="true" Width="150px" DataField="SUPNAME" HeaderText="供应商" TextAlign="Center" />
+						<f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" TextAlign="Center" Hidden="true" />
+						<f:BoundField Width="60px" DataField="ISNEW_CN" HeaderText="本地" TextAlign="Center" />
+					</Columns>
+				</f:Grid>
+				<f:TabStrip ID="TabStripMain" Height="260px" ShowBorder="false" TabPosition="Right" EnableFrame="false" AutoPostBack="true"
+					EnableTabCloseMenu="false" ActiveTabIndex="0" CssStyle="border-top: 1px solid #99bce8;" OnTabIndexChanged="GridDept_Selected"
+					runat="server">
+					<Tabs>
+						<f:Tab Title="基本信息" BodyPadding="5px" Layout="Fit"
+							runat="server">
+							<Items>
+								<f:Form ID="FormMain" ShowBorder="false" AutoScroll="false" ShowHeader="False" LabelWidth="90px" runat="server">
+									<Rows>
+										<f:FormRow>
+											<Items>
+												<f:TextBox ID="tbxGDID" runat="server" Label="商品编码" EmptyText="设定后不可更改(为空则自动生成)" TabIndex="1" Enabled="false"
+													ShowRedStar="true" MaxLength="20">
+												</f:TextBox>
+												<f:DropDownList ID="ddlFLAG" runat="server" Label="当前状态" Required="true" ShowRedStar="true" TabIndex="2" EnableEdit="true" Enabled="false" ForceSelection="true">
+												</f:DropDownList>
+												<f:DropDownList ID="ddlCATID" runat="server" Label="商品分类" Required="true" ShowRedStar="true" AutoPostBack="true" Enabled="false" EnableEdit="true" ForceSelection="true" OnSelectedIndexChanged="ddlCATID_SelectedIndexChanged" TabIndex="3">
+												</f:DropDownList>
+												<f:TextBox ID="tbxZJM" runat="server" Label="助记码" TabIndex="4" MaxLength="50">
+												</f:TextBox>
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="50% 25% 25%">
+											<Items>
+
+												<f:TextBox ID="tbsGDNAME" runat="server" Label="商品名称" Required="true" AutoPostBack="true" Enabled="false"
+													ShowRedStar="true" OnTextChanged="tbsGDNAME_TextChanged" TabIndex="21" MaxLength="100" />
+												<f:DropDownList ID="ddlCATID0" runat="server" Label="商品种类" EnableEdit="true" ForceSelection="true" Required="true" ShowRedStar="true" TabIndex="22" Enabled="false">
+												</f:DropDownList>
+												<f:DropDownList ID="ddlISLOT" runat="server" Label="批号管理" TabIndex="43" EnableEdit="true" ForceSelection="true">
+													<f:ListItem Text="不进行" Value="0" />
+													<f:ListItem Text="只有入库" Value="1" />
+													<f:ListItem Text="全部" Value="2" Selected="true" />
+												</f:DropDownList>
+
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="50% 25% 25%">
+											<Items>
+												<f:TextBox ID="tbxNAMEJC" runat="server" Label="通用名" Required="true" ShowRedStar="true" TabIndex="31" MaxLength="100" />
+												<f:TextBox ID="tbxHISNAME" runat="server" OnTextChanged="tbxHISNAME_TextChanged" Label="HIS名称" AutoPostBack="true" MaxLength="100">
+												</f:TextBox>
+												<%--<f:CheckBox ID="ckbISFLAG7" runat="server" Label="本地"  Checked="true" TabIndex="8" />--%>
+                                                <f:DropDownList ID="ddlISFLAG7" Label="商品类型" Required="true" ShowRedStar="true" runat="server">
+									                <f:ListItem Text="--请选择--" Value="" />
+									                <f:ListItem Text="本地" Value="Y" />
+									                <f:ListItem Text="下传" Value="N" />
+								                </f:DropDownList>
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="25% 25% 25% 25%">
+											<Items>
+												<f:TextBox ID="tbxGDSPEC" runat="server" Label="规格·容量" Required="true" ShowRedStar="true" TabIndex="52" MaxLength="200" Enabled="false">
+												</f:TextBox>
+												<f:DropDownList ID="ddlUNIT" runat="server" Label="包装单位" Required="true" ShowRedStar="true" TabIndex="42" EnableEdit="true" ForceSelection="true" Enabled="false">
+												</f:DropDownList>
+
+												<f:TextBox ID="tbxSTR3" runat="server" Label="HIS规格">
+												</f:TextBox>
+												<%--<f:NumberBox ID="nbxNUM1" runat="server" Label="HIS系数" NoDecimal="true"></f:NumberBox>--%>
+                                                <f:TextBox ID="tbxGDMODE" runat="server" Label="商品型号"></f:TextBox>
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="25% 25% 25% 25%">
+											<Items>
+												<f:NumberBox ID="nbbBHSJJ" runat="server" Label="不含税进价" TabIndex="30" DecimalPrecision="6" MinValue="0" MaxLength="12" Enabled="false"></f:NumberBox>
+												<f:NumberBox ID="nbbHSJJ" runat="server" Label="含税进价" TabIndex="29" DecimalPrecision="6" MinValue="0" MaxLength="12" Required="true" ShowRedStar="true" Enabled="false"></f:NumberBox>
+												<f:TextBox ID="tbxHISCODE" runat="server" Label="HIS编码" MaxLength="20">
+												</f:TextBox>
+
+												<f:TextBox ID="tbxSTR4" runat="server" Label="HIS助记码" TabIndex="4" MaxLength="50">
+												</f:TextBox>
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="50% 50%">
+											<Items>
+												<f:DropDownList ID="trbPRODUCER" Label="生产商" runat="server" Required="true" Enabled="false" EnableEdit="true" ForceSelection="true" ShowRedStar="true" TabIndex="61">
+												</f:DropDownList>
+												<f:TextBox ID="tbxPIZNO" runat="server" Label="注册证号" TabIndex="74" MaxLength="50" Enabled="false">
+												</f:TextBox>
+											</Items>
+										</f:FormRow>
+
+										<f:FormRow>
+											<Items>
+												<f:DropDownList ID="ddlUNIT_DABZ" runat="server" Label="大包装单位" TabIndex="81" EnableEdit="true" ForceSelection="true" Enabled="false">
+												</f:DropDownList>
+												<f:NumberBox ID="nbbNUM_DABZ" runat="server" Label="大包装数量" TabIndex="82" MinValue="0" NoDecimal="true" MaxLength="16" Enabled="false"></f:NumberBox>
+												<f:NumberBox ID="nbbBARCODE_DABZ" runat="server" Label="大包装条码" TabIndex="83" MaxLength="20" NoDecimal="true" Enabled="false"></f:NumberBox>
+												<f:DropDownList ID="ddlUNIT_ORDER" runat="server" Label="订货单位" TabIndex="84">
+													<f:ListItem Text="大包装" Value="D" Selected="true" />
+													<f:ListItem Text="中包装" Value="Z" />
+													<f:ListItem Text="小包装" Value="X" />
+												</f:DropDownList>
+											</Items>
+										</f:FormRow>
+										<f:FormRow>
+											<Items>
+												<f:DropDownList ID="ddlUNIT_ZHONGBZ" runat="server" Label="中包装单位" TabIndex="91" EnableEdit="true" ForceSelection="true" Enabled="false">
+												</f:DropDownList>
+												<f:NumberBox ID="nbbNUM_ZHONGBZ" runat="server" Label="中包装数量" TabIndex="92" MinValue="0" NoDecimal="true" MaxLength="16" Enabled="false"></f:NumberBox>
+												<f:NumberBox ID="nbbBARCODE_ZHONGBZ" runat="server" Label="中包装条码" TabIndex="93" MaxLength="20" NoDecimal="true" Enabled="false"></f:NumberBox>
+												<f:DropDownList ID="ddlUNIT_SELL" runat="server" Label="出库单位" TabIndex="94">
+													<f:ListItem Text="大包装" Value="D" />
+													<f:ListItem Text="中包装" Value="Z" />
+													<f:ListItem Text="小包装" Value="X" Selected="true" />
+												</f:DropDownList>
+											</Items>
+										</f:FormRow>
+										<f:FormRow Hidden="true">
+											<Items>
+												<f:NumberBox ID="tbxBZHL" runat="server" Label="包装含量" Hidden="true" NoDecimal="true" MaxLength="8">
+												</f:NumberBox>
+												<f:HiddenField ID="hfdIsNew" runat="server" Text="Y" />
+												<f:HiddenField ID="hfdGDSEQ" runat="server" />
+											</Items>
+										</f:FormRow>
+									</Rows>
+								</f:Form>
+							</Items>
+						</f:Tab>
+						<f:Tab Title="辅助信息" BodyPadding="5px" runat="server">
+							<Items>
+								<f:Form ID="FormAssist" ShowBorder="false" AutoScroll="false" ShowHeader="False" LabelWidth="80px" runat="server">
+									<Rows>
+										<f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+											<Items>
+												<f:TextBox ID="tbxINPER" runat="server" Label="引进人" TabIndex="63" MaxLength="10">
+												</f:TextBox>
+												<f:DatePicker ID="dpkINRQ" runat="server" Label="引进日期" TabIndex="53">
+												</f:DatePicker>
+												<f:TextBox ID="tbxMANAGER" runat="server" Label="主管人员" TabIndex="6" MaxLength="15">
+												</f:TextBox>
+												<f:NumberBox ID="nblJHZQ" runat="server" Label="进货周期" TabIndex="17" NoDecimal="true" MinValue="0" MaxLength="4"></f:NumberBox>
+												<f:CheckBox ID="ckbISFLAG3" runat="server" Label="直送商品" TabIndex="5" />
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+											<Items>
+												<f:DatePicker ID="dpkBEGRQ" runat="server" Label="使用日期" TabIndex="71">
+												</f:DatePicker>
+												<f:DatePicker ID="dpkENDRQ" runat="server" Label="停用日期" TabIndex="72">
+												</f:DatePicker>
+												<f:NumberBox ID="tbxZGKC" runat="server" Label="最高库存" TabIndex="10" DecimalPrecision="4" MinValue="0" MaxLength="14">
+												</f:NumberBox>
+												<f:NumberBox ID="tbxZDKC" runat="server" Label="最低库存" TabIndex="11" DecimalPrecision="4" MinValue="0" MaxLength="14">
+												</f:NumberBox>
+												<f:CheckBox ID="ckbISIN" runat="server" Label="进口商品" TabIndex="23" />
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+											<Items>
+												<f:NumberBox ID="tbxHSJ" runat="server" Label="核算价" TabIndex="26" DecimalPrecision="4" MinValue="0" MaxLength="14">
+												</f:NumberBox>
+												<f:NumberBox ID="tbxLSJ" runat="server" Label="零售价" TabIndex="24" DecimalPrecision="4" MinValue="0" MaxLength="14">
+												</f:NumberBox>
+												<f:NumberBox ID="tbxJXTAX" runat="server" Label="商品税率" TabIndex="27" DecimalPrecision="4" MinValue="0" MaxLength="10">
+												</f:NumberBox>
+												<f:NumberBox ID="tbxYBJ" runat="server" Label="医保价" TabIndex="25" DecimalPrecision="4" MinValue="0" MaxLength="14">
+												</f:NumberBox>
+												<f:CheckBox ID="ckbISYNZJ" runat="server" Label="是否医保" TabIndex="37" />
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="44% 22% 22% 12%">
+											<Items>
+												<f:TextBox ID="tbxNAMEEN" runat="server" Label="英文名" TabIndex="41" MaxLength="100">
+												</f:TextBox>
+
+												<f:TextBox ID="tbxBAR1" runat="server" Label="药监码" TabIndex="34" MaxLength="20">
+												</f:TextBox>
+												<f:TextBox ID="tbxYCODE" runat="server" Label="原编码" TabIndex="22">
+												</f:TextBox>
+
+												<f:CheckBox ID="ckbISJG" runat="server" Label="监管药品" TabIndex="8" />
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="44% 22% 22% 12%">
+											<Items>
+												<f:DropDownList ID="trbSUPPLIER" Label="供应商" runat="server" ShowRedStar="true" Required="true" TabIndex="51" EnableEdit="true" ForceSelection="true" />
+
+												<f:NumberBox ID="nbxNUM2" runat="server" Label="复用次数" TabIndex="25" DecimalPrecision="0" MinValue="0" MaxLength="14" />
+
+												<f:TextBox ID="tbxBAR3" runat="server" Label="ERP编码" TabIndex="23" MaxLength="50" Enabled="false" />
+												<f:CheckBox ID="ckbISFLAG2" runat="server" Label="复用商品" TabIndex="28" />
+											</Items>
+										</f:FormRow>
+
+										<f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+											<Items>
+												<f:TextBox ID="tbxBAR2" runat="server" Label="统计码" TabIndex="35" MaxLength="20"></f:TextBox>
+                                                <f:TextBox ID="tbxPPID" runat="server" Label="品牌"  MaxLength="40"></f:TextBox>
+												<f:NumberBox ID="nbxMJYXQ" runat="server" Label="灭菌效期" TabIndex="25" DecimalPrecision="0" MinValue="0" MaxLength="14" />
+												<f:CheckBox ID="ckbISGZ" runat="server" Label="高值商品" TabIndex="28" />
+
+												<f:CheckBox ID="ckbISFLAG5" runat="server" Label="是否小数" TabIndex="28" />
+											</Items>
+										</f:FormRow>
+										<f:FormRow ColumnWidths="22% 22% 22% 22% 12%">
+											<Items>
+
+												<f:TextBox ID="tbxCATUSER" runat="server" Label="用户分类" TabIndex="35" MaxLength="20">
+												</f:TextBox>
+												<f:NumberBox ID="nbbBARCODE" runat="server" Label="商品条码" TabIndex="24" MaxLength="20" NoDecimal="true" Enabled="false"></f:NumberBox>
+												<f:NumberBox ID="nbxKPYXQ" runat="server" Label="开瓶效期" TabIndex="25" DecimalPrecision="0" MinValue="0" MaxLength="14" />
+												<f:CheckBox ID="ckbISFLAG6" runat="server" Label="高值扫描" TabIndex="33" />
+												<f:CheckBox ID="ckbISJB" runat="server" Label="基药商品" TabIndex="18" />
+												<%--<f:NumberBox ID="nbxLENGTH" runat="server" Label="物品长度" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="nbbXXTAX" runat="server" Label="销项税率" TabIndex="32" DecimalPrecision="6" MinValue="0" MaxLength="18">
+												</f:NumberBox>
+												<f:CheckBox ID="ckbISFZ" runat="server" Label="仿制药品" TabIndex="13" />
+													<f:TextBox ID="tbxSTRUCT" runat="server" Label="主要构成" TabIndex="5" MaxLength="50">
+												</f:TextBox>
+												<f:NumberBox ID="nbxWIDTH" runat="server" Label="物品宽度" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="nbxHEIGH" runat="server" Label="物品高度" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="nbbWEIGHTGROSS" runat="server" Label="毛重" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="nbbWEIGHTNET" runat="server" Label="净重" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="nbbVOLUME" runat="server" Label="体积" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:DropDownList ID="ddlJX" runat="server" Label="剂型" Hidden="true" EnableEdit="true" ForceSelection="true" />
+												<f:DropDownList ID="ddlYX" runat="server" Label="药效" Hidden="true" EnableEdit="true" ForceSelection="true" />		 
+												<f:TextBox ID="tbxLOGINLABEL" runat="server" Label="注册商标" Hidden="true" MaxLength="30" />
+												<f:TextBox ID="tbxPPID" runat="server" Label="品牌" Hidden="true" MaxLength="7" />			 
+												<f:TextBox ID="tbxVERSION" runat="server" Label="版本" Hidden="true" MaxLength="20" />
+												<f:NumberBox ID="tbxDAYXS" runat="server" Label="日均用量" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />
+												<f:NumberBox ID="tbxHLKC" runat="server" Label="合理库存" Hidden="true" DecimalPrecision="4" MinValue="0" MaxLength="14" />--%>
+											</Items>
+										</f:FormRow>
+									</Rows>
+								</f:Form>
+							</Items>
+						</f:Tab>
+						<f:Tab Title="配置科室" runat="server" Layout="Fit" ID="ManageKeshi">
+							<Items>
+								<f:Grid ID="GridDept" ShowBorder="false" ShowHeader="false" runat="server" EnableFrame="false" EnableCollapse="true" EnableColumnLines="true" KeepCurrentSelection="true" EnableCheckBoxSelect="true"
+									DataKeyNames="CODE,NAME" AutoScroll="true" AllowSorting="true" OnRowCommand="GridDept_RowCommand" OnSort="GridGoods_Sort">
+									<Columns>
+										<f:RowNumberField Width="35px" runat="server"></f:RowNumberField>
+										<f:BoundField Width="100px" DataField="CODE" HeaderText="部门编码" EnableHeaderMenu="false" />
+										<f:BoundField Width="320px" DataField="NAME" HeaderText="部门名称" EnableHeaderMenu="false" />
+									</Columns>
+								</f:Grid>
+							</Items>
+						</f:Tab>
+					</Tabs>
+				</f:TabStrip>
+			</Items>
+		</f:Panel>
+		<f:HiddenField ID="hfdConfig" runat="server"></f:HiddenField>
+		<f:Window ID="Window1" runat="server" IsModal="true" Hidden="true" Target="Parent"
+			EnableIFrame="true" IFrameUrl="about:blank" Width="820px" Height="313px" AutoScroll="false"
+			OnClose="Window1_Close">
+		</f:Window>
+	</form>
+</body>
+</html>

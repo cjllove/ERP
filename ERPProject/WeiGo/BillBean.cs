@@ -1,0 +1,961 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Collections;
+using System.Data;
+using XTBase;
+
+namespace ERPProject
+{
+
+    public class BillBeanList : List<BillBean>
+    {
+        public BillBeanList()
+        {
+            //
+        }
+    }
+
+    public class BillBean
+    {
+        /// <summary>
+        /// 创建人
+        /// </summary>
+        public BillObject creator;
+        /// <summary>
+        /// 创建时间
+        /// </summary>
+        public DateTime createTime;
+        /// <summary>
+        /// 单据号 *
+        /// </summary>
+        public String number;
+        /// <summary>
+        /// 业务日期 *
+        /// </summary>
+        public DateTime bizDate;
+        /// <summary>
+        /// 描述
+        /// </summary>
+        public String description;
+        /// <summary>
+        /// 业务类型，默认510普通出库 * 
+        /// </summary>
+        public BillObject bizType = new BillObject(510);
+        /// <summary>
+        /// 库存组织
+        /// </summary>
+        public BillObject storageOrgUnit;
+        /// <summary>
+        /// 部门
+        /// </summary>
+        public BillObject adminOrgUnit;
+
+        /// <summary>
+        /// 事务类型 默认856
+        /// </summary>
+        public BillObject transactionType = new BillObject("1081");
+
+        /// <summary>
+        /// 成本中心
+        /// </summary>
+        public BillObject costCenterOrgUnit;
+
+        /// <summary>
+        /// 领料人
+        /// </summary>
+        public BillObject materialReqestPerson;
+        /// <summary>
+        /// 领料类型 默认90
+        /// </summary>
+        public BillObject issueType = new BillObject(90);
+        /// <summary>
+        /// 表体
+        /// </summary>
+        public BillEntry entry = new BillEntry();
+        /// <summary>
+        /// 库管员
+        /// </summary>
+        public BillObject stocker;
+
+        public BillBean()
+        {
+            this.createTime = DateTime.Now;
+            this.entry = new BillEntry();
+        }
+    }
+
+    /// <summary>
+    /// 订单（销售订单）表头
+    /// </summary>
+    public class XSBean : BillBean
+    {
+        /// <summary>
+        /// 业务类型，默认210 * 
+        /// </summary>
+        public BillObject bizType = new BillObject("210");
+
+        /// <summary>
+        /// 订货客户 *
+        /// </summary>
+        public BillObject orderCustomer;
+
+        /// <summary>
+        /// 是否内部销售* 默认false
+        /// </summary>
+        public Boolean isInnerSale = false;
+
+        /// <summary>
+        /// 交货方式* 默认SEND
+        /// </summary>
+        public BillObject deliveryType = new BillObject("SEND");
+
+        /// <summary>
+        /// 币别* 默认BB01
+        /// </summary>
+        public BillObject currency = new BillObject("BB01");
+
+        /// <summary>
+        /// 汇率* 默认1
+        /// </summary>
+        public Decimal exchangeRate = 1;
+
+        /// <summary>
+        /// 付款方式* 默认002
+        /// </summary>
+        public BillObject paymentType = new BillObject("002");
+
+        /// <summary>
+        /// 销售组织* 例 01.05.04.01.09
+        /// </summary>
+        public BillObject saleOrgUnit;
+
+        /// <summary>
+        /// 销售组* 例 YYBB-02
+        /// </summary>
+        public BillObject saleGroup;
+
+        /// <summary>
+        /// 销售员* 例00011826
+        /// </summary>
+        public BillObject salePerson;
+
+        /// <summary>
+        /// 是否含税 默认true
+        /// </summary>
+        public Boolean isInTax = true;
+
+
+        /// <summary>
+        /// 是否集中结算
+        /// </summary>
+        public Boolean isCentralBalance = false;
+
+        /// <summary>
+        /// 销售方式
+        /// </summary>
+        public BillObject saleway = new BillObject("1");
+
+
+        /// <summary>
+        /// 表体
+        /// </summary>
+        public BillEntry entries;
+
+        public XSBean()
+        {
+            entries = new BillEntry();
+        }
+    }
+
+    /// <summary>
+    /// 调拨单
+    /// </summary>
+    public class DBBean : BillBean
+    {
+        /// <summary>
+        /// 调出库存组织 *
+        /// </summary>
+        public BillObject issueStorageOrgUnit;
+
+        /// <summary>
+        /// 调入库存组织 *
+        /// </summary>
+        public BillObject receiptStorageOrgUnit;
+
+        /// <summary>
+        /// 调出部门
+        /// </summary>
+        public BillObject issueAdminOrgUnit;
+
+        /// <summary>
+        /// 调入部门
+        /// </summary>
+        public BillObject receiptAdminOrgUnit;
+
+        /// <summary>
+        /// 业务类型，默认331跨仓库调拨 * 
+        /// </summary>
+        public BillObject bizType = new BillObject(331);
+
+    }
+
+    /// <summary>
+    /// 订单（销售订单）表体
+    /// </summary>
+    public class XSEntryToken : BillEntryToken
+    {
+        /// <summary>
+        /// 销售组织* 例 01.05.04.01.09
+        /// </summary>
+        public BillObject storageOrgUnit;
+
+        /// <summary>
+        /// 交货日期（时间字符串）
+        /// </summary>
+        public DateTime sendDate;
+
+        /// <summary>
+        /// 交货日期
+        /// </summary>
+        public DateTime deliveryDate;
+
+        /// <summary>
+        /// 收货客户
+        /// </summary>
+        public BillObject deliveryCustomer;
+
+        /// <summary>
+        /// 首款客户
+        /// </summary>
+        public BillObject paymentCustomer;
+
+        /// <summary>
+        /// 应收客户
+        /// </summary>
+        public BillObject receiveCustomer;
+
+        /// <summary>
+        /// 不控制数量 默认false;
+        /// </summary>
+        public Boolean quantityUnCtrl = false;
+
+        /// <summary>
+        /// 不控制时间 默认true
+        /// </summary>
+        public Boolean timeUnCtrl = true;
+
+
+    }
+
+    /// <summary>
+    /// 订单（调拨单）表体
+    /// </summary>
+    public class DBEntryToken : BillEntryToken
+    {
+        /// <summary>
+        /// 调出仓库
+        /// </summary>
+        public BillObject issueWarehouse;
+        /// <summary>
+        /// 调出库位
+        /// </summary>
+        public BillObject issueLocation;
+
+        /// <summary>
+        /// 计划调入日期 （日期）*
+        /// </summary>
+        public DateTime receiptPlanDate;
+
+        /// <summary>
+        /// 价格（单价）
+        /// </summary>
+        public Decimal price;
+
+        /// <summary>
+        /// 金额
+        /// </summary>
+        public Decimal amount;
+
+        /// <summary>
+        /// 生产日期（日期字符串）
+        /// </summary>
+        public String mfg;
+
+        /// <summary>
+        /// 到期日期（日期字符串）
+        /// </summary>
+        public String exp;
+
+        /// <summary>
+        /// 税率
+        /// </summary>
+        public Decimal taxRate;
+
+        /// <summary>
+        /// 税额
+        /// </summary>
+        public Decimal tax;
+
+        /// <summary>
+        /// 含税单价
+        /// </summary>
+        public Decimal taxPrice;
+
+        /// <summary>
+        /// 含税合计
+        /// </summary>
+        public Decimal taxAmount;
+
+        /// <summary>
+        /// 计划调出日期（日期字符串）*
+        /// </summary>
+        public DateTime issuePlanDate;
+
+        /// <summary>
+        /// 不控制数量 * (默认true)
+        /// </summary>
+        public Boolean quarityUnCtrl = false;
+
+        /// <summary>
+        /// 数量超出比率
+        /// </summary>
+        public Decimal quarityOverRate;
+
+
+        /// <summary>
+        /// 数量短缺比率
+        /// </summary>
+        public Decimal quarityArreRate;
+
+        /// <summary>
+        /// 项目号
+        /// </summary>
+        public BillObject project;
+
+        /// <summary>
+        /// 跟踪号
+        /// </summary>
+        public BillObject trackNumber;
+
+        /// <summary>
+        /// 库存类型 默认普通G *
+        /// </summary>
+        public BillObject storeType = new BillObject("G");
+
+        /// <summary>
+        /// 库存状态 默认普通 1 *
+        /// </summary>
+        public BillObject storeState = new BillObject(1);
+
+
+    }
+
+    public class BillConfig
+    {
+        public static String timestring = "yyyy-MM-dd HH:mm:ss";
+    }
+
+    public class BillEntry : List<BillEntryToken>
+    {
+        public BillEntry()
+        {
+
+        }
+    }
+
+    public class BillEntryToken
+    {
+        public BillEntryToken()
+        {
+            //
+        }
+        /// <summary>
+        /// 商品 *
+        /// </summary>
+        public BillObject material;
+        /// <summary>
+        /// 单位 *
+        /// </summary>
+        public BillObject unit;
+        /// <summary>
+        /// 库存类型 G
+        /// </summary>
+        public BillObject storeType = new BillObject("G");
+        /// <summary>
+        /// 库存状态
+        /// </summary>
+        public BillObject storeStatus = new BillObject("1");
+        /// <summary>
+        /// 仓库
+        /// </summary>
+        public BillObject warehouse;
+
+        /// <summary>
+        /// 仓位
+        /// </summary>
+        public BillObject location;
+        /// <summary>
+        /// 保管人
+        /// </summary>
+        public BillObject stocker;
+        /// <summary>
+        /// 数量 *
+        /// </summary>
+        public Decimal qty;
+        /// <summary>
+        /// 备注
+        /// </summary>
+        public String remark;
+        /// <summary>
+        /// 批次
+        /// </summary>
+        public String lot;
+        /// <summary>
+        /// 是否是礼物 false *
+        /// </summary>
+        public Boolean isPresent = false;
+
+        /// <summary>
+        /// 客户编码
+        /// </summary>
+        public BillObject customer;
+
+
+        /// <summary>
+        /// 供应商
+        /// </summary>
+        public BillObject supplier;
+
+
+    }
+
+    public class BillObject
+    {
+        public BillObject(Object number)
+        {
+            this.number = number;
+        }
+
+        public Object number;
+    }
+
+
+    public class BillBeanController
+    {
+        private BillBeanList billBeanList;
+        private JsonSerializerSettings settings;
+
+        public String errorDetail;
+        public DataTable resultDT;
+        public int total;
+        public BillBeanController()
+        {
+            init();
+        }
+        private void init()
+        {
+            billBeanList = new BillBeanList();
+            settings = new JsonSerializerSettings();
+            settings.DateFormatString = BillConfig.timestring;
+            settings.NullValueHandling = NullValueHandling.Ignore;
+            errorDetail = "";
+            resultDT = new DataTable();
+            total = 0;
+        }
+
+        #region 杂项功能
+        /// <summary>
+        /// 得到EAS物料编码
+        /// </summary>
+        /// <param name="gdseq">威高编码</param>
+        /// <returns></returns>
+        private String getEasGDSEQ(String gdseq)
+        {
+            String result = null;
+            String sql = "select BAR3 FROM DOC_GOODS WHERE GDSEQ = '" + gdseq + "'";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            if (dt.Rows.Count > 0)
+            {
+                result = dt.Rows[0][0].ToString();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 得到威高编码
+        /// </summary>
+        /// <param name="material">ERP编码</param>
+        /// <param name="custId">客户编码</param>
+        /// <returns></returns>
+        private String getERPGDSEQ(String material, String custId)
+        {
+            String sql = "select a.gdseq from doc_goods a,doc_customer c,doc_custrange r ,doc_goodsgroup gr where a.flag='Y' and c.code = '" + custId + "' and gr.eascode='" + material + "' and a.gdseq = gr.gdseq and gr.groupid=r.catid and c.code=r.custid";
+            //String sql = "select a.gdseq from doc_goods a,doc_customer c,doc_custrange r where a.flag='Y' and c.code = '" + custId + "' and a.bar3='"+material+"' and a.catid0=r.catid and c.code=r.custid";
+            String result = null;
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            if (dt.Rows.Count > 0)
+            {
+                result = dt.Rows[0][0].ToString();
+            }
+            return result;
+        }
+
+        private String getTrueCustId(String custid)
+        {
+            String sql = "select code from doc_customer where eascode = '" + custid + "'";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            String result = dt.Rows[0]["CODE"].ToString();
+            return result;
+        }
+
+        private String getEASCustId(String custid)
+        {
+            String sql = "select eascode from doc_customer where code = '" + custid + "'";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            String result = dt.Rows[0]["EASCODE"].ToString();
+            return result;
+        }
+        #endregion
+
+        #region 查询待上传订单
+        /// <summary>
+        /// 查询待上传订单
+        /// </summary>
+        /// <returns></returns>
+        private DataTable queryDD()
+        {
+            DataTable result = new DataTable();
+            JObject jo = new JObject();
+
+            String sql = "select * from dat_dd_doc where flag = 'Y' and issend='N'";
+            DataTable mResult = DbHelperOra.Query(sql).Tables[0];
+            int mCount = Convert.ToInt16(mResult.Rows.Count);
+            if (mCount > 0)
+            {
+                result = mResult;
+                return mResult;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        #endregion
+
+        #region 更新单据发送状态
+        /// <summary>
+        /// 更新订单
+        /// </summary>
+        /// <param name="billno">订单号</param>
+        /// <param name="flag">flag值，S 已上传/F已确认</param>
+        /// <returns></returns>
+        private Boolean UpdateBill(String billno, String flag, String custId, String table)
+        {
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("SEQNO", typeof(String));
+            DataRow dr = dt.NewRow();
+            dr["SEQNO"] = billno;
+            dt.Rows.Add(dr);
+            return UpdateBill(dt, flag, custId, table);
+        }
+
+
+        /// <summary>
+        /// 批量更新订单
+        /// </summary>
+        /// <param name="dt">保存订单记录的datatable</param>
+        /// <param name="flag">flag值，S 已上传/F已确认</param>
+        /// <returns></returns>
+        private Boolean UpdateBill(DataTable dt, String flag, String custId, String table)
+        {
+            custId = getEASCustId(custId);
+            String seqNoOld = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                seqNoOld += "'" + dr["SEQNO"].ToString() + "'";
+                if (dt.Rows.IndexOf(dr) != dt.Rows.Count - 1)
+                {
+                    seqNoOld += ",";
+                }
+            }
+            String sql = "update " + table + " set issend = '" + flag + "' where  seqno in (" + seqNoOld + ") and custid = '" + custId + "' ";
+            try
+            {
+                DbHelperOra.ExecuteSql(sql);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+
+        }
+        #endregion
+
+
+
+        /// <summary>
+        /// 生成销售订单
+        /// </summary>
+        /// <returns></returns>
+        public String renderXSDD()
+        {
+            //初始化
+            init();
+            //查找未上传的出库单
+            DataTable dt = queryDD();
+            //拼入参
+            if (dt != null)
+            {
+                foreach (DataRow dr in dt.Rows)
+                {
+                    #region 拼表头
+                    XSBean bb = new XSBean();
+                    String seqno = dr["SEQNO"].ToString();
+                    DateTime bizDate = Convert.ToDateTime(dr["XDRQ"]);
+                    //String sql = "select * from dat_dd_com where seqno = '" + seqno + "' and custid = '" + dr["CUSTID"].ToString() + "'";
+                    //DataTable dResult = DbHelperOra.Query(sql).Tables[0];
+
+                    bb.bizDate = bizDate;
+                    String customerSql = "select CODE,COSTCENTER,USERCODE,WAREHOUSE,SALEPERSON,STORAGEUNIT,COMPANYUNIT,STOCKER,DCBM,DRBM,XSZ,SALEBM,EASCODE from doc_customer where code = '" + dr["CUSTID"].ToString() + "'";
+                    DataTable customerInfo = DbHelperOra.Query(customerSql).Tables[0];
+                    String custId = customerInfo.Rows[0]["EASCODE"].ToString();
+                    String creator = customerInfo.Rows[0]["USERCODE"].ToString();
+                    String salePerson = customerInfo.Rows[0]["SALEPERSON"].ToString();
+                    String saleOrgUnit = customerInfo.Rows[0]["STORAGEUNIT"].ToString();
+                    String saleGroup = customerInfo.Rows[0]["XSZ"].ToString();
+                    bb.number = seqno + "_" + custId;
+                    bb.orderCustomer = new BillObject(custId);
+                    bb.creator = new BillObject(creator);
+                    bb.salePerson = new BillObject(salePerson);
+                    bb.saleOrgUnit = new BillObject(saleOrgUnit);
+                    bb.saleGroup = new BillObject(saleGroup);
+                    bb.description = dr["MEMO"].ToString();
+                    String sql = "select * from dat_dd_com where seqno = '" + seqno + "' and custid = '" + dr["CUSTID"].ToString() + "'";
+                    DataTable dResult = DbHelperOra.Query(sql).Tables[0];
+                    #endregion
+
+                    #region 拼表体
+                    Boolean canContinue = true;
+                    foreach (DataRow comdr in dResult.Rows)
+                    {
+                        XSEntryToken bet = new XSEntryToken();
+                        String easGDSEQ = getEasGDSEQ(comdr["GDSEQ"].ToString());
+                        String unit = comdr["UNIT"].ToString();
+                        if (easGDSEQ == null)
+                        {
+                            canContinue = false;
+                            this.errorDetail += "订单[" + comdr["SEQNO"].ToString() + "]中的商品[" + comdr["GDSEQ"].ToString() + "] 不是 EAS 商品. ";
+                            UpdateBill(comdr["SEQNO"].ToString(), "E", dr["CUSTID"].ToString(), "DAT_DD_DOC");
+                            break;
+                        }
+                        Decimal qty = Convert.ToDecimal(comdr["DHS"]);
+                        bet.qty = qty;
+                        bet.remark = comdr["MEMO"].ToString();
+                        //bet.customer = new BillObject(custId);
+                        bet.material = new BillObject(easGDSEQ);
+                        bet.storageOrgUnit = new BillObject(saleOrgUnit);
+                        bet.deliveryCustomer = new BillObject(custId);
+                        bet.receiveCustomer = bet.deliveryCustomer;
+                        bet.paymentCustomer = bet.deliveryCustomer;
+                        bet.unit = new BillObject(unit);
+                        bet.sendDate = DateTime.Now;
+                        bb.entries.Add(bet);
+                    }
+                    #endregion
+
+                    if (canContinue)
+                    {
+                        billBeanList.Add(bb);
+                    }
+
+                }
+                this.resultDT = dt;
+            }
+            if (billBeanList.Count <= 0)
+            {
+                this.errorDetail += "没有符合条件的数据";
+            }
+            else
+            {
+                this.total = billBeanList.Count;
+            }
+            return JsonConvert.SerializeObject(billBeanList, settings);
+
+            //TODO 调用接口方法，获取返回值
+            //TODO 处理返回值
+            #region 测试用
+            ////表头
+            //XSBean bb = new XSBean();
+            //bb.number = "TESTXSDD0002";
+            //bb.creator = new BillObject("whfy");
+            //bb.bizDate = DateTime.Now;
+            ////bb.costCenterOrgUnit = new BillObject("01.05.04.01.11.01.02");
+            //bb.description = "测试库存调拨单";
+            ////bb.storageOrgUnit = new BillObject("01.05.04.01.09");
+            ////bb.issueStorageOrgUnit = bb.storageOrgUnit;
+            ////bb.receiptStorageOrgUnit = bb.storageOrgUnit;
+            ////bb.issueAdminOrgUnit = new BillObject("01.05.04.01.09");
+            ////bb.receiptAdminOrgUnit = new BillObject("01.05.04.01.11.01");
+            ////bb.adminOrgUnit = new BillObject("01.05.04.01");
+            ////bb.stocker = new BillObject("00011846");
+            //bb.salePerson = new BillObject("00011846");
+            //bb.saleOrgUnit = new BillObject("01.05.04.01.09");
+            //bb.saleGroup = new BillObject("YYBB-02");
+
+            //bb.orderCustomer = new BillObject("37.11.0045");
+
+            ////表体
+            //XSEntryToken bet = new XSEntryToken();
+            //bet.material = new BillObject("01.12.02.0003");
+            //bet.qty = 2;
+            //bet.remark = "测试";
+            //bet.storageOrgUnit = new BillObject("01.05.04.01.09");
+            //bet.deliveryCustomer = new BillObject("37.11.0045");
+            //bet.receiveCustomer = bet.deliveryCustomer;
+            //bet.paymentCustomer = bet.deliveryCustomer;
+            //bet.unit = new BillObject("Set");
+            ////bet.warehouse = new BillObject("YYBB-15-1");
+            ////bet.receiptPlanDate = DateTime.Now.ToString(BillConfig.timestring);
+            ////bet.issuePlanDate = DateTime.Now.ToString(BillConfig.timestring);
+            //bet.sendDate = DateTime.Now;
+            //bb.entries.Add(bet);
+
+            ////添加到结果中
+            //billBeanList.Add(bb);
+            #endregion
+            //return JsonConvert.SerializeObject(billBeanList,settings);
+        }
+
+        /// <summary>
+        /// 生成调拨单
+        /// </summary>
+        /// <returns></returns>
+        public String renderDB()
+        {
+            //初始化
+            init();
+            //TODO 查找未上传的出库单
+            //TODO 拼入参
+            //TODO 调用接口方法，获取返回值
+            //TODO 处理返回值
+            #region 测试用
+            //表头
+            DBBean bb = new DBBean();
+            bb.number = "TESTOCKDB0003";
+            bb.creator = new BillObject("whfy");
+            bb.bizDate = DateTime.Now;
+            bb.costCenterOrgUnit = new BillObject("01.05.04.01.11.01.02");
+            bb.description = "测试库存调拨单";
+            bb.storageOrgUnit = new BillObject("01.05.04.01.09");
+            bb.issueStorageOrgUnit = bb.storageOrgUnit;
+            bb.receiptStorageOrgUnit = bb.storageOrgUnit;
+            bb.issueAdminOrgUnit = new BillObject("01.05.04.01.09");
+            bb.receiptAdminOrgUnit = new BillObject("01.05.04.01.11.01");
+            bb.adminOrgUnit = new BillObject("01.05.04.01");
+            bb.stocker = new BillObject("00011846");
+
+            //表体
+            DBEntryToken bet = new DBEntryToken();
+            bet.material = new BillObject("01.12.02.0003");
+            bet.qty = 2;
+            bet.remark = "测试";
+            bet.customer = new BillObject("37.11.0045");
+            bet.unit = new BillObject("Set");
+            bet.warehouse = new BillObject("YYBB-15-1");
+            bet.receiptPlanDate = DateTime.Now;
+            bet.issuePlanDate = DateTime.Now;
+
+
+            bb.entry.Add(bet);
+
+            //添加到结果中
+            billBeanList.Add(bb);
+            #endregion
+            return JsonConvert.SerializeObject(billBeanList);
+        }
+
+        /// <summary>
+        /// 其他出库单
+        /// </summary>
+        /// <returns>返回结果json string</returns>
+        public String renderQT()
+        {
+            //初始化
+            init();
+
+            //TODO 查找未上传的出库单
+            //TODO 拼入参
+            //TODO 调用接口方法，获取返回值
+            //TODO 处理返回值
+            //查找未上传的出库单
+            string sql_ck = @"select * from dat_ck_doc c,doc_customer t where c.custid=t.code and t.settlementway='NZJ' and c.flag = 'G' and c.issend='N' and nvl(c.num2,0)=0
+                              union
+                              select * from dat_ck_doc c,doc_customer t where c.custid=t.code and c.num2=2 and c.flag = 'G' and c.issend='N'";
+            DataTable dt = DbHelperOra.Query(sql_ck).Tables[0];
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow dr in dt.Rows)
+                {
+                    #region 拼表头
+                    BillBean ck = new BillBean();
+                    String seqno = dr["SEQNO"].ToString();
+                    DateTime bizDate = Convert.ToDateTime(dr["SHRQ"]);
+
+                    ck.bizDate = bizDate;
+                    String customerSql = "select CODE EASCODE,COSTCENTER,USERCODE,WAREHOUSE,SALEPERSON,STORAGEUNIT,COMPANYUNIT,STOCKER,DCBM,DRBM,XSZ,SALEBM from doc_customer where code = '" + dr["CUSTID"].ToString() + "'";
+                    DataTable customerInfo = DbHelperOra.Query(customerSql).Tables[0];
+                    String custId = customerInfo.Rows[0]["EASCODE"].ToString();
+                    String creator = customerInfo.Rows[0]["USERCODE"].ToString();
+                    String stocker = customerInfo.Rows[0]["STOCKER"].ToString();
+                    String salePerson = customerInfo.Rows[0]["SALEPERSON"].ToString();
+                    String storOrgUnit = customerInfo.Rows[0]["STORAGEUNIT"].ToString();
+                    String costCenterOrgUnit = customerInfo.Rows[0]["COSTCENTER"].ToString();
+                    String wareHouse = customerInfo.Rows[0]["WAREHOUSE"].ToString();
+                    String companyUnit = customerInfo.Rows[0]["COMPANYUNIT"].ToString();
+
+                    ck.number = seqno + "_" + custId;
+                    ck.adminOrgUnit = new BillObject(companyUnit);
+                    ck.creator = new BillObject(creator);
+                    //ck.materialReqestPerson = new BillObject(salePerson);
+                    ck.storageOrgUnit = new BillObject(storOrgUnit);
+                    ck.transactionType = new BillObject(856);
+                    ck.stocker = new BillObject(stocker);
+                    ck.costCenterOrgUnit = new BillObject(costCenterOrgUnit);
+                    ck.issueType = new BillObject("YXJY001");
+                    ck.createTime = DateTime.Now;
+                    ck.description = dr["MEMO"].ToString();
+                    String sql = "select * from dat_ck_com where seqno = '" + seqno + "' and custid = '" + dr["CUSTID"].ToString() + "'";
+                    DataTable dResult = DbHelperOra.Query(sql).Tables[0];
+                    #endregion
+
+                    #region 拼表体
+                    Boolean canContinue = true;
+                    foreach (DataRow comdr in dResult.Rows)
+                    {
+                        BillEntryToken bet = new BillEntryToken();
+                        String easGDSEQ = getEasGDSEQ(comdr["GDSEQ"].ToString());
+                        String unit = comdr["UNIT"].ToString();
+                        if (easGDSEQ == null)
+                        {
+                            canContinue = false;
+                            this.errorDetail += "订单[" + comdr["SEQNO"].ToString() + "]中的商品[" + comdr["GDSEQ"].ToString() + "] 不是 EAS 商品. ";
+                            UpdateBill(comdr["SEQNO"].ToString(), "E", dr["CUSTID"].ToString(), "DAT_CK_DOC");
+                            break;
+                        }
+                        Decimal qty = Convert.ToDecimal(comdr["XSSL"]);
+                        bet.qty = qty;
+                        bet.remark = comdr["MEMO"].ToString();
+                        bet.customer = new BillObject(custId);
+                        bet.material = new BillObject(easGDSEQ);
+                        bet.warehouse = new BillObject(wareHouse);
+                        //bet.storeStatus = new BillObject(custId);
+                        bet.stocker = new BillObject(stocker);
+                        //bet.storeType = bet.deliveryCustomer;
+                        bet.unit = new BillObject(unit);
+                        bet.lot = comdr["PH"].ToString();
+                        ck.entry.Add(bet);
+                    }
+                    #endregion
+
+                    if (canContinue)
+                    {
+                        billBeanList.Add(ck);
+                    }
+
+                }
+                this.resultDT = dt;
+            }
+            if (billBeanList.Count <= 0)
+            {
+                this.errorDetail += "没有符合条件的数据";
+            }
+            else
+            {
+                this.total = billBeanList.Count;
+            }
+            return JsonConvert.SerializeObject(billBeanList, settings);
+
+            #region 测试用
+            //表头
+            //BillBean bb = new BillBean();
+            //bb.number = "TESTOCK0001";
+            //bb.creator = new BillObject("whfy");
+            //bb.bizDate = DateTime.Now;
+            //bb.costCenterOrgUnit = new BillObject("01.05.04.01.11.01.02");
+            //bb.description = "测试库存调拨单";
+            //bb.storageOrgUnit = new BillObject("01.05.04.01.09");
+            //bb.adminOrgUnit = new BillObject("01.05.04.01");
+            //bb.stocker = new BillObject("00011846");
+
+            ////表体
+            //BillEntryToken bet = new BillEntryToken();
+            //bet.material = new BillObject("01.12.02.0003");
+            //bet.qty = 2;
+            //bet.remark = "测试";
+            //bet.customer = new BillObject("37.11.0045");
+            //bet.unit = new BillObject("Set");
+            //bet.warehouse = new BillObject("YYBB-15-1");
+
+            //bb.entry.Add(bet);
+
+            ////添加到结果中
+            //billBeanList.Add(bb);
+            //return JsonConvert.SerializeObject(billBeanList);
+            #endregion
+        }
+    }
+
+
+    /// <summary>
+    /// 测试帮助类
+    /// </summary>
+    public class BillHelper
+    {
+
+        /// <summary>
+        /// 测试调用方法
+        /// </summary>
+        /// <returns></returns>
+        public static String execTest()
+        {
+            BillBean bb = new BillBean();
+            bb.bizDate = DateTime.Now;
+            bb.adminOrgUnit = new BillObject("123");
+            bb.number = "456";
+            BillEntryToken bet = new BillEntryToken();
+            bet.material = new BillObject("789");
+            bet.qty = 10;
+            bb.entry.Add(bet);
+
+            BillBeanList bbl = new BillBeanList();
+            bbl.Add(bb);
+            String result = JsonConvert.SerializeObject(bbl);
+            return result;
+        }
+
+        public static String execXSTest()
+        {
+            BillBeanController bbc = new BillBeanController();
+            return bbc.renderXSDD();
+        }
+
+        public static String execDBTest()
+        {
+            BillBeanController bbc = new BillBeanController();
+            return bbc.renderDB();
+        }
+
+        public static String execOtherTest()
+        {
+            BillBeanController bbc = new BillBeanController();
+
+            return bbc.renderQT();
+        }
+    }
+}

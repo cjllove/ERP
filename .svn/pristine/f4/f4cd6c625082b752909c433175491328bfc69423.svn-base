@@ -1,0 +1,11 @@
+.input-btn{
+	border: 1px solid #ccc;
+	text-align: center;
+	float: left;
+
+}
+.input-btn:hover{
+	cursor: pointer;
+	background-color: #ee9d3f;
+	color: white;
+}

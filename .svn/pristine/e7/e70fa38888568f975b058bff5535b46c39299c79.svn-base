@@ -1,0 +1,115 @@
+﻿@charset "utf-8";
+
+/* Main
+__________________________________________ */
+.main-wrapper {
+    float: left;
+    width: 100%;
+}
+
+    .main-wrapper h2 {
+        color: #242628;
+        display: block;
+        font-family: 'ChunkFiveRegular', Arial, sans-serif;
+        font-size: 3em;
+        font-weight: bold;
+        line-height: 2em;
+        margin: 6% 0 1%;
+        text-decoration: none;
+        text-transform: capitalize;
+        text-shadow: 1px 1px #555;
+        -moz-transition: all 1s ease;
+        -ms-transition: all 1s ease;
+        -o-transition: all 1s ease;
+        -webkit-transition: all 1s ease;
+        text-align: center;
+        max-width: 100%;
+        width: 100%;
+    }
+
+.rlAccordion > h3 {
+    background-color: #F5F5F5;
+    background-image: -moz-linear-gradient(center bottom, #D9E7F8 95%, #FFF 100%);
+    background-image: -o-linear-gradient(center bottom, #005d7c 0%, #0088b5 100%);
+    background-image: -webkit-linear-gradient(left bottom, left top, color-stop(0, #005d7c), color-stop(1, #0088b5));
+    background-image: -ms-linear-gradient(top, #005d7c 0%, #0088b5 100%);
+    background-image: linear-gradient(top, #005d7c 0%, #0088b5 100%);
+    border-radius: 3px;
+    /*box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);*/
+    color: #333;
+    /*font-family: "Times New Roman", Times, serif;*/
+    font-size: 14px;
+    font-weight: normal;
+    margin: 0 auto;
+    padding: 3%;
+    padding-left: 15px;
+    text-decoration: none;
+    /*text-shadow: 1px 1px 0 #004E68;*/
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+    .rlAccordion > h3 > span {
+        float: right;
+        font-family: arial, serif, sans-serif;
+        border:1px #1ea3d8 solid;
+        width: 16px;
+        text-align: center;
+        color:#1ea3d8;
+        font-weight:bold;
+    }
+
+    .rlAccordion > h3 + div {
+        display: none;
+        padding: 2% 0%;
+    }
+
+p.list_style a {
+    display: block;
+    padding-left: 35px;
+    background: url(/extjs/res/ext-theme-classic/images/tree/leaf.gif) no-repeat 10px center;
+    font-size: 14px;
+    height: 30px;
+    line-height: 30px;
+}
+
+    p.list_style a:link, .opened p a:visited {
+        color: #141415;
+        text-decoration: initial;
+        font-size: 13px;
+    }
+
+    p.list_style a:hover {
+        color: #333;
+        text-decoration: none;
+        background: #D9E7F8 url(/extjs/res/ext-theme-classic/images/tree/leaf.gif) no-repeat 10px center;
+    }
+/* Footer
+__________________________________________ */
+footer {
+    float: left;
+    margin: 0 auto;
+    max-width: 100%;
+    width: 100%;
+}
+
+.copy p {
+    float: right;
+    font-size: 1.2em;
+    margin: 6% 0;
+    opacity: 0.3;
+    transition: all 1s ease;
+    -webkit-transition: all 1s ease;
+}
+
+    .copy p:hover {
+        opacity: 0.9;
+    }
+/* IE7
+__________________________________________ */
+/* position of minus and plus sign in IE7 */
+/* if your html structure is based in HTML5, consider use a SHIV*/
+.ie7 .rlAccordion h3 span {
+    position: absolute;
+    right: 20px;
+}

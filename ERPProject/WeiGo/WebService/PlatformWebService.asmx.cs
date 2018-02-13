@@ -1,0 +1,456 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.Collections;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.WeiGo
+{
+    /// <summary>
+    /// PlatformWebService 的摘要说明
+    /// </summary>
+    [WebService(Namespace = "http://localhost:3787/")]
+    [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+    [System.ComponentModel.ToolboxItem(false)]
+    // 若要允许使用 ASP.NET AJAX 从脚本中调用此 Web 服务，请取消注释以下行。 
+    //[System.Web.Script.Services.ScriptService]
+    public class PlatformWebService : System.Web.Services.WebService
+    {
+
+
+        #region 登陆登出
+        [WebMethod]
+        public string Login(String username, String password, String token)
+        {
+            //判断是否userInfo存在cache中，不存在则新增，2小时
+            Hashtable userInfo = new Hashtable();
+            TimeSpan timeOut = TimeSpan.FromHours(2);
+            try
+            {
+                if (!ApiUtil.isCacheExist("userInfo"))
+                {
+                    XTBase.Utilities.CacheHelper.SetCache("userInfo", userInfo, timeOut);
+                }
+                else
+                {
+                    userInfo = (Hashtable)XTBase.Utilities.CacheHelper.GetCache("userInfo");
+                    if (userInfo.ContainsKey(username))
+                    {
+                        userInfo.Remove(username);
+                    }
+
+                }
+                if (ApiUtil.isUserInfoCorrect(username, password, token))
+                {
+                    String uuid = ApiUtil.renderUUID();
+                    userInfo.Add(username, uuid);
+                    XTBase.Utilities.CacheHelper.RemoveOneCache("userInfo");
+                    XTBase.Utilities.CacheHelper.SetCache("userInfo", userInfo, timeOut);
+                    // 获得ip
+                    String ip = this.Context.Request.UserHostAddress;
+                    ApiUtil.updateCustomer(username, uuid, ip);
+                    return ApiUtil.renderResultJson("success", null, uuid);
+                }
+                else
+                {
+                    return ApiUtil.renderResultJson("fail", "login denied", null);
+                }
+            }
+            catch (Exception e)
+            {
+                return ApiUtil.renderResultJson("fail", e.Message, null);
+            }
+        }
+
+        [WebMethod]
+        public string Logout(String username, String password, String token)
+        {
+            Hashtable userInfo = new Hashtable();
+            TimeSpan timeOut = TimeSpan.FromHours(2);
+            try
+            {
+                if (!ApiUtil.isCacheExist("userInfo"))
+                {
+                    XTBase.Utilities.CacheHelper.SetCache("userInfo", userInfo, timeOut);
+                }
+                else
+                {
+                    userInfo = (Hashtable)XTBase.Utilities.CacheHelper.GetCache("userInfo");
+                    if (userInfo.ContainsKey(username))
+                    {
+                        userInfo.Remove(username);
+                    }
+
+                }
+                if (ApiUtil.isUserInfoCorrect(username, password, token))
+                {
+                    XTBase.Utilities.CacheHelper.RemoveOneCache("userInfo");
+                    XTBase.Utilities.CacheHelper.SetCache("userInfo", userInfo, timeOut);
+                    return ApiUtil.renderResultJson("success", null, null);
+                }
+                else
+                {
+                    return ApiUtil.renderResultJson("fail", "logout denied", null);
+                }
+            }
+            catch (Exception e)
+            {
+                return ApiUtil.renderResultJson("fail", e.Message, null);
+            }
+        }
+        #endregion
+
+        #region 通用查询接口
+        /// <summary>
+        /// 通用接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string CommonApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                JArray data = aps.Query(key, paramArray);
+                return ApiUtil.renderResultJson("success", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 通用单据查询接口
+        /// <summary>
+        /// 通用单据查询接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string CommonBillApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                JObject data = aps.QueryBill(key, paramArray);
+                return ApiUtil.renderResultJson("success", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 通用执行接口
+        /// <summary>
+        /// 通用执行接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string CommonExecApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                int data = aps.Execute(key, paramArray);
+                return ApiUtil.renderResultJson("success", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+
+        /// <summary>
+        /// 通用批量执行接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string BulkExecApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                Boolean data = aps.BulkExecute(key, paramArray);
+                //TODO CHANGTHIS
+                return ApiUtil.renderResultJson(data ? "success" : "fail", aps.errorDetail, data); //ApiUtil.renderResultJson("success", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", false); //ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+
+        /// <summary>
+        /// 通用批量执行单据接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string BulkExecBillApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                Boolean data = aps.BulkExecuteBill(key, paramArray);
+                return ApiUtil.renderResultJson(data ? "success" : "fail", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+
+        #region 证照图片上传
+        /// <summary>
+        /// 证照图片上传
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="picStream"></param>
+        /// <param name="paramArray"></param>
+        /// <returns> 
+        /// </returns>
+        [WebMethod]
+        public string CertPicUpload(String key, byte[] bytes, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                Boolean data = aps.SaveCertPic(key, bytes, paramArray);
+                return ApiUtil.renderResultJson(data ? "success" : "fail", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 商品图片上传
+        /// <summary>
+        /// 商品图片上传
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="picStream"></param>
+        /// <param name="paramArray"></param>
+        /// <returns> 
+        /// </returns>
+        [WebMethod]
+        public string GoodsPicUpload(String key, byte[] bytes, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                string data = aps.SaveGoodsPic(key, bytes, paramArray);
+                return data;//ApiUtil.renderResultJson(data ? "success" : "fail", aps.errorDetail, data);
+            }
+            else
+            {
+                return "没有返回路径！";//ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+
+        #region 订单状态查询
+        /// <summary>
+        /// 订单状态查询接口
+        /// </summary>
+        /// <param name="billno"></param>
+        /// <param name="custid"></param>
+        /// <param name="uuid"></param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QueryBillStatus(String billno, String custid, String username, String uuid)
+        {
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                BillStatusService bs = new BillStatusService();
+                String result = bs.query(billno, custid);
+                return ApiUtil.renderResultJson(bs.isError ? "fail" : "success", bs.failDetail + "\n\r" + bs.convFailDetail, result);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 订单状态查询XDD
+        /// <summary>
+        /// 订单状态查询接口XDD
+        /// </summary>
+        /// <param name="billno"></param>
+        /// <param name="custid"></param>
+        /// <param name="uuid"></param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QueryBillStatusXDD(String billno, String custid, String username, String uuid)
+        {
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                BillStatusService bs = new BillStatusService();
+                String result = bs.queryXDD(billno, custid);
+                return ApiUtil.renderResultJson(bs.isError ? "fail" : "success", bs.failDetail + "\n\r" + bs.convFailDetail, result);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 采购单状态查询CDD
+        /// <summary>
+        /// 采购单状态查询接口CDD
+        /// </summary>
+        /// <param name="billno"></param>
+        /// <param name="custid"></param>
+        /// <param name="uuid"></param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QueryBillStatusCDD(String billno, String custid, String warehouse, String username, String uuid)
+        {
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                BillStatusService bs = new BillStatusService();
+                String result = bs.queryCDD(billno, custid, warehouse);
+                return ApiUtil.renderResultJson(bs.isError ? "fail" : "success", bs.failDetail + "\n\r" + bs.convFailDetail, result);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 供应商单据查询接口
+        /// <summary>
+        /// 供应商单据查询接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QuerySupBillApi(String key, params String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(paramArray[0], paramArray[1]))
+            {
+                JObject data = aps.QuerySupBill(key, paramArray);
+                return ApiUtil.renderResultJson("success", aps.errorDetail, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 库存查询接口
+        [WebMethod]
+        public string QueryInventory(String username, String uuid, String warehouse, String materials)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                String data = aps.QueryEASInventory(warehouse, materials);
+                return ApiUtil.renderResultJson("success", null, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region EAS单据查询接口
+        /// <summary>
+        /// EAS单据查询接口，DHD-调拨单；DRK-调拨入库单
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QueryEASBillApi(String username, String uuid, String type, String[] paramArray)
+        {
+            ApiPlatformService aps = new ApiPlatformService();
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                String data = "";
+                if("DHD".Equals(type))
+                {
+                    data = aps.QueryEASDHDBill(paramArray);
+                }
+                if ("DRK".Equals(type))
+                {
+                    data = aps.QueryEASDRKBill(paramArray);
+                }
+                return data;
+            }
+            else
+            {
+                return "-1";
+            }
+        }
+        #endregion
+
+        #region 短信提交接口
+        /// <summary>
+        /// 短信提交接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string SendMessage(String username, String uuid, String sendDoc, String getTel, String isTiming, String TimingSj, String sendUser, String sendCust, String Class)
+        {
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                String data = "";//Dat_MsgTel_List.MessageOper(sendDoc, getTel, isTiming, TimingSj, sendUser, sendCust, Class);
+                return ApiUtil.renderResultJson("success", null, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+
+        #region 短信查询接口
+        /// <summary>
+        /// 短信查询接口
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="paramArray">前两位为username和uuid</param>
+        /// <returns></returns>
+        [WebMethod]
+        public string QueryMessage(String username, String uuid, String seqno)
+        {
+            if (ApiUtil.isLogin(username, uuid))
+            {
+                String data = Dat_MsgTel_List.GetDat_MsgTel_ListJsonBySeqno(seqno);
+                return ApiUtil.renderResultJson("success", null, data);
+            }
+            else
+            {
+                return ApiUtil.renderResultJson("fail", "not login", null);
+            }
+        }
+        #endregion
+    }
+}

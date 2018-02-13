@@ -1,0 +1,220 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsDhfx.aspx.cs" Inherits="ERPProject.ERPQuery.GoodsDhfx" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>到货情况分析</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right"
+            EnableTabCloseMenu="false" ActiveTabIndex="2" runat="server">
+            <Tabs>
+                <f:Tab Title="单品分析" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="False" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText" runat="server" Text="操作信息：到货情况分析查询主界面！"></f:ToolbarText>
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:Button ID="btnAudit" Icon="ArrowRotateClockwise" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnExp" runat="server" CssStyle="margin-left: 10px;" Icon="DatabaseGo" EnableAjax="false" EnableDefaultState="false"
+                                                    OnClick="btExport_Click" EnablePostBack="true" Text="导出" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" OnClick="btSearch_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="10px 0px 10px 10px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="txbGDSEQ" runat="server" Label="商品" EmptyText="可输入商品名称、编码及助记码" />
+                                                        <f:DropDownList ID="ddlISGZ" runat="server" Label="是否高值">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="是" Value="Y" />
+                                                            <f:ListItem Text="否" Value="N" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkDATE1" runat="server" Label="查询期间" Required="true" ShowRedStar="true"></f:DatePicker>
+                                                        <f:DatePicker ID="dpkDATE2" runat="server" Label=" 至" LabelSeparator="" Required="true" ShowRedStar="true" LabelWidth="40px"></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridGoods" AnchorValue="100% -84" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                                    AllowSorting="false" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" EnableColumnLines="true">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                        <f:BoundField Width="90px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="110px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                        <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="SUPNAME" HeaderText="供应商" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="PRODUCERNAME" HeaderText="生产厂家" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="DHS" HeaderText="订货数" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="RKS" HeaderText="入库数" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HSJJ" HeaderText="含税进价" TextAlign="Center"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="CYS" HeaderText="差异数量" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="ZB" HeaderText="到货占比" TextAlign="Center" DataFormatString="{0:p}" />
+                                        <f:BoundField Width="100px" DataField="DHJE" HeaderText="订货金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="100px" DataField="RKJE" HeaderText="入库金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="100px" DataField="CYJE" HeaderText="差异金额" TextAlign="Right" DataFormatString="{0:F2}"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="ISFLAG3" HeaderText="是否库存品" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="ISGZ" SortField="ISGZ" HeaderText="是否高值" Hidden="false" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="单据分析" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel2" runat="server" ShowBorder="False" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="操作信息：按订货日期倒序排列！" runat="server" />
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnCl" Icon="ArrowRotateClockwise" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnExpt" runat="server" CssStyle="margin-left: 10px;" Icon="DatabaseGo" EnableAjax="false" EnableDefaultState="false"
+                                                    OnClick="btExport_Click" EnablePostBack="true" Text="导出" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSch" Icon="Magnifier" Text="查 询" OnClick="btnSch_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="FormList" ShowBorder="false" AutoScroll="false" BodyPadding="10px 0px 10px 10px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="lisBILL" runat="server" Label="订单编号" EmptyText="请输入订单编号" />
+                                                        <f:DropDownList ID="ddlFLAG" runat="server" Label="入库标志" ShowRedStar="true">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="未入库" Value="N" />
+                                                            <f:ListItem Text="已入库" Value="Y" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="lisDATE1" runat="server" Label="订单日期" Required="true" ShowRedStar="true"></f:DatePicker>
+                                                        <f:DatePicker ID="lisDATE2" runat="server" Label="　至" LabelSeparator="" Required="true" ShowRedStar="true" LabelWidth="40px"></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridList" AnchorValue="100% -73px" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                                    AllowSorting="false" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" EnableColumnLines="true"  >
+                                    <Columns>
+                                        <f:RowNumberField Width="40px"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="SEQNO" HeaderText="订单编号" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="SEQNO_RK" HeaderText="入库单号" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="FLAGNAME" HeaderText="入库标志" TextAlign="Center" />
+                                        <f:BoundField Width="140px" DataField="DEPTDHNAME" HeaderText="订货部门" TextAlign="Center" />
+                                        <f:BoundField Width="140px" DataField="DEPTIDNAME" HeaderText="到货部门" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="NUM_DH" HeaderText="订货品规" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="NUM_RK" HeaderText="入库品规" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="LRYNAME" HeaderText="订单制单员" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="SHRQ" HeaderText="订单日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                        <f:BoundField Width="100px" DataField="SHRNAME" HeaderText="入库审核员" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="SHRQ_RK" HeaderText="入库日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="订单情况" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel4" runat="server" ShowBorder="False" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel5" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar3" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="" runat="server" />
+                                                <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                                <f:Button ID="Button1" Icon="ArrowRotateClockwise" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSch3" Icon="Magnifier" Text="查 询" OnClick="btnSch3_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="10px 0px 10px 10px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="TextBox1" runat="server" Label="订单编号" EmptyText="请输入订单编号" />
+                                                        <f:DropDownList ID="DropDownList1" runat="server" Label="入库标志" ShowRedStar="true">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="未完成" Value="N" />
+                                                            <f:ListItem Text="已完成" Value="Y" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="DatePicker1" runat="server" Label="订单日期" Required="true" ShowRedStar="true"></f:DatePicker>
+                                                        <f:DatePicker ID="DatePicker2" runat="server" Label="　至" LabelSeparator="" Required="true" ShowRedStar="true" LabelWidth="40px"></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="Grid1" AnchorValue="100% -100px" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"  OnRowDoubleClick="Grid1_DoubleClick"
+                                    AllowSorting="false" AutoScroll="true" runat="server" DataKeyNames="GDSEQ,FLAGNAME" EnableColumnLines="true" OnRowDataBound="Grid1_RowDataBound" 
+                                     EnableRowDoubleClickEvent="true" >
+                                    <Columns>
+                                        <f:RowNumberField Width="40px"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="SEQNO" HeaderText="订单编号" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="FLAGNAME" ColumnID="FLAGNAME" HeaderText="到货状态" TextAlign="Center" />
+                                        <f:BoundField Width="140px" DataField="DEPTDHNAME" HeaderText="订货部门" TextAlign="Center" />
+                                        <f:BoundField Width="140px" DataField="DEPTIDNAME" HeaderText="到货部门" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="LRYNAME" HeaderText="订单制单员" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="LRRQ" HeaderText="订单日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+        <f:Window ID="WindowGoodsDD" Title="订单信息" Hidden="true" EnableIFrame="false" runat="server" AutoScroll="true"
+            EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Layout="Fit" Width="630px" Height="360px">
+            <Items>
+                <f:Grid ID="DDlist" ShowBorder="false" ShowHeader="false" AllowSorting="false" AutoScroll="true" runat="server" EnableColumnLines="true"
+                    DataKeyNames="GDSEQ" AllowCellEditing="true">
+                    <Columns>
+                        <f:RowNumberField runat="server" Width="30px" />
+                        <f:BoundField Width="90px" DataField="GDSEQ" HeaderText="商品编码" Hidden="true" />
+                        <f:BoundField Width="145px" DataField="GDNAME" HeaderText="商品名称" />
+                        <f:BoundField Width="91px" DataField="GDSPEC" HeaderText="商品规格" />
+                        <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="订货<\br>单位" TextAlign="Center" />
+                        <f:BoundField Width="120px" DataField="BZSL" HeaderText="订货包装数" TextAlign="Center" />
+                        <f:BoundField Width="120px" DataField="DHSL" HeaderText="入库数" TextAlign="Center"  />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Window>
+    </form>
+</body>
+</html>

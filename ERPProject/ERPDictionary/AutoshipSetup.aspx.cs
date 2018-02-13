@@ -1,0 +1,235 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPDictionary
+{
+    public partial class AutoshipSetup : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlGoodsType, "DDL_GOODS_TYPE");
+            //PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPTRANGEKF");
+            PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPT");
+            //PubFunc.DdlDataSql(ddlDEPTID, @"SELECT CODE, NAME
+            //                      FROM (SELECT '' CODE, '--请选择--' NAME
+            //                              FROM DUAL
+            //                            UNION ALL
+            //                            SELECT CODE, NAME NAME
+            //                              FROM SYS_DEPT
+            //                             WHERE TYPE IN ('1','2')           
+            //                             ORDER BY CODE)
+            //                     ORDER BY NAME");
+
+            string strSql = @"
+                        SELECT '--请选择--' NAME,'%' CODE,0 TreeLevel,1 islast  FROM dual
+                              union all
+                              select '【'||code||'】'||name name,code,(class-1) TreeLevel,decode(islast,'Y',1,0) islast
+                                          from sys_category
+                         ORDER BY code ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt32(dr["TreeLevel"]), Convert.ToInt32(dr["islast"]) == 1));
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            ddlCATID.DataEnableSelectField = "EnableSelect";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;
+            ddlCATID.DataBind();
+        }
+
+        private void DataSearch()
+        {
+            string strSearch = @"select cfg.deptid,
+                                   G.GDSEQ,
+                                   G.GDNAME,
+                                   G.GDSPEC,
+                                   a.name UNITNAME,
+                                   G.CATID0,
+                                   b.name UNITNAME_ORDER,
+                                   gt.name as typename,
+                                   '[' || nvl(dept.code, '商品未配置') || ']' || dept.name as deptname,
+                                   '[' || cat.code || ']' || cat.name as catname,
+                                   decode(cfg.ISAUTO, 'N', 0, 'Y', 1, 0) as ISAUTO,
+                                   cfg.DHXS,
+                                   cfg.DAYSL,
+                                   cfg.ZDKC,
+                                   cfg.ZGKC,F_GETSTOCK(cfg.DEPTID,G.GDSEQ) KCSL
+                              from DOC_GOODS     G,
+                                   doc_goodsunit a,
+                                   doc_goodsunit b,
+                                   doc_goodscfg  cfg,
+                                   doc_goodstype gt,
+                                   sys_dept      dept,
+                                   sys_category  cat
+                             where g.ISDELETE = 'N'
+                               and G.UNIT = a.code(+)
+                               and g.catid0 = gt.code(+)
+                               and cfg.deptid = dept.code(+)
+                               and g.catid = cat.code(+)
+                               and decode(G.UNIT_ORDER,
+                                          'D',
+                                          NVL(G.UNIT_DABZ, G.UNIT),
+                                          'Z',
+                                          NVL(G.UNIT_ZHONGBZ, G.UNIT),
+                                          G.UNIT) = b.code(+)
+                               and g.gdseq = cfg.gdseq(+)
+                               and cfg.deptid(+) like '{0}'
+                               and g.catid0 like '{1}'
+                               and g.catid like '{2}'
+                               and (g.gdseq like '{3}' or g.gdname like '{3}')";
+            StringBuilder strSql = new StringBuilder("");
+            String deptId = "%";
+            String catId0 = "%";
+            String catId = "%";
+            String gdseq = "%";
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                deptId = ddlDEPTID.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(ddlGoodsType.SelectedValue))
+            {
+                catId0 = ddlGoodsType.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(ddlCATID.SelectedValue))
+            {
+                catId = ddlCATID.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(tbxGoodsName.Text))
+            {
+                gdseq = "%" + tbxGoodsName.Text + "%";
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql.Append(string.Format(strSearch, deptId, catId0, catId, gdseq));
+            }
+
+            strSql.Append(" order by cfg.deptid(+),g.GDSEQ,g.GDNAME");
+            int total = 0;
+            DataTable table = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, strSql, ref total);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            GridGoods.DataSource = view1;
+            GridGoods.DataBind();
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void bntSave_Click(object sender, EventArgs e)
+        {
+            String querySql = "select COUNT(1) from doc_goodscfg WHERE GDSEQ='{0}' AND DEPTID='{1}'";
+            String insSql = "insert into doc_goodscfg (GDSEQ,DEPTID,DHXS,DAYSL,ZDKC,ZGKC,ISAUTO,ISCFG) values ('{0}','{1}',{2},{3},{4},{5},'{6}','1')";
+            String uptSql = "update doc_goodscfg set DHXS={2},DAYSL={3},ZDKC={4},ZGKC={5},ISAUTO='{6}',ISCFG='Y' where GDSEQ='{0}' and DEPTID='{1}'";
+            List<CommandInfo> lci = new List<CommandInfo>();
+
+            JArray ja = GridGoods.GetModifiedData();
+            foreach (JToken jt in ja)
+            {
+                String res = (jt.SelectToken(string.Format("$.{0}", "index")) ?? "").ToString();
+                String rowid = (jt.SelectToken(string.Format("$.{0}", "id")) ?? "").ToString();
+                JObject defaultObj = Doc.GetJObject(GridGoods, rowid);
+                object[] keys = GridGoods.DataKeys[Convert.ToInt16(res)];
+                int dhxs = Convert.ToInt32(defaultObj["DHXS"]);
+                int daysl = Convert.ToInt32(defaultObj["DAYSL"]);
+                int zdkc = Convert.ToInt32(defaultObj["ZDKC"]);
+                int zgkc = Convert.ToInt32(defaultObj["ZGKC"]);
+                String isAuto = (Convert.ToBoolean(defaultObj["ISAUTO"])) ? "Y" : "N";
+                String gdseq = keys[0].ToString();
+                String deptId = "";
+                if (!string.IsNullOrWhiteSpace((String)keys[1]))
+                {
+                    deptId = keys[1].ToString();
+                }
+                else if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+                {
+                    deptId = ddlDEPTID.SelectedValue;
+                }
+                else
+                {
+                    Alert.Show("新增配置需要选择库房！");
+                    return;
+                }
+
+                //int dhxs = 0;
+                //int daysl = 0;
+                //int zdkc = 0;
+                //int zgkc = 0;
+                //if (keys[2] != null && !string.IsNullOrWhiteSpace(keys[2].ToString()))
+                //{
+                //    dhxs = (Convert.ToInt32(keys[2]));
+                //}
+                //if (keys[3] != null && !string.IsNullOrWhiteSpace(keys[3].ToString()))
+                //{
+                //    daysl = Convert.ToInt32(keys[3]);
+                //}
+                //if (keys[4] != null && !string.IsNullOrWhiteSpace(keys[4].ToString()))
+                //{
+                //    zdkc = Convert.ToInt32(keys[4]);
+                //}
+                //if (keys[5] != null && !string.IsNullOrWhiteSpace(keys[5].ToString()))
+                //{
+                //    zgkc = Convert.ToInt32(keys[5]);
+                //}
+                //String isAuto = (Convert.ToInt32(keys[6]) == 1) ? "Y" : "N";
+                if (zdkc > zgkc && zgkc > 0)
+                {
+                    Alert.Show("商品【" + gdseq + "】最高库存应大于最低库存！", "提示信息", MessageBoxIcon.Warning);
+                    return;
+                }
+                if (DbHelperOra.Exists(String.Format(querySql, gdseq, deptId)))
+                {
+                    lci.Add(new CommandInfo(String.Format(uptSql, gdseq, deptId, dhxs, daysl, zdkc, zgkc, isAuto), null));
+                    OperLog("商品配置", "修改商品【" + gdseq + "】");
+                }
+                else
+                {
+                    lci.Add(new CommandInfo(String.Format(insSql, gdseq, deptId, dhxs, daysl, zdkc, zgkc, isAuto), null));
+                    OperLog("商品配置", "增加商品【" + gdseq + "】");
+                }
+            }
+            DbHelperOra.ExecuteSqlTran(lci);
+            Alert.Show("信息保存成功。");
+            DataSearch();
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+            DataSearch();
+        }
+    }
+}

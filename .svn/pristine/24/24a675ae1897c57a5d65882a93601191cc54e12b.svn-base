@@ -1,0 +1,121 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DepartmentBudget.aspx.cs" Inherits="SPDProject.SpdApply.DepartmentBudget" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>科室预算执行报表</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Items>
+                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                    Layout="Anchor" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar2" runat="server">
+                            <Items>
+                                <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="" runat="server" />
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <f:Button ID="bntClear" Icon="Erase" Text="清 空" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnBill_Click" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btnExp" runat="server" CssStyle="margin-left: 10px;" EnableDefaultState="false" Icon="DatabaseGo" EnableAjax="false" OnClick="btExport_Click" EnablePostBack="true" Text="导出全部" ConfirmText="是否确认导出此科室申领信息?" DisableControlBeforePostBack="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnBill_Click" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                            ShowHeader="False" LabelWidth="70px" runat="server">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TriggerBox ID="trbSearch" runat="server" Label="查询商品" EmptyText="可输入编码、名称、助记码或HIS编码" TriggerIcon="Search" OnTriggerClick="DropDownList1_SelectedIndexChanged"></f:TriggerBox>
+                                        <f:DropDownList ID="lstDEPTID" runat="server" Label="查询科室" EnableEdit="true" ForceSelection="true" AutoPostBack="true" OnSelectedIndexChanged="DropDownList1_SelectedIndexChanged" />
+                                        <f:DatePicker ID="dpkBegRQ" runat="server" Label="查询" Required="true" ShowRedStar="true" />
+                                        <f:DatePicker ID="dpkEndRQ" runat="server" Label="　　至" LabelSeparator="" Required="true" ShowRedStar="true" />
+                                        <%--<f:DatePicker ID="dpkMonth" runat="server" Label="选择月份" EmptyText="请选择日期" DateFormatString="yyyy-MM">
+                                        </f:DatePicker>--%>
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+                <f:Grid ID="GridList" AnchorValue="100% -90" ShowBorder="false" ShowHeader="false"
+                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableTextSelection="true"
+                    DataKeyNames="DEPTID,GDSEQ" EnableRowDoubleClickEvent="true" OnRowDoubleClick="listRow_DoubleClick"
+                    EnableColumnLines="true" EnableMultiSelect="true" EnableSummary="true" SummaryPosition="Bottom"
+                    AllowSorting="true" EnableHeaderMenu="true" SortField="DEPTNAME" OnSort="GridList_Sort" SortDirection="ASC"
+                    PageSize="100" OnPageIndexChange="GridList_PageIndexChange" AllowPaging="true" IsDatabasePaging="true">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                        <f:BoundField Width="180px" DataField="DEPTNAME" HeaderText="部门名称" SortField="DEPTNAME" />
+                        <f:BoundField Width="120px" DataField="GDSEQ" HeaderText="商品编码" SortField="GDSEQ" TextAlign="Center" />
+                        <f:BoundField Width="20px" DataField="GDNAME" HeaderText="商品名称" SortField="GDNAME" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="20px" DataField="DEPTID" HeaderText="名称" SortField="DEPTID" TextAlign="Center" Hidden="true" />
+                        <f:TemplateField HeaderText="商品名称" Width="180px" ColumnID="COUNTTITLE">
+                            <ItemTemplate>
+                                <a href="#" onclick="javascript:addTab('<%#Eval("GDSEQ") %>|<%#Eval("DEPTID")%>','spdapply/DepartmentSingleBudget.aspx','科室单品月度执行分析')"><%#Eval("GDNAME") %></a>
+                            </ItemTemplate>
+                        </f:TemplateField>
+                        <f:BoundField Width="150px" DataField="GDSPEC" HeaderText="商品规格" SortField="GDSPE" />
+                        <f:BoundField Width="60px" DataField="UNIT" HeaderText="单位" SortField="UNIT" TextAlign="Center" />
+                        <f:BoundField Width="180px" DataField="PRODUCTER" HeaderText="生产产商" SortField="PRODUCTER" />
+                        <f:BoundField Width="80px" DataField="HSJJ" HeaderText="单价" TextAlign="Center" SortField="HSJJ" />
+                        <f:BoundField Width="100px" DataField="SPDSL" HeaderText="SPD消耗数量" TextAlign="Center" SortField="SPDSL" ColumnID="SPDSL" />
+                        <f:BoundField Width="80px" DataField="PDSL" HeaderText="盘点数量" TextAlign="Center" SortField="PDSL" ColumnID="PDSL"/>
+                        <f:BoundField Width="100px" DataField="STOCKSL" HeaderText="系统库存数量" TextAlign="Center" SortField="STOCKSL" ColumnID="STOCKSL" />
+                        <f:BoundField Width="80px" DataField="YSSL" HeaderText="预算数量" TextAlign="Center" SortField="YSSL" ColumnID="YSSL"/>
+                        <f:BoundField Width="100px" DataField="SJSL" HeaderText="实际消耗数量" TextAlign="Center" SortField="SJSL" ColumnID="SJSL"/>
+                        <f:BoundField Width="80px" DataField="YSJE" HeaderText="预算金额" TextAlign="Center" SortField="YSJE" ColumnID="YSJE"/>
+                        <f:BoundField Width="100px" DataField="SJJE" HeaderText="实际消耗金额" TextAlign="Center" SortField="SJJE" ColumnID="SJJE" />
+                        <f:BoundField Width="70px" DataField="perRate" HeaderText="占比" TextAlign="Center" SortField="perRate" DataFormatString="{0:p2}" Hidden="true" />
+
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+    <script src="../res/my97/WdatePicker.js" type="text/javascript"></script>
+    <script type="text/javascript">
+      <%--  var tbxMyBoxClientID = '<%= dpkMonth.ClientID %>';
+        F.ready(function () {
+            var tbxMyBox = F(tbxMyBoxClientID);
+            tbxMyBox.onTriggerClick = function () {
+                WdatePicker({
+                    el: tbxMyBoxClientID + '-inputEl',
+                    dateFmt: 'yyyy-MM',
+                    onpicked: function () {
+                        // 确认选择后，执行触发器输入框的客户端验证
+                        tbxMyBox.validate();
+                    }
+                });
+            };
+
+        });--%>
+        //向父页面增加tab签的 客户端代码
+        var basePath = '<%= ResolveUrl("~/") %>';
+        function addTab(id, navurl, tabname) {
+            var gdseq = id.split('|')[0];
+            var deptid = id.split('|')[1];
+            console.log(basePath + navurl + "?gdseq=" + gdseq + "&deptid=" + deptid);
+            //parent.addExampleTab.apply(null, ['hello_FineUIPro_tab' + id, basePath + navurl + "?gdseq=" + gdseq + "&deptid=" + deptid, tabname, basePath + 'res/images/filetype/vs_aspx.png', true]);
+            top.F.addMainTab(
+              parent.F(top.mainTabStripClientID),
+                {
+                    id: 'hello_fineui_tab' + id,
+                    iframeUrl: basePath + navurl + "?gdseq=" + gdseq + "&deptid=" + deptid,
+                    title: tabname,
+                    closable: true,
+                    refreshWhenExist: true,
+                    icon: basePath + '/res/images/filetype/vs_aspx.png'
+                });
+        }
+    </script>
+</body>
+</html>

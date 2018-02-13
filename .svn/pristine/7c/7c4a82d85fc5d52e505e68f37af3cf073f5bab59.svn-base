@@ -1,0 +1,133 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="ToDoSetup.aspx.cs" Inherits="SPDProject.SpdDictionary.ToDoSetup" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>待办事宜定义</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="MainPanel"
+            runat="server" />
+        <f:Panel ID="MainPanel" runat="server" AutoScroll="false" BodyPadding="0px" Layout="VBOX" ShowBorder="false" ShowHeader="false">
+            <Items>
+                <f:Grid ID="GridToDoType" ShowBorder="false" ShowHeader="false" BoxFlex="1" AnchorValue="100% -130" AutoScroll="true" EnableColumnLines="true"
+                    EnableCheckBoxSelect="false" DataKeyNames="SUPID" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridToDoType_RowDoubleClick"
+                    runat="server" OnPageIndexChange="GridToDoType_PageIndexChange" PageSize="50" IsDatabasePaging="true" AllowPaging="true">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:TriggerBox ID="tgbSearch" Label="查询信息" EmptyText="输入待办事宜、代办编码或代办名称" TriggerIcon="Search" Width="450px" runat="server" OnTriggerClick="tgbSearch_TriggerClick"></f:TriggerBox>
+
+                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                <f:Button ID="btnNew" Text="新增" Icon="Add" runat="server" OnClick="btnNew_Click" EnableDefaultState="false"></f:Button>
+                                <f:Button ID="btnDelete" Text="删除" Icon="Delete" runat="server" ConfirmText="是否确认删除此信息?" OnClick="btnDelete_Click" EnableDefaultState="false"></f:Button>
+                                <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                <f:Button ID="btnSave" Text="保存" Icon="Disk" runat="server" ValidateForms="FormProducer" OnClick="btnSave_Click" EnableDefaultState="false"></f:Button>
+
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Columns>
+                        <f:BoundField Width="90px" DataField="DOTYPE" HeaderText="待办事谊编码" />
+                        <f:BoundField Width="170px" DataField="DONAME" HeaderText="待办事谊名称" />
+                        <f:BoundField Width="120px" DataField="TODOTYPE" HeaderText="执行类别" />
+                        <f:BoundField Width="130px" DataField="ROLELISTNAME" HeaderText="角色列表" />
+                        <f:BoundField Width="60px" DataField="FLAGNAME" HeaderText="状态" />
+                        <f:BoundField Width="160px" DataField="FUNCNAME" HeaderText="调用功能" />
+                        <f:BoundField Width="100px" DataField="ISRANGENAME" HeaderText="是否按数据范围分发" />
+                        <f:BoundField Width="60px" DataField="PARA" HeaderText="参数" />
+                        <f:BoundField Width="100px" DataField="MEMO" HeaderText="备注说明" />
+                    </Columns>
+                </f:Grid>
+
+                <f:Panel ID="PanelCond" ShowBorder="false" BodyPadding="0px" ShowHeader="false" runat="server">
+                    <Items>
+                        <f:Form ID="FormDoType" ShowBorder="false" BodyPadding="10px 0px 10px 10px"
+                            CssStyle="border-top: 1px solid #99bce8;" ShowHeader="False" runat="server" LabelWidth="110px">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox ID="tbxDOTYPE" Label="待办事谊编码" EmptyText="设定后不可更改" runat="server" Required="true" ShowRedStar="true" MaxLength="50" />
+                                        <f:TextBox ID="tbxDONAME" Label="待办事谊名称" runat="server" Required="true" ShowRedStar="true" MaxLength="60" />
+                                        <f:DropDownList runat="server" ID="ddlEXECTYPE" Label="执行类别" ShowRedStar="true" >
+                                            <f:ListItem Text="点击即完结" Value="0" />
+                                            <f:ListItem Text="单据审核/其它事务触发才完结" Value="1" />
+                                        </f:DropDownList>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:DropDownList ID="lstROLELIST" runat="server" Label="角色列表" EnableMultiSelect="true" ShowRedStar="true"/>
+                                        <f:RadioButtonList ID="rblISRANGE" runat="server" Label="数据范围" ShowRedStar="true" >
+                                            <f:RadioItem Text="全部" Value="N" Selected="true" />
+                                            <f:RadioItem Text="部分" Value="Y" />
+                                        </f:RadioButtonList>
+                                        <f:DropDownList runat="server" ID="ddlFLAG" Label="状态" ForceSelection="true" ShowRedStar="true">
+                                            <f:ListItem Text="未审核" Value="N" Selected="true" />
+                                            <f:ListItem Text="审核通过" Value="Y" />
+                                        </f:DropDownList>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:DropDownList runat="server" ID="lstFUNCID" Label="调用功能"  EnableEdit="true"  ForceSelection="true" ShowRedStar="true">
+                                           <%-- <Listeners>
+                                                <f:Listener Event="beforequery" Handler="onDropDownquery" />
+                                            </Listeners>--%>
+                                        </f:DropDownList>
+                                        <f:TextBox ID="tbxPARA" Label="参数" runat="server" />
+                                        <f:TextBox ID="tbxMEMO" Label="备注说明" runat="server" />
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:HiddenField ID="hfdIsNew" runat="server" Text="Y" />
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+
+            </Items>
+        </f:Panel>
+    </form>
+    <script>
+        var GridToDoType = '<%=GridToDoType.ClientID%>';
+        function replaceTag(grid) {
+
+            $('#' + grid).find('.f-grid-cell-inner').each(function (i) {
+                $this = $(this);
+                $this.css('white-space', 'normal');
+                $this.css('text-overflow', 'inherit')
+                $this.html($this.html().replace(/&lt;s&gt;/g, "<s style='color:red'>"));
+                $this.html($this.html().replace(/&lt;\/s&gt;/g, "</s>"));
+            });
+        }
+        F.ready(function () {
+            var grid = F(GridToDoType);
+
+            grid.on('columnhide', function () {
+                replaceTag(GridToDoType);
+
+            });
+
+            grid.on('columnshow', function () {
+                replaceTag(GridToDoType);
+
+            });
+
+            grid.on('dataload', function () {
+                replaceTag(GridToDoType);
+
+            });
+
+            replaceTag(GridToDoType);
+
+        });
+    </script>
+</body>
+</html>

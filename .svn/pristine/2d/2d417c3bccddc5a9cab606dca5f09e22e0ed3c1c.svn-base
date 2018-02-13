@@ -1,0 +1,76 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="InterventionAudit.aspx.cs" Inherits="SPDProject.SpdXM.XJ_CJRM.InterventionAudit" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>介入品审核</title>
+    <style type="text/css">
+        .x-grid-row.highlight td {
+            background-color: lightgreen;
+            background-image: none;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" runat="server" AutoSizePanelID="PanelMain" />
+        <f:Panel ID="PanelMain" ShowHeader="false" ShowBorder="false" Layout="VBox" runat="server">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar2" runat="server">
+                    <Items>
+                        <f:ToolbarFill runat="server"></f:ToolbarFill>
+                        <f:Button ID="btClear" Icon="Erase" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnPrint" Icon="Printer" Text="打 印" EnablePostBack="false" Hidden="true" runat="server" OnClientClick="btnPrint_BillKC()" />
+                        <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出" OnClick="btExport_Click" ConfirmText="是否导出当前商品信息?" DisableControlBeforePostBack="false"
+                            EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnSearch" runat="server" Text="查 询" Icon="Magnifier" OnClick="btnSearch_Click"></f:Button>
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                    ShowHeader="False" LabelWidth="70px" runat="server">
+                    <Rows>
+                        <f:FormRow ColumnWidths="80% 20%">
+                            <Items>
+                                <f:TriggerBox ID="trbSearch" runat="server" EmptyText="商品编码、名称、助记码或注册证号" Label="商品信息" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick" />
+                                <f:DropDownList ID="ddlISDBP" runat="server" Label="代 表 品">
+                                    <f:ListItem Text="全部" Value="ALL" Selected="true" />
+                                    <f:ListItem Text="是" Value="Y" />
+                                    <f:ListItem Text="否" Value="N" />
+                                </f:DropDownList>
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow>
+                            <Items>
+                                <f:DropDownList ID="ddlSupplier" runat="server" Label="供 应 商"></f:DropDownList>
+                                <f:DropDownList ID="ddlProductor" runat="server" Label="生产厂家"></f:DropDownList>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridGoods" runat="server" ShowBorder="false" ShowHeader="false" BoxFlex="1" CssStyle="border-top: 1px solid #99bce8;"
+                    EnableCheckBoxSelect="True" DataKeyNames="GDSEQ" EnableColumnLines="true" EnableTextSelection="true" AllowColumnLocking="true"
+                    AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange" PageSize="100" OnRowDataBound="GridGoods_RowDataBound">
+                    <Columns>
+                        <f:BoundField Width="100px" DataField="GDSEQ" DataSimulateTreeLevelField="TreeLevel" HeaderText="流水码" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="60px" DataField="ISDBP" HeaderText="代表品" TextAlign="Center" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="150px" DataField="GDNAME" SortField="GDNAME" HeaderText="商品名称" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="130px" DataField="GDSPEC" HeaderText="商品规格" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="60px" DataField="HSJJ" HeaderText="价格" TextAlign="Right" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="70px" DataField="UNITNAME" SortField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                        <f:BoundField Width="180px" DataField="PRODUCER" HeaderText="生产厂家" />
+                        <f:BoundField Width="200px" DataField="PZWH" HeaderText="批准文号" />
+                        <f:BoundField Width="230px" DataField="SUPPLIER" HeaderText="供应商" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="highlightRows" runat="server" Label="用来记录需要变色的代表品行数"></f:HiddenField>
+    </form>
+</body>
+</html>

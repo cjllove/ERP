@@ -1,0 +1,214 @@
+﻿using XTBase;
+using FineUIPro;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Text;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPDictionary
+{
+    public partial class HisSetup : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlGoodsType, "DDL_GOODS_TYPE");
+
+            string strSql = @"
+                        SELECT '--请选择--' NAME,'%' CODE,0 TreeLevel,1 islast  FROM dual
+                              union all
+                              select '【'||code||'】'||name name,code,(class-1) TreeLevel,decode(islast,'Y',1,0) islast
+                                          from sys_category
+                         ORDER BY code ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            ddlCATID.DataEnableSelectField = "EnableSelect";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;
+            ddlCATID.DataBind();
+        }
+
+        private void DataSearch()
+        {
+            string strSearch = @" select G.GDSEQ,
+                                        G.GDNAME,
+                                        F_GETHISINFO(G.GDSEQ,'GDSPEC') GDSPEC,
+                                        G.ZDKC,G.ZGKC,G.DAYXS,                                  
+                                      a.name UNITNAME,G.CATID0,
+                                      b.name UNITNAME_ORDER，
+                                        gt.name as typename,
+
+                                        '['||cat.code||']'||cat.name as catname，
+                                      g.str3 ,nvl(g.num1,1) num1,g.hiscode,g.hisname
+                                 from DOC_GOODS G,
+                                      doc_goodsunit a,
+                                      doc_goodsunit b,
+                                       doc_goodstype gt,
+                                       sys_category cat
+                                where g.ISDELETE = 'N' 
+                                      and G.UNIT=a.code(+)
+                                        and g.catid0 = gt.code(+) 
+                                      and g.catid = cat.code(+)
+                                      and decode(G.UNIT_ORDER,'D',NVL(UNIT_DABZ,G.UNIT),'Z',NVL(G.UNIT_ZHONGBZ,G.UNIT),G.UNIT) = b.code(+)
+                                      and (g.gdseq like '{0}' or g.gdname like '{0}')
+                                      and g.catid0 like '{1}'
+                                      and g.catid like '{2}'";
+            StringBuilder strSql = new StringBuilder("");
+            String gdseq = "%";
+            String catId0 = "%";
+            String catId = "%";
+            if (!string.IsNullOrWhiteSpace(tbxGoodsName.Text))
+            {
+                gdseq = "%"+tbxGoodsName.Text+"%";
+            }
+            if (!string.IsNullOrWhiteSpace(ddlGoodsType.SelectedValue))
+            {
+                catId0 = ddlGoodsType.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(ddlCATID.SelectedValue))
+            {
+                catId = ddlCATID.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql.Append(string.Format(strSearch, gdseq, catId0, catId));
+            }
+            
+            strSql.Append(" order by g.GDSEQ,g.GDNAME");
+            int total = 0;
+            GridGoods.DataSource = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, strSql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void bntSave_Click(object sender, EventArgs e)
+        {
+            String uptSql = "update doc_goods set NUM1={1},str3='{2}',hiscode='{3}',hisname='{4}' where GDSEQ='{0}'";
+            List<CommandInfo> lci = new List<CommandInfo>();
+            
+            JArray ja = GridGoods.GetModifiedData();
+            foreach (JToken jt in ja) {
+                JArray theJa = JArray.FromObject(jt);
+
+                object[] keys = GridGoods.DataKeys[Convert.ToInt16(theJa[0])];
+                String gdseq = keys[0].ToString();
+                int num1 = Convert.ToInt16(keys[1]);
+                String str3 = keys[2].ToString();
+                String hiscode = keys[3].ToString();
+                String hisname = keys[4].ToString();
+
+                JObject jo = JObject.FromObject(theJa[2]);
+                if (!string.IsNullOrWhiteSpace(jo.Value<String>("NUM1")))
+                {
+                    num1 = Convert.ToInt16(jo.Value<String>("NUM1"));
+                }
+                if (!string.IsNullOrWhiteSpace(jo.Value<String>("STR3")))
+                {
+                    str3= jo.Value<String>("STR3");
+                }
+                if (!string.IsNullOrWhiteSpace(jo.Value<String>("HISCODE")))
+                {
+                    hiscode = jo.Value<String>("HISCODE");
+                }
+                if (!string.IsNullOrWhiteSpace(jo.Value<String>("HISNAME")))
+                {
+                    hisname = jo.Value<String>("HISNAME");
+                }
+
+                lci.Add(new CommandInfo(String.Format(uptSql,gdseq,num1,str3,hiscode,hisname), null));
+            }
+            DbHelperOra.ExecuteSqlTran(lci);
+            DataSearch();
+        }
+
+        protected void btExp_Click(object sender, EventArgs e)
+        {
+            string strSearch = @"select 
+                                  gt.name 商品大类,
+                                  G.GDSEQ 商品编码,
+                                  G.GDNAME 商品名称,
+                                  F_GETHISINFO(G.GDSEQ, 'GDSPEC') 规格容量,
+                                  a.name 单位,
+                                  g.hiscode HIS编码,
+                                  g.hisname HIS名称,
+                                  g.str3 HIS规格,
+                                  nvl(g.num1, 1) HIS系数
+                                  from DOC_GOODS     G,
+                                       doc_goodsunit a,
+                                       doc_goodsunit b,
+                                       doc_goodstype gt,
+                                       sys_category  cat
+                                 where g.ISDELETE = 'N'
+                                   and G.UNIT = a.code(+)
+                                   and g.catid0 = gt.code(+)
+                                   and g.catid = cat.code(+)
+                                   and decode(G.UNIT_ORDER,
+                                              'D',
+                                              NVL(UNIT_DABZ, G.UNIT),
+                                              'Z',
+                                              NVL(G.UNIT_ZHONGBZ, G.UNIT),
+                                              G.UNIT) = b.code(+)
+                                   and (g.gdseq like '{0}' or g.gdname like '{0}')
+                                   and g.catid0 like '{1}'
+                                   and g.catid like '{2}'";
+            string strSql = "";
+            String gdseq = "%";
+            String catId0 = "%";
+            String catId = "%";
+            if (!string.IsNullOrWhiteSpace(tbxGoodsName.Text))
+            {
+                gdseq = "%"+tbxGoodsName.Text+"%";
+            }
+            if (!string.IsNullOrWhiteSpace(ddlGoodsType.SelectedValue))
+            {
+                catId0 = ddlGoodsType.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(ddlCATID.SelectedValue))
+            {
+                catId = ddlCATID.SelectedValue;
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += string.Format(strSearch, gdseq, catId0, catId);
+            }
+            
+            strSql+=" order by g.GDSEQ,g.GDNAME";
+
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "HIS档案导出", "HIS档案导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+        
+    }
+}

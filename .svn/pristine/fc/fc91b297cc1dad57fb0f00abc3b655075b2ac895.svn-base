@@ -1,0 +1,1 @@
+﻿<%@ WebService Language="C#" CodeBehind="PlatformWebService.asmx.cs" Class="SPDProject.WeiGo.PlatformWebService" %>

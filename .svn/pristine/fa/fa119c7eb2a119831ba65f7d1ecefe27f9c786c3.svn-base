@@ -1,0 +1,311 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class GZ_Consumable : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now.AddDays(-7);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            DatePicker1.SelectedDate = DateTime.Now.AddDays(-7);
+            DatePicker2.SelectedDate = DateTime.Now;
+            DepartmentBind.BindDDL("DDL_SYS_DEPARTMENTRANGE", UserAction.UserID, ddlDEPTID);
+            DepartmentBind.BindDDL("DDL_SYS_DEPARTMENTRANGE", UserAction.UserID, ddlDEPTID2);
+            USERID.Text = UserAction.UserID;
+        }
+        #region TAB1
+        protected void Tab1btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            dpkDATE1.SelectedDate = DateTime.Now.AddDays(-7);
+            dpkDATE2.SelectedDate = DateTime.Now;
+        }
+        private string Tab1GetSearchSql()
+        {
+            string strSql = @"SELECT C.GDSEQ,
+                               C.GDNAME,
+                               E.ZJM,
+                               C.GDSPEC,
+                               C.UNIT,
+                               f_getunitname(C.UNIT) UNITNAME,
+                               C.HSJJ,
+                               ABS(D.SL) SL,
+                               ABS(D.HSJE) HSJE,
+                               E.PPID,
+                               D.SUPID,
+                               f_getsuppliername(D.SUPID) SUPPLIERNAME,
+                               A.DEPTID,
+                               f_getdeptname(A.DEPTID) DEPTNAME,
+                               A.CUSTID,
+                               A.STR7
+                          from DAT_XS_DOC A, SYS_CODEVALUE B,DAT_XS_COM C,DAT_GOODSJXC D,DOC_GOODS E
+                         WHERE A.FLAG = B.CODE
+                           AND A.SEQNO=C.SEQNO 
+                           AND C.SEQNO = D.BILLNO 
+                           AND C.ROWNO = D.ROWNO
+                           AND C.GDSEQ=E.GDSEQ
+                           AND B.TYPE = 'DIC_BILLSTATUS'
+                           AND A.BILLTYPE = 'XSG'
+                           AND A.XSTYPE = '1'
+                           AND A.FLAG='J' ";
+            strSql += string.Format(@"AND A.deptid in (select code
+                                            FROM SYS_DEPT
+                                           where type <> '1'
+                                             and F_CHK_DATARANGE(CODE, '{0}') = 'Y')", UserAction.UserID);
+            if (!PubFunc.StrIsEmpty(txbGDSEQ.Text.Trim())) 
+                strSql += " and (C.GDSEQ like '" + txbGDSEQ.Text.Trim() + "' OR C.GDSEQ like '" + txbGDSEQ.Text.Trim().ToUpper() + "' OR C.GDSEQ like '" + txbGDSEQ.Text.Trim().ToLower()
+                       + "' OR C.GDNAME like '" + txbGDSEQ.Text.Trim() + "' OR C.GDNAME like '" + txbGDSEQ.Text.Trim().ToUpper() + "' OR C.GDNAME like '" + txbGDSEQ.Text.Trim().ToLower()
+                       + "' OR E.ZJM like '" + txbGDSEQ.Text.Trim() + "' OR E.ZJM like '" + txbGDSEQ.Text.Trim().ToUpper() + "' OR E.ZJM like '" + txbGDSEQ.Text.Trim().ToLower() +"')";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strSql += " and A.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            if (!PubFunc.StrIsEmpty(tbxNAME.Text.Trim())) strSql += " and A.DEPTID LIKE '" + tbxNAME.Text.Trim() + "'";
+            if (!PubFunc.StrIsEmpty(TextZYH.Text.Trim())) strSql += " and A.DEPTID LIKE '" + TextZYH.Text.Trim() + "'";
+            strSql += string.Format(@" AND A.XSRQ >= TO_DATE('" + dpkDATE1.Text.Trim() + "', 'YYYY-MM-DD')");
+            strSql += string.Format(@" AND A.XSRQ < TO_DATE('" + dpkDATE2.Text.Trim() + "', 'YYYY-MM-DD') + 1");
+            strSql += string.Format(@" ORDER BY C.GDSEQ DESC");
+            return strSql;
+        }
+        private void Tab1DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(dpkDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(dpkDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (dpkDATE1.SelectedDate > dpkDATE2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(Tab1GridGoods.PageIndex, Tab1GridGoods.PageSize, Tab1GetSearchSql(), ref total);
+
+            Tab1GridGoods.RecordCount = total;
+            Tab1GridGoods.DataSource = dtData;
+            Tab1GridGoods.DataBind();
+            //计算合计数量
+            if (dtData != null && dtData.Rows.Count > 0)
+            {
+                decimal slTotal = 0, lsjeTotal = 0, hsjeTotal = 0, bhsjeTotal = 0;
+                foreach (DataRow row in dtData.Rows)
+                {
+                    //slTotal += Convert.ToDecimal(row["SL"] ?? "0");
+                    //lsjeTotal += Convert.ToDecimal(row["LSJE"] ?? "0");
+                    hsjeTotal += Convert.ToDecimal(row["HSJE"] ?? "0");
+                    //bhsjeTotal += Convert.ToDecimal(row["BHSJE"] ?? "0");
+                }
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                //summary.Add("SL", slTotal);
+                //summary.Add("LSJE", lsjeTotal.ToString("F2"));
+                summary.Add("HSJE", hsjeTotal.ToString("F2"));
+                //summary.Add("BHSJE", bhsjeTotal.ToString("F2"));
+                Tab1GridGoods.SummaryData = summary;
+            }
+        }
+        protected void Tab1btSearch_Click(object sender, EventArgs e)
+        {
+            Tab1DataSearch();
+        }
+        protected void Tab1btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(Tab1GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有查询到符合条件的进销存数据,无法导出！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string[] columnNames = new string[Tab1GridGoods.Columns.Count - 1];
+            for (int index = 1; index < Tab1GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = Tab1GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品进销存信息", string.Format("商品进销存信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+
+            //if (GridGoods.Rows.Count <= 0)
+            //{
+            //    Alert.Show("请先选择要导出的商品进销存明细！");
+            //    return;
+            //}
+            //string strSql = @"";
+            //string strWhere = " ";
+            //strWhere += "";
+            //if (strWhere != " ") strSql = strSql + strWhere;
+            //DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            //ExcelHelper.ExportByWeb(dt, "导出信息名称", "导出文件名" + DateTime.Now.ToString("yyyyMMdd") + ".xls");
+        }
+        protected void Tab1GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            Tab1GridGoods.PageIndex = e.NewPageIndex;
+            Tab1DataSearch();
+        }
+        protected void Tab1GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            Tab1GridGoods.SortDirection = e.SortDirection;
+            Tab1GridGoods.SortField = e.SortField;
+            Tab1DataSearch();
+        }
+        #endregion
+        #region TAB2
+        protected void Tab2btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Form2);
+            DatePicker1.SelectedDate = DateTime.Now.AddDays(-7);
+            DatePicker2.SelectedDate = DateTime.Now;
+        }
+        private string Tab2GetSearchSql()
+        {
+            string strSql = @"SELECT C.GDSEQ,
+                               C.GDNAME,
+                               E.ZJM,
+                               C.GDSPEC,
+                               C.UNIT,
+                               f_getunitname(C.UNIT) UNITNAME,
+                               C.HSJJ,
+                               SUM(ABS(D.SL) )SL,
+                               SUM(ABS(D.HSJE) )HSJE,
+                               E.PPID,
+                               D.SUPID,
+                               f_getsuppliername(D.SUPID) SUPPLIERNAME,
+                               A.DEPTID,
+                               f_getdeptname(A.DEPTID) DEPTNAME
+                          from DAT_XS_DOC A, SYS_CODEVALUE B,DAT_XS_COM C,DAT_GOODSJXC D,DOC_GOODS E
+                         WHERE A.FLAG = B.CODE
+                           AND A.SEQNO=C.SEQNO 
+                           AND C.SEQNO = D.BILLNO 
+                           AND C.ROWNO = D.ROWNO
+                           AND C.GDSEQ=E.GDSEQ
+                           AND B.TYPE = 'DIC_BILLSTATUS'
+                           AND A.BILLTYPE = 'XSG'
+                           AND A.XSTYPE = '1'
+                           AND A.FLAG='J' ";
+            strSql += string.Format(@"AND A.deptid in (select code
+                                            FROM SYS_DEPT
+                                           where type <> '1'
+                                             and F_CHK_DATARANGE(CODE, '{0}') = 'Y')", UserAction.UserID);
+            if (!PubFunc.StrIsEmpty(TextBox1.Text.Trim()))
+                strSql += " and (C.GDSEQ like '" + TextBox1.Text.Trim() + "' OR C.GDSEQ like '" + TextBox1.Text.Trim().ToUpper() + "' OR C.GDSEQ like '" + TextBox1.Text.Trim().ToLower()
+                       + "' OR C.GDNAME like '" + TextBox1.Text.Trim() + "' OR C.GDNAME like '" + TextBox1.Text.Trim().ToUpper() + "' OR C.GDNAME like '" + TextBox1.Text.Trim().ToLower()
+                       + "' OR E.ZJM like '" + TextBox1.Text.Trim() + "' OR E.ZJM like '" + TextBox1.Text.Trim().ToUpper() + "' OR E.ZJM like '" + TextBox1.Text.Trim().ToLower() + "')";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID2.SelectedValue)) strSql += " and A.DEPTID = '" + ddlDEPTID2.SelectedValue + "'";
+            strSql += string.Format(@" AND A.XSRQ >= TO_DATE('" + DatePicker1.Text.Trim() + "', 'YYYY-MM-DD')");
+            strSql += string.Format(@" AND A.XSRQ < TO_DATE('" + DatePicker2.Text.Trim() + "', 'YYYY-MM-DD') + 1");
+            strSql += string.Format(@" GROUP BY C.GDSEQ,C.GDNAME,E.ZJM,C.GDSPEC,C.UNIT,f_getunitname(C.UNIT),C.HSJJ,E.PPID,D.SUPID, f_getsuppliername(D.SUPID),A.DEPTID,f_getdeptname(A.DEPTID)");
+            strSql += string.Format(@" ORDER BY C.GDSEQ DESC");
+            return strSql;
+        }
+        private void Tab2DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(DatePicker1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(DatePicker2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (DatePicker1.SelectedDate > DatePicker2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(Tab2GridGoods.PageIndex, Tab2GridGoods.PageSize, Tab2GetSearchSql(), ref total);
+
+            Tab2GridGoods.RecordCount = total;
+            Tab2GridGoods.DataSource = dtData;
+            Tab2GridGoods.DataBind();
+            //计算合计数量
+            if (dtData != null && dtData.Rows.Count > 0)
+            {
+                decimal slTotal = 0, lsjeTotal = 0, hsjeTotal = 0, bhsjeTotal = 0;
+                foreach (DataRow row in dtData.Rows)
+                {
+                    //slTotal += Convert.ToDecimal(row["SL"] ?? "0");
+                    //lsjeTotal += Convert.ToDecimal(row["LSJE"] ?? "0");
+                    hsjeTotal += Convert.ToDecimal(row["HSJE"] ?? "0");
+                    //bhsjeTotal += Convert.ToDecimal(row["BHSJE"] ?? "0");
+                }
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                //summary.Add("SL", slTotal);
+                //summary.Add("LSJE", lsjeTotal.ToString("F2"));
+                summary.Add("HSJE", hsjeTotal.ToString("F2"));
+                //summary.Add("BHSJE", bhsjeTotal.ToString("F2"));
+                Tab2GridGoods.SummaryData = summary;
+            }
+        }
+        protected void Tab2btSearch_Click(object sender, EventArgs e)
+        {
+            Tab2DataSearch();
+        }
+        protected void Tab2btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(Tab2GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有查询到符合条件的进销存数据,无法导出！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string[] columnNames = new string[Tab2GridGoods.Columns.Count - 1];
+            for (int index = 1; index < Tab2GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = Tab2GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品进销存信息", string.Format("商品进销存信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+
+            //if (GridGoods.Rows.Count <= 0)
+            //{
+            //    Alert.Show("请先选择要导出的商品进销存明细！");
+            //    return;
+            //}
+            //string strSql = @"";
+            //string strWhere = " ";
+            //strWhere += "";
+            //if (strWhere != " ") strSql = strSql + strWhere;
+            //DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            //ExcelHelper.ExportByWeb(dt, "导出信息名称", "导出文件名" + DateTime.Now.ToString("yyyyMMdd") + ".xls");
+        }
+        protected void Tab2GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            Tab2GridGoods.PageIndex = e.NewPageIndex;
+            Tab2DataSearch();
+        }
+        protected void Tab2GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            Tab2GridGoods.SortDirection = e.SortDirection;
+            Tab2GridGoods.SortField = e.SortField;
+            Tab2DataSearch();
+        }
+        #endregion
+        
+        
+        
+    }
+}

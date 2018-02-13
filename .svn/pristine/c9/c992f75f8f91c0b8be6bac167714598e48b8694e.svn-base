@@ -1,0 +1,68 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="OperationLog.aspx.cs" Inherits="SPDProject.SpdQuery.OperationLog" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+    <style>  
+        .f-grid-cell.f-grid-cell-MEMO .f-grid-cell-inner
+        {
+            white-space: normal;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1"
+            runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBOX"
+            ShowHeader="false">
+            <Items>
+                <f:Form ID="FormCond" runat="server" ShowBorder="false" BodyPadding="10px" ShowHeader="False" LabelWidth="80px">
+                    <Rows>
+                        <f:FormRow ColumnWidths="20% 20% 25% 25% 10% ">
+                            <Items>
+                                <f:TriggerBox ID="trbSearch" runat="server" Label="查询内容" ShowTrigger="false" OnTriggerClick="btnSearch_Click" />
+                                <f:DropDownList ID="lstFuncid" runat="server" Label="功能号" EnableEdit="true" ForceSelection="true" />
+                                <f:DatePicker ID="lstLRRQ1" runat="server" Label="开始日期" Required="true" ShowRedStar="true" />
+                                <f:DatePicker ID="lstLRRQ2" runat="server" Label="结束日期" Required="true" ShowRedStar="true" />
+                                <f:Button ID="btnSearch" CssStyle="float:right;" OnClick="btnSearch_Click" Icon="Magnifier" EnableDefaultState="false"
+                                    Text="查 询" runat="server">
+                                </f:Button>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridLog" BoxFlex="1" AnchorValue="100% -70" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;" PageSize="100"
+                    AllowSorting="true" OnSort="GridLog_Sort" AutoScroll="true" runat="server" DataKeyNames="userid" EnableColumnLines="true" EnableTextSelection="true"
+                    AllowPaging="true" IsDatabasePaging="true" OnPageIndexChange="GridLog_PageIndexChange">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" />
+                        <f:BoundField Width="120px" DataField="USERID" ColumnID="USERID" HeaderText="登录账号" />
+                        <f:BoundField Width="120px" DataField="FUNCID" ColumnID="FUNCID" HeaderText="功能号" />
+                        <f:BoundField Width="180px" DataField="MEMO" ColumnID="MEMO" HeaderText="信息描述" ExpandUnusedSpace="true" /> 
+                        <f:BoundField Width="230px" DataField="STATION" ColumnID="STATION" HeaderText="IP地址" Hidden="true"/>
+                        <f:BoundField Width="180px" DataField="RQSJ" ColumnID="RQSJ" HeaderText="操作时间" DataFormatString="{0:yyyy-MM-dd}" />
+                       <%-- <f:TemplateField ColumnID="expander" RenderAsRowExpander="true">
+                            <ItemTemplate>
+                                <div class="expander">
+                                    <p>
+                                        <strong>备注内容：</strong>
+                                        <p><%# Eval("MEMO") %></p>
+                                    </p>
+                                </div>
+                            </ItemTemplate>
+                        </f:TemplateField>--%>
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+        <f:Window ID="Window1" runat="server" IsModal="true" Hidden="true" Target="Parent"
+            EnableIFrame="true" IFrameUrl="about:blank" Width="820px" Height="313px" AutoScroll="false"
+            OnClose="Window1_Close">
+        </f:Window>
+    </form>
+</body>
+</html>

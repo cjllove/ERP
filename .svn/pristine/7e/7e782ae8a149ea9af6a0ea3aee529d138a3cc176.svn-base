@@ -1,0 +1,112 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="CodingMatching.aspx.cs" Inherits="SPDProject.SpdXM.WH_WDZXPH.CodingMatching" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>金算盘编码匹配</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStripMain" runat="server" OnCustomEvent="PageManager1_CustomEvent" />
+        <f:TabStrip ID="TabStripMain" ShowBorder="false" TabPosition="Right" EnableTabCloseMenu="false" runat="server">
+            <Tabs>
+                <f:Tab Title="商品对码" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="PanelDetail" ShowBorder="false" BodyPadding="0px" Layout="HBox" BoxConfigChildMargin="0 5 0 0"
+                            BoxConfigAlign="Stretch" BoxConfigPosition="Start" ShowHeader="False" runat="server">
+                            <Items>
+                                <f:Grid ID="GridGoods" ShowBorder="false" ShowHeader="false" AllowSorting="false" BoxFlex="4" CssStyle="border-right: 1px solid #99bce8;"
+                                    AutoScroll="true" runat="server" DataKeyNames="GDSEQ,FLAG" EnableRowDoubleClickEvent="true" EnableColumnLines="true" OnRowDoubleClick="GridGoods_RowDoubleClick"
+                                    PageSize="100" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:TriggerBox ID="trbSearch" Label="商品信息" runat="server" LabelWidth="70px" EmptyText="可输入SPD编码或ERP编码或商品名称" TriggerIcon="Search" OnTriggerClick="btnSrch_Click" />
+                                                <f:Button ID="btnSrch" Icon="SystemSearch" Text="查 询" DisableControlBeforePostBack="false" runat="server" OnClick="btnSrch_Click" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField runat="server"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="GDSEQ" HeaderText="SPD编码" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="GDNAME" HeaderText="SPD名称" />
+                                        <f:BoundField Width="0px" DataField="FLAG" Hidden="true" />
+                                        <f:BoundField Width="50px" DataField="FLAGNAME" HeaderText="状态" TextAlign="Center" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格" />
+                                        <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="PRODUCERNAME" HeaderText="生产厂家" />
+                                        <f:BoundField Width="150px" DataField="PIZNO" HeaderText="注册证号" />
+                                        <f:BoundField Width="120px" DataField="BAR3" HeaderText="ERP编码" TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+                                <f:Grid ID="GridExcel" ShowBorder="false" ShowHeader="false" AllowSorting="false" CssStyle="border-left: 1px solid #99bce8;"
+                                    BoxFlex="3" AutoScroll="true" runat="server" DataKeyNames="HISCODE,HISNAME,HISSPEC,HISPRICE,HISUNIT" PageSize="100" IsDatabasePaging="true" EnableColumnLines="true"
+                                    AllowPaging="true" OnPageIndexChange="GridExcel_PageIndexChange" OnRowDoubleClick="GridExcel_RowDoubleClick" EnableRowDoubleClickEvent="true">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnMatch" runat="server" Icon="PackageStart" Text="导入系统" OnClick="btnMatch_Click" EnableDefaultState="false"></f:Button>
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:TriggerBox ID="tgbExlGoods" EmptyText="请输入商品名称" runat="server" TriggerIcon="Search" Label="商品" LabelWidth="50px" OnTriggerClick="btnExlSch_Click"></f:TriggerBox>
+                                                <%--<f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                                <f:Button ID="btnExlSch" runat="server" Text="查 询" Icon="SystemSearch" OnClick="btnExlSch_Click" EnableDefaultState="false"></f:Button>--%>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField runat="server"></f:RowNumberField>
+                                        <f:BoundField Width="100px" DataField="HISCODE" HeaderText="HIS编码" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="HISNAME" HeaderText="HIS名称" />
+                                        <f:BoundField Width="130px" DataField="HISSPEC" HeaderText="HIS规格" />
+                                        <f:BoundField Width="70px" DataField="HISPRICE" HeaderText="HIS价格" TextAlign="Center" />
+                                        <f:BoundField Width="50px" DataField="HISUNIT" HeaderText="HIS单位" TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="对码查询" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Grid ID="GridOut" ShowBorder="false" ShowHeader="false" AllowSorting="false"
+                            AutoScroll="true" runat="server" DataKeyNames="EAS_CODE,INF_CODE,GDSEQ" EnableColumnLines="true"
+                            PageSize="100" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridOut_PageIndexChange">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar3" runat="server">
+                                    <Items>
+                                        <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                        <f:Button ID="btnExp" Hidden="true" runat="server" Text="模板下载" Icon="DiskDownload" ConfirmText="是否下载数据匹配模板?" DisableControlBeforePostBack="false" OnClick="btnExp_Click" EnableDefaultState="false"></f:Button>
+                                        <f:Button ID="btnExlOut" runat="server" Text="导出信息" Icon="PageExcel" ConfirmText="是否将匹配信息导出?" OnClick="btnExlOut_Click" EnableDefaultState="false"></f:Button>
+                                        <f:ToolbarSeparator runat="server" />
+                                        <f:TriggerBox ID="tgbGoods" LabelWidth="80px" Width="300px" Label="商品信息" runat="server" EmptyText="可输入SPD编码或ERP编码或商品名称" TriggerIcon="Search" OnTriggerClick="btnGridOut_Click" />
+                                        <f:Button ID="btnGridOut" Icon="SystemSearch" Text="查 询" runat="server" OnClick="btnGridOut_Click" EnableDefaultState="false" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField runat="server" Width="35px" TextAlign="Center" EnablePagingNumber="true"></f:RowNumberField>
+                                <f:BoundField Width="120px" DataField="EAS_CODE" HeaderText="EAS编码" TextAlign="Center" />
+                                <f:BoundField Width="100px" DataField="INF_CODE" HeaderText="金算盘编码" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="INF_NAME" HeaderText="金算盘名称" />
+                                <f:BoundField Width="120px" DataField="INF_SPEC" HeaderText="金算盘规格" />
+                                <f:BoundField Width="90px" DataField="INF_PRICE" HeaderText="金算盘价格" TextAlign="Right" DataFormatString="{0:F2}" />
+                                <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="SPD编码" TextAlign="Center" />
+                                <f:BoundField Width="180px" DataField="GDNAME" HeaderText="SPD名称" />
+                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="SPD规格" />
+                                <f:BoundField Width="70px" DataField="HSJJ" HeaderText="SPD价格" TextAlign="Right" DataFormatString="{0:F2}" />
+                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="PRODUCERNAME" HeaderText="生产厂家" />
+                                <f:BoundField Width="150px" DataField="PZWH" HeaderText="注册证号" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+    </form>
+</body>
+</html>

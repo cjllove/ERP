@@ -1,0 +1,705 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.XJ_CJRM
+{
+    public partial class Balance : BillBase
+    {
+        public Balance()
+        {
+            BillType = "JCD";
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            lstLRRQ1.SelectedDate = DateTime.Now.AddMonths(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            dpkLRRQ.SelectedDate = DateTime.Now;
+            //object begrq = DbHelperOra.GetSingle("SELECT MAX(JCRQ) FROM DAT_JC_DOC WHERE FLAG='Y'");
+            //if (begrq == null || string.IsNullOrWhiteSpace(begrq.ToString()))
+            //{
+            //    dpkBEGINRQ.SelectedDate = DateTime.Now.AddMonths(-1);
+            //}
+            //else
+            //{
+            //    dpkBEGINRQ.MinDate = DateTime.Parse(begrq.ToString()).AddDays(1);
+            //    dpkBEGINRQ.SelectedDate = DateTime.Parse(begrq.ToString()).AddDays(1);
+            //}
+            dpkBEGINRQ.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkENDRQ.SelectedDate = DateTime.Now;
+            PubFunc.DdlDataGet(ddlReject, "DDL_BILL_REASON");
+            PubFunc.DdlDataGet("DDL_STATUSPD", ddlFLAG);
+            PubFunc.DdlDataGet("DDL_USER", ddlLRY);
+            PubFunc.DdlDataGet("DDL_SYS_DEPOT", lstDEPTID, ddlDEPTID);
+            PubFunc.DdlDataGet("DDL_GOODSTYPE", ddlCATID0);
+            ddlCATID0.SelectedValue = "2";
+            if (Request.QueryString["catid"] != null)
+            {
+                if (Request.QueryString["catid"].ToString() == "5")
+                {
+                    ddlCATID0.SelectedValue = "5";
+
+                }
+
+            }
+            tbxSEQNO.Enabled = false;
+            ddlFLAG.Enabled = false;
+            ddlLRY.Enabled = false;
+            dpkLRRQ.Enabled = false;
+            ddlLRY.SelectedValue = UserAction.UserID;
+        }
+
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected override void billSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【结算日期】！");
+                return;
+            }
+
+            string strSql = @"SELECT A.*,
+                                                  F_GETUSERNAME(LRY) LRYNAME,
+                                                  F_GETUSERNAME(SPR) SPRNAME,
+                                                  DECODE(FLAG, 'N', '新单', 'R', '已驳回', 'Y', '已审核', '未定义') FLAGNAME,
+                                                  F_GET_BILLTYPENAME(A.BILLTYPE) BILLTYPENAME,
+                                                  F_GETDEPTNAME(A.DEPTID) DEPTIDNAME
+                                        FROM DAT_JC_DOC A
+                                      WHERE 1 = 1 ";
+            string strSearch = "";
+            if (lstBILLNO.Text.Length > 0)
+            { strSearch += string.Format(" AND SEQNO LIKE '%{0}%'", lstBILLNO.Text); }
+            if (lstDEPTID.SelectedValue.Length > 0)
+            { strSearch += string.Format(" AND DEPTID='{0}'", lstDEPTID.SelectedItem.Value); }
+            strSearch += string.Format(" AND DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE   F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += string.Format(" AND (JCRQ BETWEEN TO_DATE('{0}','YYYY-MM-DD') AND (TO_DATE('{1}','YYYY-MM-DD')) + 1)", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY SEQNO DESC,DEPTID";
+            DataTable dtBill = DbHelperOra.Query(strSql).Tables[0];
+            highlightRows.Text = ",";
+            highRedlightRows.Text = ",";
+            GridList.DataSource = dtBill;
+            GridList.DataBind();
+        }
+
+        protected override void billAudit()
+        {
+            if (tbxSEQNO.Text.Length < 1) return;
+            if (ddlFLAG.SelectedValue == "Y")
+            {
+                Alert.Show("单据已被审核,请检查!");
+                return;
+            }
+
+            string Sql = "";
+            Sql = string.Format(string.Format("UPDATE DAT_JC_DOC SET FLAG='Y',SPR='{1}',SPRQ=SYSDATE WHERE SEQNO='{0}'", tbxSEQNO.Text, UserAction.UserID));
+
+            if (DbHelperOra.ExecuteSql(Sql) > 0)
+            {
+                Alert.Show("单据[" + tbxSEQNO.Text + "]审核成功!");
+                billOpen(tbxSEQNO.Text);
+                OperLog("结存单据", "审核单据【" + tbxSEQNO.Text + "】");
+            }
+            else
+            {
+                Alert.Show("单据审核失败，请刷新后重试！", "提示信息", MessageBoxIcon.Warning);
+            }
+        }
+
+        protected override void billDel()
+        {
+            if (tbxSEQNO.Text.Trim() == "")
+            {
+                Alert.Show("请选择需要删除的单据", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (ddlFLAG.SelectedValue != "N")
+            {
+                Alert.Show("非『新增』单据不能删除！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            List<string> listSql = new List<string>();
+            listSql.Add("DELETE FROM DAT_JC_DOC T WHERE T.SEQNO ='" + tbxSEQNO.Text.Trim() + "'");
+            listSql.Add("DELETE FROM DAT_JC_COM T WHERE T.SEQNO ='" + tbxSEQNO.Text.Trim() + "'");
+            if (DbHelperOra.ExecuteSqlTran(listSql))
+            {
+                Alert.Show("单据删除成功!", "消息提示", MessageBoxIcon.Information);
+                OperLog("结存单删除", "删除单据【" + tbxSEQNO.Text + "】");
+            }
+            else
+            {
+                Alert.Show("单据删除失败!", "错误提示", MessageBoxIcon.Information);
+            }
+        }
+
+        protected override void billCancel()
+        {
+            if (tbxSEQNO.Text.Length < 1)
+            { return; }
+            if (ddlFLAG.SelectedValue != "N")
+            {
+                Alert.Show("单据已被审核或驳回！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            WindowReject.Hidden = false;
+        }
+        protected void btnRejectSubmit_Click(object sender, EventArgs e)
+        {
+            if (tbxSEQNO.Text.Length < 1)
+            { return; }
+            if (ddlFLAG.SelectedValue != "N")
+            {
+                Alert.Show("单据已被审核或驳回,请检查!");
+                return;
+            }
+            if (ddlReject.SelectedText == "--请选择--")
+            {
+                Alert.Show("请选择驳回原因");
+                return;
+            }
+            string strMemo = "驳回原因：" + ddlReject.SelectedText;
+            if (!string.IsNullOrWhiteSpace(txaMemo.Text.Trim()))
+            {
+                strMemo += "；详细说明：" + txaMemo.Text;
+            }
+
+            string Sql = "";
+            Sql = string.Format("update dat_jc_doc set flag='R',SPR='{0}',SPRQ=sysdate,memo='{1}' where seqno='{2}' and flag='N'", UserAction.UserID, strMemo, tbxSEQNO.Text);
+
+            if (DbHelperOra.ExecuteSql(Sql) > 0)
+            {
+                WindowReject.Hidden = true;
+                billOpen(tbxSEQNO.Text);
+                OperLog("结存单据", "驳回单据【" + tbxSEQNO.Text + "】");
+            }
+            else
+            {
+                Alert.Show("单据驳回失败，请刷新后重试！", "提示信息", MessageBoxIcon.Warning);
+            }
+        }
+        protected override void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            billOpen(GridList.Rows[e.RowIndex].Values[1].ToString());
+        }
+
+        protected override void billOpen(string strBillno)
+        {
+            string strDocSql = "SELECT A.* FROM DAT_JC_DOC A WHERE A.SEQNO ='{0}'";
+            string strLisSQL = @"SELECT A.*, F_GETUNITNAME(A.UNIT) UNITNAME
+                                             FROM DAT_JC_COM A
+                                           WHERE A.SEQNO = '{0}'
+                                           ORDER BY A.SEQNO,A.ROWNO";
+
+            //表头进行赋值
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+            tgxGoods.Text = "";
+            TabStrip1.ActiveTabIndex = 1;
+
+            //表体赋值
+            if (tgxGoods.Text.Trim().Length > 0)
+            {
+                strLisSQL += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' OR B.BARCODE LIKE '%{0}%')", tgxGoods.Text.Trim().ToUpper());
+            }
+
+            DataTable dtBill = DbHelperOra.Query(string.Format(strLisSQL, strBillno)).Tables[0];
+            GridGoods.DataSource = dtBill;
+            GridGoods.DataBind();
+
+            decimal qcsl_sum = 0, qcje_sum = 0, rksl_sum = 0, rkje_sum = 0, cksl_sum = 0, ckje_sum = 0,
+                        kfjcsl_sum = 0, kfjcje_sum = 0, kfpdsl_sum = 0, kfpdje_sum = 0,
+                        ksjcsl_sum = 0, ksjcje_sum = 0, kspdsl_sum = 0, kspdje_sum = 0, cysl_sum = 0, cyje_sum = 0;
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    qcsl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["QCSL"] ?? "").ToString()) ? "0" : row["QCSL"]);
+                    qcje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["QCJE"] ?? "").ToString()) ? "0" : row["QCJE"]);
+                    rksl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["RKSL"] ?? "").ToString()) ? "0" : row["RKSL"]);
+                    rkje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["RKJE"] ?? "").ToString()) ? "0" : row["RKJE"]);
+                    cksl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["CKSL"] ?? "").ToString()) ? "0" : row["CKSL"]);
+                    ckje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["CKJE"] ?? "").ToString()) ? "0" : row["CKJE"]);
+                    kfjcsl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KFJCSL"] ?? "").ToString()) ? "0" : row["KFJCSL"]);
+                    kfjcje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KFJCJE"] ?? "").ToString()) ? "0" : row["KFJCJE"]);
+                    kfpdsl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KFPDSL"] ?? "").ToString()) ? "0" : row["KFPDSL"]);
+                    kfpdje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KFPDJE"] ?? "").ToString()) ? "0" : row["KFPDJE"]);
+                    ksjcsl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KSJCSL"] ?? "").ToString()) ? "0" : row["KSJCSL"]);
+                    ksjcje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KSJCJE"] ?? "").ToString()) ? "0" : row["KSJCJE"]);
+                    kspdsl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KSPDSL"] ?? "").ToString()) ? "0" : row["KSPDSL"]);
+                    kspdje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["KSPDJE"] ?? "").ToString()) ? "0" : row["KSPDJE"]);
+                    cysl_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["CYSL"] ?? "").ToString()) ? "0" : row["CYSL"]);
+                    cyje_sum += Convert.ToDecimal(string.IsNullOrWhiteSpace((row["CYJE"] ?? "").ToString()) ? "0" : row["CYJE"]);
+                }
+            }
+            //增加合计
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "汇总合计");
+            summary.Add("QCSL", qcsl_sum.ToString());
+            summary.Add("QCJE", qcje_sum.ToString("F2"));
+            summary.Add("RKSL", rksl_sum.ToString());
+            summary.Add("RKJE", rkje_sum.ToString("F2"));
+            summary.Add("CKSL", cksl_sum.ToString());
+            summary.Add("CKJE", ckje_sum.ToString("F2"));
+            summary.Add("KFJCSL", kfjcsl_sum.ToString());
+            summary.Add("KFJCJE", kfjcje_sum.ToString("F2"));
+            summary.Add("KFPDSL", kfpdsl_sum.ToString());
+            summary.Add("KFPDJE", kfpdje_sum.ToString("F2"));
+            summary.Add("KSJCSL", ksjcsl_sum.ToString());
+            summary.Add("KSJCJE", ksjcje_sum.ToString("F2"));
+            summary.Add("KSPDSL", kspdsl_sum.ToString());
+            summary.Add("KSPDJE", kspdje_sum.ToString("F2"));
+            summary.Add("CYSL", cysl_sum.ToString());
+            summary.Add("CYJE", cyje_sum.ToString("F2"));
+            GridGoods.SummaryData = summary;
+
+            if (ddlFLAG.SelectedValue == "N")
+            {
+                btnAudit.Enabled = true;
+                btnCancel.Enabled = true;
+                btnLock.Enabled = false;
+            }
+            else
+            {
+                btnAudit.Enabled = false;
+                btnCancel.Enabled = false;
+                btnLock.Enabled = false;
+            }
+            tgxGoods.Enabled = true;
+        }
+
+        protected void btnLock_Click(object sender, EventArgs e)
+        {
+            string sql = @"
+                                DECLARE
+                                  LN_COUNT NUMBER;
+                                BEGIN
+                                  SELECT COUNT(1) INTO LN_COUNT FROM SYS_PARA WHERE VALUE = 'Y' AND CODE = 'LOCKSTOCK';
+                                  --锁定系统库存
+                                  IF LN_COUNT > 0 THEN
+                                      RAISE_APPLICATION_ERROR(-20001, '已经锁定过库存，不允许再次锁定！');
+                                  END IF;
+                                  UPDATE SYS_PARA SET VALUE = 'Y' WHERE CODE = 'LOCKSTOCK';
+                                  DELETE FROM DAT_STOCKJCDAY WHERE TO_CHAR(RQSJ,'YYYY-MM-DD')=TO_CHAR(SYSDATE,'YYYY-MM-DD');
+                                  --备份当前库存
+                                  INSERT INTO DAT_STOCKJCDAY
+                                    SELECT SYSDATE,  F_GETPARA('USERCODE'), A.*
+                                      FROM DAT_GOODSSTOCK A;
+                                END;
+            ";
+            try
+            {
+                DbHelperOra.ExecuteSql(sql);
+                Alert.Show("锁定库存成功，可以开始盘点库存啦!", "消息提示", MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                Alert.Show(SPDUtility.errorParse(ex.Message), "错误提示", MessageBoxIcon.Information);
+            }
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+
+                if (flag == "N")
+                {
+                    highlightRows.Text += e.RowIndex.ToString() + ",";
+                }
+                if (flag == "R")
+                {
+                    highRedlightRows.Text += e.RowIndex.ToString() + ",";
+                }
+            }
+        }
+
+        protected void btnExp_Click(object sender, EventArgs e)
+        {
+            string strSql = string.Format(@"SELECT a.GDSEQ 商品编码,a.GDNAME 商品名称,a.UNIT 单位,a.GDSPEC 商品规格,a.HWID 货位,a.BZHL 包装含量,a.KCSL 库存数量,a.PDSL 盘点数量,a.BZSL 差异数量,a.PHID 批号,a.RQ_SC 生产日期,a.YXQZ 有效期,F_GETCATNAME(b.CATID) 产地,a.HSJJ 含税进价 
+                                  FROM dat_pd_com a,doc_goods b
+                                  WHERE A.SEQNO = '{0}' AND A.GDSEQ = B.GDSEQ ORDER by ROWNO", tbxSEQNO.Text);
+            //if (ddlPDTYPE.SelectedValue == "5")
+            //{
+            //    strSql = string.Format(@"SELECT a.GDSEQ 商品编码,a.GDNAME 商品名称,a.UNIT 单位,a.GDSPEC 商品规格,a.HWID 货位,a.BZHL 包装含量,a.BHSJE 期初数量,a.lsj 入库数量,a.lsje 使用数量,a.KCSL 结存数量,a.KCHSJE 结存金额,a.PDSL 实盘数量,a.PDSL*a.HSJJ 实盘金额,a.BZSL 差异数量,a.PHID 批号,a.RQ_SC 生产日期,a.YXQZ 有效期,F_GETCATNAME(b.CATID) 产地 
+            //                      FROM dat_pd_com a,doc_goods b
+            //                      WHERE A.SEQNO = '{0}' AND A.GDSEQ = B.GDSEQ ORDER by ROWNO", tbxSEQNO.Text);
+            //}
+            // 商品编码, 商品名称, 单位, 商品规格, 货位, 包装含量, 库存数量, 盘点数量, 差异数量, 批号, 生产日期, 有效期, 产地, 含税进价
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            DataTable dtDEPTID = DbHelperOra.Query(string.Format("SELECT NAME FROM SYS_DEPT WHERE ISDELETE='N' AND CODE='{0}'", ddlDEPTID.SelectedValue)).Tables[0];
+            //dtDEPTID.Rows[0][NAME]
+            string strExp = dtDEPTID.Rows[0][0].ToString() + "-" + lstLRRQ1.Text + "盘点单";
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, strExp, strExp + ".xls");
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            highlightRows.Text = ",";
+            highRedlightRows.Text = ",";
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        private JObject GetJObject(Dictionary<string, object> dicRecord)
+        {
+            JObject defaultObj = new JObject();
+            foreach (string key in dicRecord.Keys)
+            {
+                if (dicRecord[key] == null)
+                {
+                    defaultObj.Add(key, null);
+                }
+                else
+                {
+                    defaultObj.Add(key, dicRecord[key].ToString());
+                }
+            }
+
+            return defaultObj;
+        }
+
+        protected void tgxGoods_TriggerClick(object sender, EventArgs e)
+        {
+            if (tbxSEQNO.Text.Trim().Length < 1) return;
+        }
+
+        protected void save(string Info)
+        {
+            string[] txt = Info.Trim('#').Split('#');
+            string Sql = "";
+            string Billno = tbxSEQNO.Text;
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            for (int i = 0; i < txt.Count(); i++)
+            {
+                if (txt[i] == "")
+                {
+                    continue;
+                }
+                string[] res = txt[i].Trim().Split(',');
+                Sql = string.Format("UPDATE DAT_PD_COM SET PDSL = {0},BZSL = KCSL-{0},CYHSJE= HSJJ*(KCSL-{0}) WHERE SEQNO = '{1}' AND ROWNO = {2}", res[1], Billno, res[0]);
+                cmdList.Add(new CommandInfo(Sql, null));
+            }
+            if (!DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("保存失败，请检查！", "提示信息", MessageBoxIcon.Question);
+            }
+        }
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            if (e.EventArgument == "Confirm_OK")
+            {
+                HttpCookie cookies = Request.Cookies["SPDPDSAVE"];
+                string Info = cookies["INFO"];
+                save(Info);
+            }
+        }
+
+        protected void lstBILLNO_TriggerClick(object sender, EventArgs e)
+        {
+            billSearch();
+        }
+
+        protected void btnLockOpen_Click(object sender, EventArgs e)
+        {
+            int count = DbHelperOra.ExecuteSql("UPDATE SYS_PARA SET VALUE='N' WHERE CODE='LOCKSTOCK'");
+            if (count > 0)
+            {
+                Alert.Show("系统库存解锁成功！", "消息提示", MessageBoxIcon.Information);
+            }
+            else
+            {
+                Alert.Show("系统库存解锁失败，请联系管理进行处理！", "消息提示", MessageBoxIcon.Warning);
+            }
+        }
+
+        protected void btnCreate_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                Alert.Show("请选择结存库房！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            #region 该段代码废弃，改由下面的存储过程执行 By YuanPeng 2016年5月20日12:41:32 At 新疆昌吉
+            //string sql = string.Format(@"SELECT (SELECT COUNT(1)
+            //                      FROM DAT_STOCKJCDAY
+            //                     WHERE TO_CHAR(RQSJ, 'YYYY-MM-DD') = '{0}') KSKC,
+            //                   (SELECT COUNT(1)
+            //                      FROM DAT_STOCKJCDAY
+            //                     WHERE TO_CHAR(RQSJ, 'YYYY-MM-DD') = '{1}') JSKC
+            //              FROM DUAL", dpkBEGINRQ.Text, dpkENDRQ.Text);
+            //string qcstockday = "DAT_STOCKDAY", qmstockday = "DAT_STOCKDAY", qcrq = "RQ", rq = "RQ";
+            //DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            //if (dt != null && dt.Rows.Count > 0)
+            //{
+            //    if (dt.Rows[0]["KSKC"].ToString() != "0")
+            //    {
+            //        qcstockday = "DAT_STOCKJCDAY";
+            //        qcrq = "RQSJ";
+            //    }
+            //    if (dt.Rows[0]["JSKC"].ToString() != "0")
+            //    {
+            //        qmstockday = "DAT_STOCKJCDAY";
+            //        rq = "RQSJ";
+            //    }
+            //}
+            //StringBuilder sbSql = new StringBuilder();
+            //sbSql.Append(@"DECLARE
+            //                              LV_BILLNO VARCHAR2(20);
+            //                         BEGIN ");
+            //sbSql.Append("        P_GETRULE('BILL_JCD', LV_BILLNO, 'N');");
+            //string memo = "", gys = "";
+            //if (ddlISSD.SelectedValue == "YY")
+            //{
+            //    gys = " AND PSSID = '00001'";
+            //    memo = "物资科";
+            //}
+            //else if (ddlISSD.SelectedValue == "ALL")
+            //{
+            //    memo = "全院";
+            //}
+
+            //sbSql.AppendFormat(@"INSERT INTO DAT_JC_COM
+            //                      (SEQNO,
+            //                       ROWNO,
+            //                       GDSEQ,
+            //                       BARCODE,
+            //                       GDNAME,
+            //                       GDSPEC,
+            //                       GDMODE,
+            //                       UNIT,
+            //                       CDID,
+            //                       SPLB,
+            //                       CATID,
+            //                       HWID,
+            //                       HSJJ,
+            //                       QCSL,
+            //                       QCJE,
+            //                       RKSL,
+            //                       RKJE,
+            //                       CKSL,
+            //                       CKJE,
+            //                       KFJCSL,
+            //                       KFJCJE,
+            //                       KFPDSL,
+            //                       KFPDJE,
+            //                       KSJCSL,
+            //                       KSJCJE,
+            //                       KSPDSL,
+            //                       KSPDJE,
+            //                       CYSL,
+            //                       CYJE,
+            //                       ISGZ,
+            //                       ISLOT,
+            //                       PZWH)
+            //                      SELECT LV_BILLNO,
+            //                             ROWNUM,
+            //                             B.GDSEQ,
+            //                             B.BARCODE,
+            //                             B.GDNAME,
+            //                             B.GDSPEC,
+            //                             B.GDMODE,
+            //                             B.UNIT,
+            //                             B.CDID,
+            //                             NULL,
+            //                             B.CATID,
+            //                             (SELECT HJCODE1
+            //                                FROM DOC_GOODSCFG
+            //                               WHERE DEPTID = '0001'
+            //                                 AND GDSEQ = B.GDSEQ) HWID,
+            //                             B.HSJJ,
+            //                             NVL(D.QCKCSL, 0),
+            //                             NVL(D.QCKCJE, 0),
+            //                             NVL(C.RKSL, 0),
+            //                             NVL(C.RKJE, 0),
+            //                             NVL(C.SYSL, 0),
+            //                             NVL(C.SYJE, 0),
+            //                             NVL(A.KFKCSL, 0),
+            //                             NVL(A.KFKCJE, 0),
+            //                             NVL(A.KFKCSL, 0),
+            //                             NVL(A.KFKCJE, 0),
+            //                             NVL(A.KSKCSL, 0),
+            //                             NVL(A.KSKCJE, 0),
+            //                             NVL(A.KSKCSL, 0),
+            //                             NVL(A.KSKCJE, 0),
+            //                             NVL(C.SHSL, 0),
+            //                             NVL(C.SHJE, 0),
+            //                             B.ISGZ,
+            //                             B.ISLOT,
+            //                             B.PIZNO
+            //                        FROM (SELECT GDSEQ,
+            //                                     SUM(NVL(DECODE(DEPTID, '0001', KCSL, 0), 0)) KFKCSL,
+            //                                     SUM(NVL(DECODE(DEPTID, '0001', KCSL, 0), 0) * KCHSJJ) KFKCJE,
+            //                                     SUM(NVL(DECODE(DEPTID, '0001', 0, KCSL), 0)) KSKCSL,
+            //                                     SUM(NVL(DECODE(DEPTID, '0001', 0, KCSL), 0) * KCHSJJ) KSKCJE
+            //                                FROM {3} J
+            //                               WHERE TO_CHAR({5}, 'YYYY-MM-DD') = '{1}'
+            //                                 {2}
+            //                                 AND NVL(KCSL, 0) > 0
+            //                               GROUP BY GDSEQ) A,
+            //                             DOC_GOODS B,
+            //                             (SELECT RK.GDSEQ,
+            //                                     NVL(RK.RKSL, 0) RKSL,
+            //                                     NVL(RK.RKJE, 0) RKJE,
+            //                                     NVL(RK.SHSL, 0) SHSL,
+            //                                     NVL(RK.SHJE, 0) SHJE,
+            //                                     NVL(ABS(SY.SYSL), 0) SYSL,
+            //                                     NVL(ABS(SY.SYJE), 0) SYJE
+            //                                FROM (SELECT J.GDSEQ,
+            //                                             SUM(DECODE(J.BILLTYPE, 'RKD', J.SL, 'THD', J.SL, 0)) RKSL,
+            //                                             SUM(DECODE(J.BILLTYPE,
+            //                                                        'RKD',
+            //                                                        J.HSJE,
+            //                                                        'THD',
+            //                                                        J.HSJE,
+            //                                                        0)) RKJE,
+            //                                             SUM(DECODE(J.BILLTYPE, 'SYD', J.SL, 0)) SHSL,
+            //                                             SUM(DECODE(J.BILLTYPE, 'SYD', J.HSJE, 0)) SHJE
+            //                                        FROM DAT_GOODSJXC J
+            //                                       WHERE J.DEPTID IN
+            //                                             (SELECT CODE FROM SYS_DEPT WHERE TYPE = '1')
+            //                                         AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+            //                                             TO_DATE('{1}', 'YYYY-MM-DD') + 1
+            //                                         {2}
+            //                                       GROUP BY J.GDSEQ) RK,
+            //                                     (SELECT J.GDSEQ,
+            //                                             SUM(DECODE(J.BILLTYPE,
+            //                                                        'XSD',
+            //                                                        J.SL,
+            //                                                        'XSG',
+            //                                                        J.SL,
+            //                                                        'DSH',
+            //                                                        J.SL,
+            //                                                        'SYD',
+            //                                                        J.SL,
+            //                                                        'XST',
+            //                                                        DECODE(J.KCADD, '1', J.SL, 0),
+            //                                                        0)) SYSL,
+            //                                             SUM(DECODE(J.BILLTYPE,
+            //                                                        'XSD',
+            //                                                        J.SL * J.HSJJ,
+            //                                                        'XSG',
+            //                                                        J.SL * J.HSJJ,
+            //                                                        'DSH',
+            //                                                        J.SL * J.HSJJ,
+            //                                                        'SYD',
+            //                                                        J.SL * J.HSJJ,
+            //                                                        'XST',
+            //                                                        DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+            //                                                        0)) SYJE
+            //                                        FROM DAT_GOODSJXC J
+            //                                       WHERE J.DEPTID IN (SELECT CODE
+            //                                                            FROM SYS_DEPT
+            //                                                           WHERE TYPE IN ('3', '4')
+            //                                                             AND ISLAST = 'Y')
+            //                                         AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+            //                                             TO_DATE('{1}', 'YYYY-MM-DD') + 1
+            //                                         {2}
+            //                                       GROUP BY J.GDSEQ) SY
+            //                               WHERE RK.GDSEQ = SY.GDSEQ(+)
+            //                               ORDER BY RK.GDSEQ) C,
+            //                             (SELECT GDSEQ, SUM(NVL(KCSL, 0)) QCKCSL, SUM(NVL(KCSL, 0)* KCHSJJ)  QCKCJE
+            //                                FROM {4} J
+            //                               WHERE TO_CHAR({6}, 'YYYY-MM-DD') = '{1}'
+            //                                 {2}
+            //                                 AND NVL(KCSL, 0) > 0
+            //                               GROUP BY GDSEQ) D
+            //                       WHERE B.GDSEQ = A.GDSEQ(+)
+            //                         AND B.GDSEQ = C.GDSEQ(+)
+            //                         AND B.GDSEQ = D.GDSEQ(+)
+            //                         AND (NVL(A.KFKCSL, 0) > 0 OR NVL(A.KSKCSL, 0) > 0 OR
+            //                             NVL(C.RKSL, 0) > 0 OR NVL(D.QCKCSL, 0) > 0);", dpkBEGINRQ.Text, dpkENDRQ.Text, gys, qcstockday, qmstockday, qcrq, rq);
+            //sbSql.AppendFormat(@"   IF SQL%ROWCOUNT > 0 THEN
+            //        INSERT INTO DAT_JC_DOC
+            //          (SEQNO,
+            //           BILLNO,
+            //           BILLTYPE,
+            //           FLAG,
+            //           DEPTID,
+            //           BEGRQ,
+            //           JCRQ,
+            //           LRY,
+            //           LRRQ,
+            //           SUBNUM,
+            //           SUBSUM,
+            //           MEMO)
+            //          SELECT SEQNO,
+            //                 SEQNO,
+            //                 'JCD',
+            //                 'N',
+            //                 '{0}',
+            //                 TO_DATE('{1}', 'YYYY-MM-DD'),
+            //                 TO_DATE('{2}', 'YYYY-MM-DD'),
+            //                 '{3}',
+            //                 SYSDATE,
+            //                 COUNT(1),
+            //                 SUM(NVL(KFJCJE,0) + NVL(KSJCJE,0)),
+            //                 '{4}'
+            //            FROM DAT_JC_COM
+            //           WHERE SEQNO = LV_BILLNO
+            //           GROUP BY SEQNO;
+            //END IF; ", ddlDEPTID.SelectedValue, dpkENDRQ.Text, dpkENDRQ.Text, UserAction.UserID, memo);
+            //sbSql.Append(" END;");
+
+            //DbHelperOra.ExecuteSql(sbSql.ToString());
+            #endregion
+
+            string memo = "", gys = "YY,GYS";
+            if (ddlISSD.SelectedValue == "YY")
+            {
+                memo = "物资科";
+                gys = "YY";
+            }
+            else if (ddlISSD.SelectedValue == "ALL")
+            {
+                memo = "全院";
+            }
+
+            OracleParameter[] parameters = { new OracleParameter("V_PARAS", OracleDbType.Varchar2) };
+            parameters[0].Value = dpkBEGINRQ.Text + "_" + dpkENDRQ.Text + "_" + ddlCATID0.SelectedValue + "_" + gys + "_" + ddlDEPTID.SelectedValue + "_" + UserAction.UserID + "_" + memo;
+            try
+            {
+                DbHelperOra.RunProcedure("P_STOCKJC", parameters);
+                Alert.Show(string.Format("{0:yyyy-MM}", dpkENDRQ.SelectedDate) + "月结存表生成成功!", "消息提示", MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                Alert.Show("月度结存表生成失败,请检查系统数据信息!", "消息提示", MessageBoxIcon.Error);
+            }
+        }
+    }
+}

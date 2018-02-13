@@ -1,0 +1,290 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System.Data;
+using System.Collections.Specialized;
+using System.Text;
+
+namespace SPDProject.SpdApply
+{
+    public partial class GoodsDepartmentInquiry : PageBase
+    {
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billSearch();
+            }
+
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            float donateTotal = 0.0f;
+            foreach (DataRow row in source.Rows)
+            {
+                donateTotal += Convert.ToInt32(row["DSKUCUN"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "全部合计");
+            summary.Add("DSKUCUN", donateTotal.ToString("F2"));
+            GridList.SummaryData = summary;
+        }
+
+        protected void billSearch()
+        {
+            string strSql = @"select A.GDSEQ,
+                               A.GDNAME,
+                               A.GDSPEC,
+                               f_getunitname(A.UNIT) UNIT,
+                               f_getdeptname(B.DEPTID) DEPTIDname,
+                               B.DEPTID,
+                               B.ZDKC,
+                               B.ZGKC,
+                               B.DSNUM,
+                               B.NUM1,
+                               B.NUM2,
+                               B.NUM3,
+                               F_GETISCOLLECT(B.DEPTID, A.GDSEQ) COLLECT,
+                               F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,
+                               PIZNO,
+                               (B.DSNUM * B.NUM1) DSKUCUN,
+                               NVL(B.DSPOOL, 0) DSPOOL,
+                               --DECODE((NVL(B.DSNUM, 0) - NVL(B.NUM3, 0)), 0, '已配送', NVL(B.DSNUM, 0) - NVL(B.NUM3, 0)) NOTDS
+                               --应出定数 = 定数数量-代收定数-定数预占       
+                               CASE 
+                                 WHEN (NVL(B.DSNUM, 0) - NVL(B.NUM3, 0) - NVL(B.DSPOOL, 0)) >0 THEN (NVL(B.DSNUM, 0) - NVL(B.NUM3, 0) - NVL(B.DSPOOL, 0))  
+                                 --WHEN (NVL(B.DSNUM, 0) - NVL(B.NUM3, 0) - NVL(B.DSPOOL, 0)) <= 0  THEN 0
+                                 ELSE 0 END YCDS           
+                          from doc_goods A, DOC_GOODSCFG B
+                         where a.gdseq(+) = b.gdseq";
+            string strSearch = "";
+            string strSearchOrder = " order by A.GDSEQ";
+            if (tbxGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND (B.GDSEQ  LIKE '%{0}%' OR A.GDNAME LIKE '%{0}%')", tbxGDSEQ.Text.Trim());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedIndex > 0)
+            {
+                strSearch += string.Format(" AND B.DEPTID = '{0}'", lstDEPTID.SelectedValue);
+            }
+            if (ShowMode.Checked == false)
+            {
+                strSearch += " AND ((B.DSNUM >0 AND B.NUM1 > 0) or nvl(B.NUM3,0) >0 )";
+            }
+            if (DbHelperOra.GetSingle(string.Format("select distinct deptid from SYS_USERRANGE t where userid='{0}'", UserAction.UserID))!=null)
+            {
+                strSearch += string.Format(" and b.deptid in (select distinct deptid from SYS_USERRANGE t where userid='{0}')", UserAction.UserID);
+            }
+
+            strSql += strSearch;
+            strSql += strSearchOrder;
+
+            int total = 0;
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+
+            OutputSummaryData(dt);
+        }
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            billSearch();
+        }
+
+        private void DataInit()
+        {
+            //使用部门下拉表
+            //PubFunc.DdlDataGet("DDL_SYS_DEPTDEF", lstDEPTID);
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID);
+            CZR.Text = UserAction.UserName;
+            CZR.Enabled = false;
+            CZSJ.SelectedDate = DateTime.Now;
+            CZSJ.Enabled = false;
+        }
+        protected void bntCollect_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridList.SelectedRowIndexArray;
+            if (selections.Length == 0)
+            {
+                Alert.Show("请选择要收藏的商品！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string GETdeptid = "";
+            string GETgdseq = "";
+            int CollectAmount = 0;
+            List<CommandInfo> list = new List<CommandInfo>();
+            string Sql = string.Empty;
+            foreach (int rowIndex in selections)
+            {
+                GETdeptid = GridList.DataKeys[rowIndex][0].ToString();
+                GETgdseq = GridList.DataKeys[rowIndex][1].ToString();
+                CollectAmount++;
+                if (DbHelperOra.Exists("select 1 from DOC_MYGOODS where DEPTID='" + GETdeptid + "' and GDSEQ ='" + GETgdseq + "'"))
+                {
+                    Sql = "DELETE FROM DOC_MYGOODS WHERE DEPTID = '" + GETdeptid + "' and GDSEQ = '" + GETgdseq + "'";
+                    list.Add(new CommandInfo(Sql, null));
+                }
+                Sql = "INSERT INTO DOC_MYGOODS (DEPTID,GDSEQ,OPERUSER) VALUES ('" + GETdeptid + "','" + GETgdseq + "','" + UserAction.UserID + "')";
+                list.Add(new CommandInfo(Sql, null));
+            }
+            if (DbHelperOra.ExecuteSqlTran(list) && CollectAmount > 0)
+            {
+                Alert.Show("成功收藏" + CollectAmount + "个商品");
+                CollectAmount = 0;
+                billSearch();
+            }
+
+        }
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            billSearch();
+
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            FineUIPro.BoundField flagcol = GridList.FindColumn("GDNAME") as FineUIPro.BoundField;
+            if (row != null)
+            {
+                string DSNUM = row["DSNUM"].ToString();
+                string NUM1 = row["NUM1"].ToString();
+                if (DSNUM == "0" && NUM1 == "0")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+            }
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (GridList.Rows.Count == 0)
+            {
+                return;
+            }
+            string strSql = @"SELECT
+                                    f_getdeptname(B.DEPTID) 管理科室, 
+                                    ' '||A.GDSEQ 商品编码,
+                                    A.GDNAME 商品名称,
+                                    A.GDSPEC 商品规格,
+                                    f_getunitname(A.UNIT) 单位,
+                                    F_GETPRODUCERNAME(A.PRODUCER) 生产商,
+                                    PIZNO 注册证号,
+                                    F_GETISCOLLECT(B.DEPTID,A.GDSEQ) 收藏状态,
+                                    B.DSNUM 定数数量,
+                                    B.NUM1 定数含量,
+                                    B.NUM3 待收定数
+                        from doc_goods A,DOC_GOODSCFG B 
+                        where a.gdseq(+)=b.gdseq";
+            string strSearch = "";
+            string dtDeptid = "全部科室";
+            string strSearchOrder = " order by A.GDSEQ";
+            if (tbxGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND (B.GDSEQ  LIKE '%{0}%' OR A.GDNAME LIKE '%{0}%')", tbxGDSEQ.Text.Trim());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedIndex > 0)
+            {
+                dtDeptid = lstDEPTID.SelectedText;
+                strSearch += string.Format(" AND B.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            if (ShowMode.Checked == false)
+            {
+                strSearch += " AND B.DSNUM >0 AND B.NUM1 > 0 ";
+            }
+
+            strSql += strSearch;
+            strSql += strSearchOrder;
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, string.Format("【{0}】定数信息", dtDeptid), "科室商品信息导出_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls");
+        }
+
+        protected void bntDelCollect_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridList.SelectedRowIndexArray;
+            if (selections.Length == 0)
+            {
+                Alert.Show("请选择要取消收藏的商品！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string GETdeptid = "";
+            string GETgdseq = "";
+            int DelCollectAmount = 0;
+            List<CommandInfo> list = new List<CommandInfo>();
+            string Sql = string.Empty;
+            foreach (int rowIndex in selections)
+            {
+                GETdeptid = GridList.DataKeys[rowIndex][0].ToString();
+                GETgdseq = GridList.DataKeys[rowIndex][1].ToString();
+                if (DbHelperOra.Exists("select 1 from DOC_MYGOODS where DEPTID='" + GETdeptid + "' and GDSEQ ='" + GETgdseq + "'"))
+                {
+                    Sql = "DELETE FROM DOC_MYGOODS WHERE DEPTID = '" + GETdeptid + "' and GDSEQ = '" + GETgdseq + "'";
+                    list.Add(new CommandInfo(Sql, null));
+                    DelCollectAmount++;
+                }
+            }
+            if (DelCollectAmount == 0)
+            {
+                Alert.Show("您未选择商品或您选择的商品未被收藏");
+                return;
+            }
+            if (DbHelperOra.ExecuteSqlTran(list) && DelCollectAmount > 0)
+            {
+                Alert.Show("取消收藏了" + DelCollectAmount + "个商品");
+                DelCollectAmount = 0;
+                billSearch();
+            }
+
+
+        }
+        //private void SUM()
+        //{
+        //    ////DataTable source = GetDataTable2();
+
+        //    ////float donateTotal = 0.0f;
+        //    ////float feeTotal = 0.0f;
+        //    ////foreach (DataRow row in source.Rows)
+        //    ////{
+        //    ////    donateTotal += Convert.ToInt32(row["Donate"]);
+        //    ////    feeTotal += Convert.ToInt32(row["Fee"]);
+        //    ////}
+
+
+        //    //JObject summary = new JObject();
+        //    ////summary.Add("major", "全部合计");
+        //    //summary.Add("fee", "999");
+
+
+        //    //GridList.SummaryData = summary;
+
+        //    DataTable source= ;
+
+        //    float donateTotal = 0.0f;
+        //    float feeTotal = 0.0f;
+        //    foreach (DataRow row in source.Rows)
+        //    {
+        //        donateTotal += Convert.ToInt32(row["Donate"]);
+        //        feeTotal += Convert.ToInt32(row["Fee"]);
+        //    }
+
+
+        //    JObject summary = new JObject();
+        //    //summary.Add("major", "全部合计");
+        //    summary.Add("fee", feeTotal.ToString("F2"));
+        //    summary.Add("donate", donateTotal.ToString("F2"));
+
+
+        //    GridList.SummaryData = summary;
+        //}
+
+    }
+}

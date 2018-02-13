@@ -1,0 +1,187 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Text;
+using Oracle.ManagedDataAccess.Client;
+
+namespace SPDProject.SpdApply
+{
+    public partial class CKWindow : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                if (Request.QueryString["bm"] != null && Request.QueryString["bm"].ToString() != "")
+                {
+                    hfdDept.Text = Request.QueryString["bm"].ToString();
+                }
+                if (Request.QueryString["cx"] != null && Request.QueryString["cx"].ToString() != "")
+                {
+                    btnUpt.Hidden = false;
+                }
+                DataSearch();
+                btnClose.OnClientClick = ActiveWindow.GetHideReference();
+                BillBase.Grid_Goods = GridGoods;
+            }
+        }
+        private void DataSearch()
+        {
+            int total = 0;
+            string strMsg = "";
+            DataTable dtBill = new DataTable();
+            dtBill = GetGoodsList(GridGoods.PageIndex, GridGoods.PageSize, ref total, ref strMsg);
+            GridGoods.DataSource = dtBill;
+			GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+
+            //计算合计数量
+            decimal ddslTotal = 0, feeTotal = 0;
+            foreach (DataRow row in dtBill.Rows)
+            {
+                ddslTotal += Convert.ToDecimal(row["BZSL"]);
+                feeTotal += Convert.ToDecimal(row["HSJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("BZSL", ddslTotal.ToString());
+            summary.Add("UNITNAME", "结算金额");
+            summary.Add("HSJE", feeTotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+        public DataTable GetGoodsList(int pageNum, int pageSize, ref int total, ref string errMsg)
+        {
+            //string sql = @"SELECT A.SEQNO,A.GDSEQ,A.GDNAME,A.BARCODE,decode(SUBSTR ( A.SEQNO , 0 , 2 ),'DS',A.FPSL,A.BZSL/F_GETBZHL(A.GDSEQ)) BZSL,A.JXTAX,A.HSJJ*F_GETBZHL(A.GDSEQ) HSJJ
+            //                    ,A.ROWNO,B.FLAG--,A.HSJE
+            //                    ,(decode(SUBSTR ( A.SEQNO , 0 , 2 ),'DS',A.FPSL,A.BZSL) * A.HSJJ) HSJE
+            //                    ,A.ZPBH,A.HWID,A.PZWH,A.RQ_SC,A.MEMO,F_GETSELLUNITNAME(A.GDSEQ) UNITNAME
+            //                 ,F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,A.GDSPEC
+            //                FROM DAT_CK_COM A, DAT_CK_DOC B WHERE A.SEQNO = B.SEQNO AND A.SEQNO ='{0}' 
+            //                UNION ALL
+            //                SELECT A.SEQNO,A.GDSEQ,A.GDNAME,A.BARCODE,decode(SUBSTR ( A.SEQNO , 0 , 3 ),'LYD',A.BZSL,'DSC',(A.BZSL*A.BZHL),A.BZSL) BZSL,A.JXTAX,A.HSJJ
+            //                    ,A.ROWNO,B.FLAG
+            //                    ,(decode(SUBSTR ( A.SEQNO , 0 , 3 ),'LYD',A.BZSL,'DSC',(A.BZSL*A.BZHL),A.BZSL) * A.HSJJ) HSJE
+            //                    ,A.ZPBH,A.HWID,A.PZWH,A.RQ_SC,A.MEMO,F_GETUNITNAME(A.UNIT) UNITNAME
+            //                     ,F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,A.GDSPEC
+            //                    FROM DAT_SL_COM A, DAT_SL_DOC B WHERE A.SEQNO = B.SEQNO AND A.SEQNO ='{0}'";
+
+            //非定数显示最小单位，定数显示出库单位
+            string sql = @"SELECT A.SEQNO,A.GDSEQ,A.GDNAME,A.BARCODE,decode(B.BILLTYPE, 'DSC',A.FPSL,'LCD',round(A.BZSL/F_GETBZHL(A.GDSEQ),2),A.BZSL*a.bzhl) BZSL,A.JXTAX,--A.HSJJ
+decode(B.BILLTYPE, 'DSC',a.hsjj,'LCD',F_GETBZHL(A.GDSEQ)*a.hsjj) hsjj
+                                ,A.ROWNO,B.FLAG--,A.HSJE
+                                ,(decode(B.BILLTYPE, 'DSC',A.FPSL,A.BZSL) * A.HSJJ) HSJE
+                                ,A.ZPBH,A.HWID,A.PZWH,A.RQ_SC,A.MEMO,--F_GETSELLUNITNAME(A.GDSEQ) UNITNAME
+                                decode(B.BILLTYPE, 'DSC',f_getunitname(A.UNIT),F_GETUNITNAME(A.STR4)) UNITNAME
+                             ,F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,A.GDSPEC
+                            FROM DAT_CK_COM A, DAT_CK_DOC B WHERE A.SEQNO = B.SEQNO AND A.SEQNO ='{0}' 
+                            UNION ALL
+                            SELECT A.SEQNO,A.GDSEQ,A.GDNAME,A.BARCODE,decode(B.BILLTYPE,'LYD',A.BZSL,'DSC',(A.BZSL*A.BZHL),A.BZSL) BZSL,A.JXTAX,A.HSJJ
+                                ,A.ROWNO,B.FLAG
+                                ,(decode(B.BILLTYPE,'LYD',A.BZSL,'DSC',(A.BZSL*A.BZHL),A.BZSL) * A.HSJJ) HSJE
+                                ,A.ZPBH,A.HWID,A.PZWH,A.RQ_SC,A.MEMO,F_GETUNITNAME(A.UNIT) UNITNAME
+                                 ,F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,A.GDSPEC
+                                FROM DAT_SL_COM A, DAT_SL_DOC B WHERE A.SEQNO = B.SEQNO AND A.SEQNO ='{0}'";
+            StringBuilder strSql = new StringBuilder(string.Format(sql, hfdDept.Text));
+            return GetDataTable(pageNum, pageSize, strSql, ref total);
+        }
+        private string GetRowValue(GridRow row)
+        {
+            string strValue = "";
+            for (int i = 0; i < GridGoods.Columns.Count; i++)
+            {
+                strValue += row.Values[i].ToString() == "" ? "★♀" : row.Values[i].ToString() + "♀";
+            }
+            return strValue.TrimEnd('♀');
+        }
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void btnUpt_Click(object sender, EventArgs e)
+        {
+            if (GridGoods.SelectedRowIDArray.Length < 1)
+            {
+                Alert.Show("请选择需要修改出库数量的商品！", MessageBoxIcon.Warning);
+                return;
+            }
+            Object obj = DbHelperOra.GetSingle("SELECT DEPTOUT FROM DAT_CK_DOC WHERE SEQNO ='" + hfdDept.Text + "' AND FLAG <> 'Y'");
+            if ((obj ?? "").ToString().Length < 1)
+            {
+                Alert.Show("单据已被确认，请检查！", MessageBoxIcon.Warning);
+                btnUpt.Hidden = true;
+                return;
+            }
+            String sql = @"SELECT A.*,XSSL XSSL_OLD,
+                            NVL((SELECT SUM(KCSL - LOCKSL) FROM DAT_GOODSSTOCK B WHERE B.GDSEQ = A.GDSEQ AND B.DEPTID = '{2}' AND B.KCSL > B.LOCKSL),0)+A.XSSL KCSL
+                            FROM DAT_CK_COM A
+                            WHERE A.SEQNO = '{0}' AND ROWNO = {1}";
+            GridLot.DataSource = DbHelperOra.Query(String.Format(sql, hfdDept.Text, GridGoods.DataKeys[GridGoods.SelectedRowIndex][1], obj.ToString())).Tables[0];
+            GridLot.DataBind();
+            WinLot.Hidden = false;
+        }
+
+        protected void btnClosePostBack_Click(object sender, EventArgs e)
+        {
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_CK_DOC WHERE SEQNO ='" + hfdDept.Text + "' AND FLAG = 'Y'"))
+            {
+                Alert.Show("单据已被确认，请检查！", MessageBoxIcon.Warning);
+                btnUpt.Hidden = true;
+                return;
+            }
+            //更改预占数
+            JArray Jary = GridLot.GetMergedData();
+            if (Jary[0]["status"].ToString() != "unchanged")
+            {
+                Decimal modsl = Convert.ToDecimal(Jary[0]["values"]["XSSL"] ?? "0");
+                Decimal kcsl = Convert.ToDecimal(GridLot.DataKeys[0][0] ?? "0");
+                if (kcsl < modsl)
+                {
+                    Alert.Show("修改商品的预出数不能大于库存！", MessageBoxIcon.Warning);
+                    return;
+                }
+                if (hfdDept.Text.Substring(0, 2) == "DS" && modsl > 0 && modsl.ToString() != GridLot.DataKeys[0][1].ToString())
+                {
+                    if(modsl.ToString() != GridLot.DataKeys[0][2].ToString())//不等于定数含量
+                    {
+                        Alert.Show("定数只能整包出库或不出库！", MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+                OracleParameter[] parameters = new OracleParameter[]
+                            {
+                                     new OracleParameter("VI_BILLNO",OracleDbType.Varchar2),
+                                     new OracleParameter("VI_BILLTYPE",OracleDbType.Varchar2),
+                                     new OracleParameter("VI_ROWNO",OracleDbType.Int32),
+                                     new OracleParameter("VI_GDSEQ",OracleDbType.Varchar2),
+                                     new OracleParameter("VI_SLOLD",OracleDbType.Decimal),
+                                     new OracleParameter("VI_SLNEW",OracleDbType.Decimal)
+                            };
+                parameters[0].Value = hfdDept.Text;
+                parameters[1].Value = hfdDept.Text.Substring(0, 3);
+                parameters[2].Value = GridGoods.DataKeys[GridGoods.SelectedRowIndex][1];
+                parameters[3].Value = GridGoods.DataKeys[GridGoods.SelectedRowIndex][2];
+                parameters[4].Value = GridLot.DataKeys[0][1];
+                parameters[5].Value = modsl;
+                DbHelperOra.RunProcedure("STOCK.P_STOCK_LOCKMOD", parameters);
+                DbHelperOra.ExecuteSql(String.Format("UPDATE DAT_CK_COM SET XSSL = {0},bzsl = {0},dhsl = {0},fpsl = {0},hsje = {0}*hsjj WHERE SEQNO = '{1}' AND ROWNO = {2}", modsl, hfdDept.Text, GridGoods.DataKeys[GridGoods.SelectedRowIndex][1]));
+                DbHelperOra.ExecuteSql(String.Format("UPDATE DAT_CK_DOC SET SUBSUM = (SELECT SUM(HSJE) FROM DAT_CK_COM WHERE SEQNO ='{0}') WHERE SEQNO ='{0}'", hfdDept.Text));
+            }
+            WinLot.Hidden = true;
+            OperLog("波次拣货", "修改出库数【" + hfdDept.Text + "】");
+            DataSearch();
+        }
+
+        protected void Button1_Click(object sender, EventArgs e)
+        {
+            WinLot.Hidden = true;
+        }
+    }
+}

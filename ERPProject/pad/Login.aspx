@@ -1,0 +1,95 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Login.aspx.cs" Inherits="ERPProject.pad.Login" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta name="viewport" content="minimal-ui" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <link rel="stylesheet" href="/res/css/pad.css" />
+    <style>
+        input {
+            height: 65px;
+        }
+
+        .foot {
+            height: 60px;
+            line-height: 60px;
+            text-align: center;
+            background-color: #1ea3d8;
+            position: absolute;
+            font-size: 14px;
+            width: 100%;
+            bottom: 0;
+            font-family: 'Microsoft YaHei';
+        }
+
+        .f-panel-header {
+            height: 60px;
+            background-color: #1ea3d8;
+        }
+
+        .ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default {
+            background: #1ea3d8;
+        }
+
+        .f-btn .f-btn-text {
+            color: white;
+            font-size: 24px;
+        }
+
+        .large-font {
+            font-weight: bold;
+            font-size: 32px;
+            height: 50px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel runat="server" ShowBorder="false"></f:Panel>
+        <f:Window runat="server" IsModal="false" EnableClose="false" WindowPosition="GoldenSection" Width="700px" Height="370px" ShowBorder="false" ShowHeader="false">
+            <Items>
+                <f:SimpleForm ID="SimpleForm1" runat="server" ShowBorder="false" ShowHeader="false" Layout="VBox" MessageTarget="None">
+                    <Items>
+                        <f:Label runat="server" ID="sysName" CssClass="large-font" CssStyle="text-align:center"></f:Label>
+                        <f:TextBox ID="tbxUserName" Label="用户名" Margin="10px" ShowLabel="false" EmptyText="请输入用户名" Required="true" runat="server">
+                        </f:TextBox>
+                        <f:TextBox ID="tbxPassword" Label="密码" Margin="10px" ShowLabel="false" TextMode="Password" EmptyText="请输入密码" Required="true" runat="server">
+                        </f:TextBox>
+                        <f:CheckBox runat="server" Text="记住密码" MarginLeft="10px" Checked="true" Width="100px" RegionPosition="Right" ></f:CheckBox>
+                        <f:Button ID="btnLogin" Text="登 录" Size="Large" Margin="5px 30px 0 30px" Height="70px" Type="Submit" ValidateForms="SimpleForm1" ValidateMessageBoxPlain="true" runat="server" OnClick="btnLogin_Click">
+                        </f:Button>
+                    </Items>
+                </f:SimpleForm>
+            </Items>
+        </f:Window>
+        <f:HiddenField ID="hfdISPASSWORD" runat="server" Text="N"></f:HiddenField>
+    </form>
+    <div class="foot">
+        版权所有 威高医疗商业集团 2015-2025&nbsp&nbsp&nbsp
+		开发组织：山东威高讯通信息科技有限公司
+    </div>
+    <script>
+        
+        //F.ready(function () {
+        //    $('#test').on('keydown', function (e) {
+        //        //e.preventDefault();
+                
+        //        e.stopPropagation();
+        //        //var r = $(e.target);
+        //        //var key = e.which || e.keyCode;
+        //        //if (key == "13") {
+        //        //    alert($('#test').val().length)
+        //        //}
+        //    })
+        //})
+
+    </script>
+</body>
+</html>

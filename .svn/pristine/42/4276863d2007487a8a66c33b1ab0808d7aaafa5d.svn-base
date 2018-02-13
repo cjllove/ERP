@@ -1,0 +1,134 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.XJ_CJRM
+{
+    public partial class InterventionAudit : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                DataSearch();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlSupplier, "DDL_DOC_SUPPLIERALL");
+            PubFunc.DdlDataGet(ddlProductor, "DDL_PRODUCER");
+            //ddlProductor.Items.Insert(0, new FineUIPro.ListItem() { Selected = true, Text = "---请选择---", Value = "" });
+        }
+
+        private string GetSearchSql()
+        {
+            string sql = @"SELECT G.BAR1 GDSEQ,G.GDNAME,G.PIZNO PZWH,G.GDSPEC,G.HSJJ,
+                                              DECODE(G.ISJG,'Y',0,1) TreeLevel,DECODE(G.ISJG,'Y','是','否') ISDBP,
+                                              f_getunitname(G.UNIT) UNITNAME, f_getproducername(G.PRODUCER) PRODUCER,
+                                              f_getsupname(G.SUPPLIER) SUPPLIER
+                                     FROM DOC_GOODS G WHERE G.ISGZ = 'Y' ";
+            string strWhere = string.Empty;
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                strWhere += string.Format(" AND G.BAR2 IN (SELECT G1.BAR2 FROM DOC_GOODS G1 WHERE G1.BAR1 LIKE '%{0}%' OR UPPER(G1.GDSEQ) LIKE UPPER('%{0}%') OR G1.GDNAME LIKE '%{0}%' OR UPPER(G1.ZJM) LIKE UPPER('%{0}%') OR G1.PIZNO LIKE '%{0}%')", trbSearch.Text.Trim());
+            }
+            if (ddlSupplier.SelectedValue != "")
+            {
+                strWhere += " AND G.SUPPLIER='" + ddlSupplier.SelectedValue + "'";
+            }
+            if (ddlProductor.SelectedValue != "")
+            {
+                strWhere += " AND G.PRODUCER='" + ddlProductor.SelectedValue + "'";
+            }
+            if (ddlISDBP.SelectedValue != "ALL")
+            {
+                strWhere += " AND G.ISJG='" + ddlISDBP.SelectedValue + "'";
+            }
+
+            strWhere += " ORDER BY G.BAR2,G.ISJG DESC";
+
+            return sql + strWhere;
+        }
+
+        private void DataSearch()
+        {
+            highlightRows.Text = "";
+
+            int total = 0;
+            GridGoods.DataSource = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Formlist);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+
+                if (column is FineUIPro.LinkButtonField)
+                {
+                    //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.LinkButtonField)(column)).DataTextField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+                if (column is FineUIPro.BoundField)
+                {
+                    //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "高值商品信息", string.Format("高值商品信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void GridGoods_RowDataBound(object sender, FineUIPro.GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["ISDBP"].ToString();
+
+                if (flag == "是")
+                {
+                    highlightRows.Text += e.RowIndex.ToString() + ",";
+                }
+            }
+        }
+    }
+}

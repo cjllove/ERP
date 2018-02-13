@@ -1,0 +1,161 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using XTBase;
+using FineUIPro;
+using System.Data;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class Dd_Remind : PageBase
+    {
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                string sqlSUPPLIER = @"SELECT '' CODE,'--请选择--' NAME  FROM dual
+                                union all
+                                SELECT SUPID CODE,SUPNAME NAME FROM DAT_DD_REMIND
+                                GROUP BY SUPID,SUPNAME";
+                PubFunc.DdlDataSql(lstSUPPLIER, sqlSUPPLIER);
+
+                string sqlISGZ = @"SELECT '' CODE,'--请选择--' NAME  FROM dual
+                                union all
+                                SELECT 'Y' CODE,'高值' NAME  FROM dual
+                                union all
+                                SELECT 'N' CODE,'非高值' NAME  FROM dual";
+                PubFunc.DdlDataSql(lstISGZ, sqlISGZ);
+
+                string sqlBILLFLAG = @"SELECT '' CODE,'--请选择--' NAME  FROM dual
+                                union all
+                                SELECT 'S' CODE,'未受理' NAME  FROM dual
+                                union all
+                                SELECT '010' CODE,'已受理' NAME  FROM dual
+                                union all
+                                SELECT 'Y' CODE,'已出库' NAME  FROM dual";
+                PubFunc.DdlDataSql(lstBILLFLAG, sqlBILLFLAG);
+                DataSearch();
+            }
+        }
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormSearch);
+        }
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void DataSearch()
+        {
+            string strs = ""; int totalnum = 0;
+            string strSQL = @"SELECT SEQNO,DDCODE,SUPID,SUPNAME,USERNAME,STAFFTEL,STAFFTEL2,DECODE(ISGZ,'Y','高值','N','非高值') ISGZ,DECODE(BILLFLAG,'S','未受理','010','已受理','Y','已出库') BILLFLAG,
+                                XDRQ,ISSEND,SENDTIME,MSGCONTENT,DECODE(ISSENDR,'N','不重发','Y','准备重发','S','重发成功','E','重发失败') ISSENDR,SENDTIMER,FLAG,MEMO 
+                                FROM DAT_DD_REMIND WHERE 0=0 ";
+            if (!string.IsNullOrEmpty(lstSUPPLIER.SelectedValue))
+            {
+                strs += string.Format(" AND SUPID='{0}' ", lstSUPPLIER.SelectedValue);
+            }
+            if (!string.IsNullOrEmpty(lstISGZ.SelectedValue))
+            {
+                strs += string.Format(" AND ISGZ='{0}' ", lstISGZ.SelectedValue);
+            }
+            if (!string.IsNullOrEmpty(lstBILLFLAG.SelectedValue))
+            {
+                strs += string.Format(" AND BILLFLAG='{0}' ", lstBILLFLAG.SelectedValue);
+            }
+            strs += " ORDER BY SENDTIME DESC ";
+            strSQL += strs;
+
+            DataTable dta = PubFunc.DbGetPage(GridCom.PageIndex, GridCom.PageSize, strSQL, ref totalnum);
+
+            GridCom.DataSource = dta;
+            GridCom.RecordCount = totalnum;
+            GridCom.DataBind();
+ 
+        }
+        protected void GridCom_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridCom.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void GridCom_Sort(object sender, GridSortEventArgs e)
+        {
+            GridCom.SortDirection = e.SortDirection;
+            GridCom.SortField = e.SortField;
+            DataSearch();
+        }
+        protected void GridCom_RowCommand(object sender, GridCommandEventArgs e)
+        {
+            string seqno = GridCom.Rows[e.RowIndex].DataKeys[0].ToString();
+            if (e.CommandName == "Modify")
+            {
+                hfdSEQNO.Text = seqno;
+                WindowMemo.Hidden = false;
+            }
+            if (e.CommandName == "SendMessage")
+            {
+                string sql = "UPDATE DAT_DD_REMIND SET ISSENDR='Y' WHERE SEQNO='{0}' ";
+                sql = string.Format(sql, seqno);
+                DbHelperOra.ExecuteSql(sql);
+                Alert.Show("已加入短信发送队列，等待发送！", "消息提示");
+            }
+        }
+
+          public static string FilteSQLStr(string Str)
+          {
+
+                Str = Str.Replace("\"", "");
+                Str = Str.Replace("&", "&amp");
+                Str = Str.Replace("<", "&lt");
+                Str = Str.Replace(">", "&gt");
+                Str = Str.Replace("'", "''");
+                Str = Str.Replace(";", "；");
+                Str = Str.Replace("(", "（");
+                Str = Str.Replace(")", "）");
+
+                return Str;
+            }
+
+          protected void GridCom_RowDoubleClick(object sender, GridRowClickEventArgs e)
+          {
+
+          }
+
+        protected void btnMemoOK_Click(object sender, EventArgs e)
+        {
+            string Memo = txtMemo.Text.Trim();
+            string seqno = hfdSEQNO.Text.Trim();
+            string sql = "UPDATE DAT_DD_REMIND SET FLAG='Y',MEMO='" + Memo + "' WHERE SEQNO='{0}' ";
+            sql = string.Format(sql, seqno);
+            DbHelperOra.ExecuteSql(sql);
+            Alert.Show("备注保存成功！", "消息提示");
+            WindowMemo.Hidden = true;
+            DataSearch();
+        }
+
+        protected void GridCom_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flagc = row["FLAG"].ToString();
+                if (flagc == "Y")
+                {
+                    e.RowCssClass = "color-red";
+                }
+            }
+        }
+    }
+}

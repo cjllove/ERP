@@ -1,0 +1,94 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsBatchSetup.aspx.cs" Inherits="ERPProject.ERPDictionary.GoodsBatchSetup" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>商品信息批量设置</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="true" ID="PageManager1" AutoSizePanelID="PanelMain" runat="server" />
+        <f:Panel ID="PanelMain" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox" ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar2" runat="server">
+                    <Items>
+                        <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="操作信息：批量修改商品信息！" runat="server" />
+                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="bntSave" Icon="Disk" Text="保 存" EnablePostBack="true" runat="server" OnClick="bntSave_Click" EnableDefaultState="false" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnExport" Icon="DatabaseGo" AjaxLoadingType="Mask" Text="导 出" EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" runat="server" DisableControlBeforePostBack="false" OnClick="btnExport_Click" EnableDefaultState="false" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询" EnablePostBack="true" runat="server" OnClick="bntSearch_Click" EnableDefaultState="false" />
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormDoc" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                    ShowHeader="False" LabelWidth="70px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TriggerBox ID="trbSearch" runat="server" Label="商品信息" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick"></f:TriggerBox>
+                                <f:DropDownList ID="ddlSUPID" runat="server" Label="供应商" EnableEdit="true" ForceSelection="true">
+                                </f:DropDownList>
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow>
+                            <Items>
+                                <f:DropDownList ID="ddlGoodsType" runat="server" Label="商品大类" EnableEdit="true" ForceSelection="true" />
+                                <f:DropDownList ID="ddlCATID" runat="server" Label="商品分类" EnableEdit="true" ForceSelection="true" />
+                                <f:DropDownList ID="ddlPRODUCER" runat="server" Label="生产厂家" EnableEdit="true" ForceSelection="true">
+                                </f:DropDownList>
+                                <f:DropDownList ID="ddlISGZ" runat="server" Label="是否高值">
+                                    <f:ListItem Text="---请选择---" Value="" />
+                                    <f:ListItem Text="高值" Value="Y" />
+                                    <f:ListItem Text="非高值" Value="N" />
+                                </f:DropDownList>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridGoods" BoxFlex="1" ShowBorder="false" ShowHeader="false" AllowCellEditing="true" ClicksToEdit="1"
+                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" IsDatabasePaging="true" EnableColumnLines="true"
+                    DataKeyNames="GDSEQ,GDNAME,HJCODE1,ZDKC,ZGKC" AllowPaging="true" PageSize="100" OnPageIndexChange="GridGoods_PageIndexChange"
+                    AllowSorting="true" EnableHeaderMenu="true" SortField="DEPTNAME" OnSort="GridGoods_Sort">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true"></f:RowNumberField>
+                        <f:BoundField Hidden="true" DataField="DEPTID" SortField="DEPTID" HeaderText="部门编码" />
+                        <f:BoundField Width="90px" DataField="GDSEQ" SortField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                        <f:BoundField Width="180px" DataField="GDNAME" SortField="GDNAME" HeaderText="商品名称" />
+                        <f:BoundField Width="150px" DataField="GDSPEC" SortField="GDSPEC" HeaderText="规格·容量" />
+                        <f:BoundField Width="40px" DataField="UNITNAME" HeaderText="单位" SortField="UNITNAME" TextAlign="Center" />
+                        <f:BoundField Width="80px" DataField="HSJJ" HeaderText="含税进价" SortField="HSJJ" TextAlign="Right" DataFormatString="{0:F2}" />
+                        <f:RenderField Width="100px" ColumnID="HJCODE1" SortField="HJCODE1" DataField="HJCODE1"
+                            HeaderText="商品货位" TextAlign="Center">
+                            <Editor>
+                                <f:TextBox ID="tbxHWID" runat="server"></f:TextBox>
+                            </Editor>
+                        </f:RenderField>
+                        <f:RenderField Width="70px" ColumnID="ZDKC" DataField="ZDKC" FieldType="Int"
+                            HeaderText="最低库存" TextAlign="Center">
+                            <Editor>
+                                <f:NumberBox ID="nbxZDKC" runat="server" MinValue="0" />
+                            </Editor>
+                        </f:RenderField>
+                        <f:RenderField Width="70px" ColumnID="ZGKC" DataField="ZGKC" FieldType="Int"
+                            HeaderText="最高库存" TextAlign="Center">
+                            <Editor>
+                                <f:NumberBox ID="nbxZGKC" runat="server" MinValue="0" />
+                            </Editor>
+                        </f:RenderField>
+                        <f:BoundField Width="60px" DataField="ISGZ" SortField="ISGZ" HeaderText="是否高值" />
+                        <f:BoundField Width="150px" DataField="CATNAME" SortField="CATNAME" HeaderText="商品类别" TextAlign="Center" />
+                        <f:BoundField Width="230px" DataField="PRODUCER" SortField="PRODUCER" HeaderText="生产厂家" />
+                        <f:BoundField Width="180px" DataField="PIZNO" SortField="PIZNO" HeaderText="批准文号" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+</html>

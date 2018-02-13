@@ -1,0 +1,156 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+
+namespace SPDProject.SpdApply
+{
+    public partial class GZAgainPrint : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                dpkout1.SelectedDate = DateTime.Now.AddDays(-1);
+                dpkout2.SelectedDate = DateTime.Now;
+                DepartmentBind.BindDDL("DDL_SYS_DEPTALLRANGE", UserAction.UserID, lstDEPTID);
+                SPDUtility.CacheClear("SYS_DEPT");
+            }
+        }
+        private void DataSearch()
+        {
+            int total = 0;
+            string msg = "";
+            NameValueCollection nvc = new NameValueCollection();
+
+            DataTable dtData = GetGoodsList(GridGoods.PageIndex, GridGoods.PageSize, nvc, ref total, ref msg);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        public DataTable GetGoodsList(int pageNum, int pageSize, NameValueCollection nvc, ref int total, ref string errMsg)
+        {
+            string strSearch = "";
+            if (tbxGDSEQ.Text.Trim().Length > 0) { strSearch += string.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' OR B.BARCODE LIKE '%{0}%')", tbxGDSEQ.Text.Trim()); }
+            //if (tbxBILL.Text.Trim().Length > 0) { strSearch += " AND UPPER(TRIM(A.BILLNO)) like '%" + tbxBILL.Text.Trim().ToUpper() + "%'"; }
+            if (tgbCODE.Text.Trim().Length > 0) { strSearch += " AND A.ONECODE LIKE '%" + tgbCODE.Text.Trim() + "%'"; }
+            if (!string.IsNullOrWhiteSpace(lstDEPTID.SelectedValue)) { strSearch += " AND A.DEPTCUR ='" + lstDEPTID.SelectedValue + "'"; }
+            if (ddlFLAG.SelectedValue.Length > 0) { strSearch += " AND A.FLAG ='" + ddlFLAG.SelectedValue + "'"; }
+            if (dpkout1.SelectedDate != null) { strSearch += string.Format(" AND A.INSTIME>=TO_DATE('{0}','YYYY-MM-DD')", dpkout1.Text); }
+            if (dpkout2.SelectedDate != null) { strSearch += string.Format(" AND A.INSTIME<TO_DATE('{0}','YYYY-MM-DD')+1", dpkout2.Text); }
+            //strSearch += string.Format(" AND DEPTIN IN( SELECT CODE FROM SYS_DEPT WHERE TYPE <>'1' AND  F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += " ORDER BY A.FLAG desc,A.BILLNO DESC,B.GDNAME";
+            string strGoods = @" SELECT A.BILLNO,
+       A.GDSEQ,
+       B.GDNAME,
+       B.GDSPEC,
+       f_getunitname(B.UNIT) UNITNAME,
+       f_getdeptname(A.DEPTCUR) DEPTCURNAME,
+       B.BAR3,
+       B.HSJJ,
+       f_getproducername(B.PRODUCER) PRODUCERNAME,
+       A.INSTIME,
+       A.BZHL,
+       A.ONECODE,
+       A.FLAG,
+       A.PH,
+       C.RQ_SC,
+       C.YXQZ,
+       DECODE(A.FLAG,
+              'T',
+              '已退货',
+              'N',
+              '未入库',
+              'Y',
+              '已入库',
+              'C',
+              '已出库',
+              'R',
+              '科室退货',
+              'S',
+              '已损益',
+              '已使用') FLAGNAME
+  FROM DAT_GZ_EXT A, DOC_GOODS B,DAT_RK_EXT C
+ WHERE A.GDSEQ = B.GDSEQ AND A.ONECODE=C.ONECODE";
+            StringBuilder strSql = new StringBuilder(strGoods);
+            strSql.Append(strSearch);
+            DataTable dt = new DataTable();
+            dt = GetDataTable(pageNum, pageSize, strSql, ref total);
+            return dt;
+        }
+
+        protected void GridGoods_RowSelect(object sender, GridRowSelectEventArgs e)
+        {
+            int[] selections = GridGoods.SelectedRowIndexArray;
+            string no = "";
+            foreach (int rowIndex in selections)
+            {
+                if (GridGoods.DataKeys[rowIndex][1].ToString() == "Y" || GridGoods.DataKeys[rowIndex][1].ToString() == "R")
+                {
+                    no = no + "'" + GridGoods.DataKeys[rowIndex][0].ToString() + "',";
+                }
+            }
+            echo.Text = no.TrimEnd(',');
+        }
+
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                FineUIPro.BoundField flagcol = GridGoods.FindColumn("FLAGNAME") as FineUIPro.BoundField;
+                if (flag != "Y" && flag != "R")
+                {
+                    foreach (GridColumn column in GridGoods.Columns)
+                    {
+                        e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "f-grid-cell-uneditable";
+                    }
+                }
+                if (flag == "C")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+                if (flag == "Y")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                if (flag == "R")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+        }
+
+        protected void btnPrint_Click(object sender, EventArgs e)
+        {
+            int[] selections = GridGoods.SelectedRowIndexArray;
+            string no = "";
+            foreach (int rowIndex in selections)
+            {
+                //if (GridGoods.DataKeys[rowIndex][1].ToString() == "Y" || GridGoods.DataKeys[rowIndex][1].ToString() == "R")
+                //{
+                no = no + "'" + GridGoods.DataKeys[rowIndex][0].ToString() + "',";
+                //}
+            }
+            echo.Text = no.TrimEnd(',');
+            PageContext.RegisterStartupScript("btnPrint_onclick();");
+        }
+    }
+}

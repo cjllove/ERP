@@ -1,0 +1,66 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DosageForm.aspx.cs" Inherits="ERPProject.ERPDictionary.DosageForm" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="MainPanel"
+            runat="server" />
+        <f:Panel ID="MainPanel" runat="server" Layout="HBox" ShowBorder="false" BoxConfigAlign="Stretch" BoxConfigPosition="Start" ShowHeader="False">
+            <Items>
+                <f:Panel ID="PanelLeft" ShowBorder="false" BoxFlex="1" BodyPadding="0px"
+                    Layout="Fit" ShowHeader="False" runat="server">
+                    <Items>
+                        <f:Grid ID="GridDosage" ShowBorder="false" ShowHeader="false" runat="server" DataKeyNames="Code,Name"
+                             CssStyle="border-right: 1px solid #99bce8;"
+                            EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridDosage_RowDoubleClick">
+                            <Columns>
+                                <f:BoundField Width="80px" DataField="Code" HeaderText="剂型编码" />
+                                <f:BoundField Width="100px" DataField="Name" HeaderText="剂型名称" ExpandUnusedSpace="true" />
+                                <f:BoundField DataField="FLAG" Hidden="true" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+                <f:Panel ID="PanelRight" ShowBorder="false" BoxFlex="2" BodyPadding="0px" Layout="Fit" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:Button ID="btnNew" Text="新增" Icon="Add" runat="server" OnClick="btnNew_Click"></f:Button>
+                                <f:Button ID="btnDelete" Text="删除" Icon="Delete" runat="server" ConfirmText="是否确认删除此信息?" OnClick="btnDelete_Click"></f:Button>
+                                <f:Button ID="btnSave" Text="保存" Icon="Disk" runat="server" OnClick="btnSave_Click" ValidateForms="FormDosage"></f:Button>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormDosage" ShowBorder="false" BodyPadding="10px" ShowHeader="False" runat="server" LabelWidth="65px">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:CheckBox ID="ckbFlag" runat="server" Label="是否有效" LabelWidth="70px" Width="350px"  />
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox ID="tbxCode" Label="剂型编码" runat="server" Required="true" ShowRedStar="true" LabelWidth="70px" Width="350px" MaxLength="15" />
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox ID="tbxName" Label="剂型名称" runat="server" Required="true" ShowRedStar="true" LabelWidth="70px" Width="350px" MaxLength="30" />
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                        <f:HiddenField ID="hfdIsNew" runat="server" Text="Y" />
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+</html>

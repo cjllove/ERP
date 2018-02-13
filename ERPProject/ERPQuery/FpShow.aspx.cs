@@ -1,0 +1,116 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Collections.Specialized;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class FpShow : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkout1.SelectedDate = DateTime.Now.AddDays(-1);
+            dpkout2.SelectedDate = DateTime.Now;
+        }
+
+        private string GetSearchSql()
+        {
+            string strSql = @"SELECT A.SEQNO,A.FROMORGNAME,A.TOORGNAME,A.INVOICENO,A.INVOICESUM,A.LRYNAME,A.LRY,A.ISGZ,
+                           B.PRECODE,B.ROWNO,B.GDNAME,B.GDSEQ,B.GDSPEC,f_getunitname(B.UNIT) UNITNAME,B.DHS,
+                           f_getproducername(B.PRODUCER) PRODUCERNAME,B.HSJJ,B.HSJE,B.PH,B.RQ_SC,B.YXQZ,B.PZWH
+                    FROM DAT_FP_DOC A,DAT_FP_COM B
+                    WHERE A.SEQNO = B.SEQNO AND A.LRRQ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd')";
+            string strWhere = " ";
+            if (tbxBILLNO.Text.Trim().Length > 0) strWhere += " and A.INVOICENO = '" + tbxBILLNO.Text.Trim() + "'";
+            if (tbxSEQNO.Text.Trim().Length > 0) strWhere += " and A.SEQNO like '%" + tbxSEQNO.Text.Trim() + "%'";
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY {0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            return String.Format(strSql, dpkout1.Text, dpkout2.Text);
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            OutputSummaryData(dtData);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    //dtData.Columns[((FineUI.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            //((FineUI.Button)sender).Enabled = false;
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品库存信息", string.Format("商品库存报表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+            //((FineUI.Button)sender).Enabled = true;
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal Total = 0, HSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                Total += Convert.ToInt32(row["lockkcsl"]);
+                HSJETotal += Convert.ToDecimal(row["HSJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "全部合计");
+            summary.Add("LOCKKCSL", Total.ToString("F2"));
+            summary.Add("HSJE", HSJETotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+    }
+}

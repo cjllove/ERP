@@ -1,0 +1,389 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using XTBase;
+using Newtonsoft.Json.Linq;
+using System.Net;
+using SPDProject;
+using Oracle.ManagedDataAccess.Client;
+using XTBase.Utilities;
+using Newtonsoft.Json;
+using System.Text;
+
+namespace SPDProject.SpdPayment
+{
+    public partial class GoodsStorageAndTicket : PageBase
+    {
+        // string strDocSql = "SELECT * FROM DAT_RK_DOC WHERE SEQNO ='{0}'";
+        string strComSql = @"SELECT A.SEQNO,A.ROWNO,A.DEPTID,A.GDSEQ,A.BARCODE,A.GDNAME,A.UNIT,A.GDSPEC,A.GDMODE,A.CDID,A.SPLB,A.CATID,A.HWID,A.BZHL,A.BZSL,
+                                                    A.DDSL,A.SSSL,A.JXTAX,A.HSJJ,A.BHSJJ,A.HSJE,A.BHSJE,A.LSJ,A.LSJE,A.ISGZ,A.ISLOT,A.PHID,A.PH, A.PZWH,TO_CHAR(A.RQ_SC,'YYYY-MM-DD') RQ_SC,
+                                                    TO_CHAR(A.YXQZ,'YYYY-MM-DD') YXQZ,A.KCSL,A.KCHSJE,A.SPZTSL,A.SPDAYXS,A.HLKC,A.ZPBH,A.STR1,A.STR2,A.STR3,A.NUM1,A.NUM2,
+                                                    A.NUM3,A.MEMO, F_GETUNITNAME(A.UNIT) UNITNAME,F_GETUNITNAME(B.UNIT) UNITSMALLNAME,A.MJRQ,A.MJPH,A.MJXQ,
+                                                    A.PRODUCER,f_getproducername(A.PRODUCER) PRODUCERNAME,A.SUPID,f_getsupname(a.supid) supname
+                                           FROM DAT_RK_COM A, DOC_GOODS B WHERE SEQNO = '{0}' AND A.GDSEQ = B.GDSEQ ORDER BY A.ROWNO ";
+
+        private string strSql = @"SELECT A.SEQNO, A.BILLNO,A.BILLTYPE,
+                                                       F_GETBILLFLAG(FLAG) FLAG_CN,
+                                                       A.FLAG, A.DDBH,A.DEPTID,
+                                                       F_GETDEPTNAME(A.DEPTID) DEPTNAME,
+                                                       DECODE(A.INVOICENUMBER, '', '否', '是') TSTATUS,
+                                                       A.INVOICENUMBER,
+                                                       A.DHRQ,
+                                                       A.SUBSUM,
+                                                       F_GETUSERNAME(A.CGY) CGY,
+                                                       F_GETSUPNAME(A.PSSID) PSSNAME,
+                                                       A.PSSID,
+                                                       F_GETUSERNAME(A.LRY) LRY,
+                                                       A.LRRQ,
+                                                       F_GETUSERNAME(A.SHR) SHR,
+                                                       A.SHRQ,
+                                                       A.MEMO,
+                                                       STR1
+                                                  FROM DAT_RK_DOC A
+                                                 WHERE BILLTYPE = 'RKD'
+                                                UNION ALL
+                                                SELECT A.SEQNO, A.BILLNO,A.BILLTYPE,
+                                                       F_GETBILLFLAG(FLAG) FLAG_CN,
+                                                       A.FLAG, A.RKDH,A.DEPTID,
+                                                       F_GETDEPTNAME(A.DEPTID) DEPTNAME,
+                                                       DECODE(A.INVOICENUMBER, '', '否', '是') TSTATUS,
+                                                       A.INVOICENUMBER,
+                                                       A.THRQ,
+                                                       A.SUBSUM,
+                                                       F_GETUSERNAME(A.CGY) CGY,
+                                                       F_GETSUPNAME(A.PSSID) PSSNAME,
+                                                       A.PSSID,
+                                                       F_GETUSERNAME(A.LRY) LRY,
+                                                       A.LRRQ,
+                                                       F_GETUSERNAME(A.SHR) SHR,
+                                                       A.SHRQ,
+                                                       A.MEMO,
+                                                       A.INVOICETIME STR1
+                                                  FROM DAT_TH_DOC A
+                                                 WHERE BILLTYPE = 'THD'";
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                lstStr1.SelectedDate = null;
+                dptStartDate.SelectedDate = DateTime.Now.AddDays(-7);
+                dpttEndDate.SelectedDate = DateTime.Now;
+
+                DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTOUT);
+                PubFunc.DdlDataGet("DDL_DOC_SUPPLIER", ddlSUPID);
+            }
+
+        }
+
+        private string GetSearchSql()
+        {
+            string strWhere = "";
+            if (dptStartDate.SelectedDate != null || dpttEndDate.SelectedDate != null)
+            {
+                if (dptStartDate.SelectedDate > dpttEndDate.SelectedDate)
+                {
+                    Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                    return "";
+                }
+                else
+                {
+                    if (ddlSearchType.SelectedValue == "0")
+                    {
+                        strWhere += string.Format(" AND  TO_DATE(Str1,'YYYY-MM-DD')>=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dptStartDate.SelectedDate).ToString("yyyy-MM-dd"));
+                        strWhere += string.Format(" AND  TO_DATE(Str1,'YYYY-MM-DD')<=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dpttEndDate.SelectedDate).ToString("yyyy-MM-dd"));
+                    }
+                    else
+                    {
+                        strWhere += string.Format(" AND   TRUNC(SHRQ,'DD')>=TRUNC(TO_DATE('{0}','YYYY-MM-DD'),'DD')", Convert.ToDateTime(dptStartDate.SelectedDate).ToString("yyyy-MM-dd"));
+                        strWhere += string.Format(" AND   TRUNC(SHRQ,'DD')<=TRUNC(TO_DATE('{0}','YYYY-MM-DD'),'DD')", Convert.ToDateTime(dpttEndDate.SelectedDate).ToString("yyyy-MM-dd"));
+                    }
+                }
+            }
+
+            if (txtTicketNo.Text.Trim().Length > 0)
+            {
+                strWhere += " AND INVOICENUMBER LIKE '%" + txtTicketNo.Text.Trim() + "%' ";
+            }
+            if (txtRKDBillNo.Text.Trim().Length > 0)
+            {
+                strWhere += " AND SEQNO LIKE  '%" + txtRKDBillNo.Text.Trim() + "%' ";
+            }
+            if (ddlIsTicket.SelectedValue == "0")
+            {
+                strWhere += " AND  Str1 IS NULL ";
+            }
+            else if (ddlIsTicket.SelectedValue == "1")
+            {
+                strWhere += " AND Str1 IS NOT NULL ";
+            }
+            if (!string.IsNullOrWhiteSpace(ddlBILLTYPE.SelectedValue))
+            {
+                strWhere += " AND BILLTYPE ='" + ddlBILLTYPE.SelectedValue + "' ";
+            }
+
+            if (!string.IsNullOrWhiteSpace(trbGoods.Text))
+            {
+                strWhere += string.Format(@" AND SEQNO IN (SELECT SEQNO
+                                          FROM DAT_RK_COM A, DOC_GOODS B
+                                         WHERE A.GDSEQ = B.GDSEQ
+                                           AND(UPPER(B.GDSEQ) LIKE '%{0}%' OR UPPER(B.GDNAME) LIKE '%{0}%' OR
+                                               UPPER(B.ZJM) LIKE '%{0}%'))", trbGoods.Text.Trim().ToUpper());
+            }
+            if (!string.IsNullOrWhiteSpace(ddlDEPTOUT.SelectedValue))
+            {
+                strWhere += " AND DEPTID = '" + ddlDEPTOUT.SelectedValue + "'";
+            }
+            if (!string.IsNullOrWhiteSpace(ddlSUPID.SelectedValue))
+            {
+                strWhere += " AND PSSID = '" + ddlSUPID.SelectedValue + "'";
+            }
+
+            strWhere += " ORDER BY " + GridList.SortField + " " + GridList.SortDirection;
+
+            return "SELECT * FROM (" + strSql + ") WHERE FLAG='Y' " + strWhere;
+        }
+
+        public void Datasearch()
+        {
+            string strSql = GetSearchSql();
+            if (!string.IsNullOrWhiteSpace(strSql))
+            {
+                DataTable dtSum = DbHelperOra.Query("SELECT SUM(NVL(SUBSUM,0)) SUBSUM FROM (" + strSql + ")").Tables[0];
+                if (dtSum.Rows.Count > 0)
+                {
+                    tbtSUBSUM.Text = "收货总金额："+dtSum.Rows[0]["SUBSUM"].ToString();
+                }
+                int total = 0;
+                GridList.DataSource = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+                GridList.RecordCount = total;
+                GridList.DataBind();
+            }
+        }
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            Datasearch();
+        }
+
+        protected void bntClear_Click(object sender, EventArgs e)
+        {
+            txtTicketNo.Text = "";
+            dptStartDate.SelectedDate = DateTime.Now.AddDays(-7);
+            dpttEndDate.SelectedDate = DateTime.Now;
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            //string strSqlExt = @"SELECT DECODE(INVOICENUMBER,'' ,'否','是')  发票标识,INVOICENUMBER 发票编号,DECODE(A.STR1,'','',TO_DATE(A.STR1,'YYYY-MM-DD')) 发票时间, A.BILLNO 入库单号,F_GETBILLFLAG(FLAG) 状态,A.DDBH 订单编号,
+            //                        F_GETDEPTNAME(A.DEPTID) 收货地点 ,A.SUBSUM 收货金额,f_getsupname(a.pssid) 送货商,A.DHRQ 收货日期 
+            //                    FROM DAT_RK_DOC A  WHERE 1=1";
+            //if (lstStr1.SelectedDate != null || dpttEndDate.SelectedDate != null)
+            //{
+            //    if (lstStr1.SelectedDate > dpttEndDate.SelectedDate)
+            //    {
+            //        Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+            //        return;
+            //    }
+            //    else
+            //    {
+            //        if (ddlSearchType.SelectedValue == "0")
+
+            //        {
+            //            strSql += string.Format(" AND  TO_DATE(Str1,'YYYY-MM-DD')>=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dptStartDate.SelectedDate).ToString("yyyy-MM-dd"));
+            //            strSql += string.Format(" AND  TO_DATE(Str1,'YYYY-MM-DD') + 1<=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dpttEndDate.SelectedDate).ToString("yyyy-MM-dd"));
+            //        }
+            //        else
+            //        {
+            //            strSql += string.Format(" AND   SHRQ>=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dptStartDate.SelectedDate).ToString("yyyy-MM-dd"));
+            //            strSql += string.Format(" AND   SHRQ<=TO_DATE('{0}','YYYY-MM-DD')", Convert.ToDateTime(dpttEndDate.SelectedDate).ToString("yyyy-MM-dd"));
+
+            //        }
+
+            //    }
+
+            //}
+
+            //if (lstINVOICENUMBER.Text.Trim().Length > 0)
+            //{
+            //    strSqlExt += " AND INVOICENUMBER LIKE '%" + lstINVOICENUMBER.Text.Trim() + "%' ";
+            //}
+            //DataTable dt = DbHelperOra.Query(strSqlExt).Tables[0];
+            //ExcelHelper.ExportByWeb(dt, "发票与入库信息", "发票与入库信息_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls");
+            string strSql = GetSearchSql();
+            if (!string.IsNullOrWhiteSpace(strSql))
+            {
+                DataTable dtData = DbHelperOra.Query(strSql).Tables[0];
+                if (dtData == null || dtData.Rows.Count == 0)
+                {
+                    Alert.Show("暂时没有查询到符合条件的发票与入库信息,无法导出！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+
+                List<String> columnNames = new List<string>();
+                for (int index = 1; index < GridList.Columns.Count; index++)
+                {
+                    GridColumn column = GridList.Columns[index];
+                    if (column is FineUIPro.BoundField && column.Hidden == false)
+                    {
+                        dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                        columnNames.Add(column.HeaderText);
+                    }
+                }
+
+                ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(false, columnNames.ToArray()), "发票与入库信息", string.Format("发票与入库信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+            }
+        }
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+            if (GridList.SelectedRowIndexArray.Length == 0)
+            {
+                Alert.Show("请先对入库单进行选择！");
+                return;
+
+            }
+            else
+            {
+                lstINVOICENUMBER.Text = "";
+                lstStr1.SelectedDate = DateTime.Now;
+                Window2.Hidden = false;
+            }
+
+        }
+        protected void btnSaveTicket_Click(object sender, EventArgs e)
+        {
+
+            if (lstINVOICENUMBER.Text.Length == 0)
+            {
+                Alert.Show("发票号不能为空！");
+                return;
+            }
+            if (lstStr1.SelectedDate == null)
+            {
+
+                Alert.Show("发票时间不能为空！");
+                return;
+            }
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+
+            foreach (int irow in GridList.SelectedRowIndexArray)
+            {
+                if (GridList.Rows[irow].DataKeys[2].ToString() == "RKD")
+                {
+                    cmdList.Add(new CommandInfo(string.Format("UPDATE DAT_RK_DOC SET    INVOICENUMBER='{0}',STR1='{1}' WHERE  SEQNO='{2}'  ", lstINVOICENUMBER.Text.TrimEnd(), Convert.ToDateTime(lstStr1.SelectedDate).ToString("yyyy-MM-dd"), GridList.Rows[irow].DataKeys[0].ToString()), null));
+                }
+                else if (GridList.Rows[irow].DataKeys[2].ToString() == "THD")
+                {
+                    cmdList.Add(new CommandInfo(string.Format("UPDATE DAT_TH_DOC SET    INVOICENUMBER='{0}',INVOICETIME='{1}' WHERE  SEQNO='{2}'  ", lstINVOICENUMBER.Text.TrimEnd(), Convert.ToDateTime(lstStr1.SelectedDate).ToString("yyyy-MM-dd"), GridList.Rows[irow].DataKeys[0].ToString()), null));
+                }
+            }
+            if (DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("发票和单据关联成功！", "消息提示", MessageBoxIcon.Information);
+                Datasearch();
+                Window2.Hidden = true;
+
+                return;
+            }
+            else
+            {
+                Alert.Show("发票和订单关联失败！");
+            }
+
+        }
+        protected void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            //  billClear();
+            txtTicketNo.Text = GridList.Rows[e.RowIndex].Values[4].ToString();
+            DetailSearch(GridList.Rows[e.RowIndex].Values[1].ToString(), GridList.Rows[e.RowIndex].Values[2].ToString());
+
+        }
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            Datasearch();
+
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                FineUIPro.BoundField flagcol = GridList.FindColumn("FLAG_CN") as FineUIPro.BoundField;
+                if (flag == "M")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+                if (flag == "N")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                if (flag == "R")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+        }
+        private void DetailSearch(string strBillno,string strBillType)
+        {
+            PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+            DataTable dtBill = new DataTable();
+            if (strBillType == "RKD")
+            {
+               dtBill = DbHelperOra.Query(string.Format(strComSql, strBillno)).Tables[0];
+            }
+            else
+            {
+                string th_sql = @"SELECT A.SEQNO,A.ROWNO,A.DEPTID,A.GDSEQ,A.BARCODE,A.GDNAME,A.UNIT,A.GDSPEC,A.GDMODE,A.CDID,'' SPLB,A.CATID,A.HWID,A.BZHL,A.BZSL,
+                                                    A.THSL DDSL,A.SSSL,A.JXTAX,A.HSJJ,A.BHSJJ,A.HSJE,A.BHSJE,A.LSJ,A.LSJE,B.ISGZ,A.ISLOT,A.PHID,A.PH, A.PZWH,TO_CHAR(A.RQ_SC,'YYYY-MM-DD') RQ_SC,
+                                                    TO_CHAR(A.YXQZ,'YYYY-MM-DD') YXQZ,A.KCSL,A.KCHSJE,A.SPZTSL,A.SPDAYXS,A.HLKC,A.ZPBH,A.STR1,A.STR2,A.STR3,A.NUM1,A.NUM2,
+                                                    A.NUM3,A.MEMO, F_GETUNITNAME(A.UNIT) UNITNAME,F_GETUNITNAME(B.UNIT) UNITSMALLNAME,'' MJRQ,'' MJPH,'' MJXQ,
+                                                    A.PRODUCER,f_getproducername(A.PRODUCER) PRODUCERNAME,A.SUPID,f_getsupname(a.supid) supname
+                                           FROM DAT_TH_COM A, DOC_GOODS B WHERE SEQNO = '{0}' AND A.GDSEQ = B.GDSEQ ORDER BY A.ROWNO ";
+                dtBill = DbHelperOra.Query(string.Format(th_sql, strBillno)).Tables[0];
+            }
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                decimal ddslTotal = 0, bzslTotal = 0, feeTotal = 0;
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    ddslTotal += Convert.ToDecimal(string.IsNullOrWhiteSpace(row["DDSL"].ToString()) ? "0" : row["DDSL"].ToString());
+                    if (!PubFunc.StrIsEmpty(Convert.ToString(row["BZSL"] ?? "0")))
+                    {
+                        bzslTotal += Convert.ToDecimal(row["BZSL"] ?? "0");
+                        // 还要乘以最小单位
+                        //feeTotal += Convert.ToDecimal(Convert.ToString(row["HSJJ"])) * Convert.ToDecimal(Convert.ToString(row["BZSL"] ?? "0")) * Convert.ToDecimal(Convert.ToString(row["SSSL"] ?? "0"));
+                        feeTotal += Convert.ToDecimal(row["HSJJ"]) * Convert.ToDecimal(row["BZSL"] ?? "0");
+                    }
+                    row["HSJE"] = Convert.ToDecimal(row["HSJE"]).ToString("F2");
+
+                }
+
+                Doc.GridRowAdd(GridGoods, dtBill);
+
+                //计算合计数量
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                summary.Add("DDSL", ddslTotal.ToString());
+                summary.Add("BZSL", bzslTotal.ToString());
+                summary.Add("HSJE", feeTotal.ToString("F2"));
+                GridGoods.SummaryData = summary;
+
+            }
+        }
+
+        protected void txtRKDBillNo_TextChanged(object sender, EventArgs e)
+        {
+            Datasearch();
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            Datasearch();
+        }
+    }
+}

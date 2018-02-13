@@ -1,0 +1,513 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Text;
+using Oracle.ManagedDataAccess.Client;
+using System.Threading;
+
+namespace SPDProject.SpdXM.WH_WDZXPH
+{
+    public partial class DataTransfer : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DdlDataBind(params FineUIPro.DropDownList[] ddls)
+        {
+            string strSql = @"SELECT CODE, '【' || CODE || '】' || NAME NAME,
+                                                  (CLASS - 1) TREELEVEL, DECODE(ISLAST, 'Y', 1, 0) ISLAST
+                                        FROM SYS_DEPT ORDER BY CODE";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            myList.Add(new CategoryTreeBean("", "---请选择---", 0, true));
+
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            foreach (FineUIPro.DropDownList ddl in ddls)
+            {
+                // 绑定到下拉列表（启用模拟树功能）
+                ddl.EnableSimulateTree = true;
+                ddl.DataTextField = "Name";
+                ddl.DataValueField = "Id";
+                ddl.DataEnableSelectField = "EnableSelect";
+                ddl.DataSimulateTreeLevelField = "Level";
+                ddl.DataSource = myList;
+                ddl.DataBind();
+            }
+
+            string strSql1 = @"SELECT '' CODE, '---请选择---' NAME FROM DUAL UNION ALL
+                                       SELECT * FROM (SELECT CODE_HIS CODE, NAME_HIS NAME FROM SYS_DEPT ORDER BY NAME_HIS)";
+            PubFunc.DdlDataSql(ddlDEPTJSP, strSql1);
+        }
+        private void DataInit()
+        {
+            DdlDataBind(lstDEPTOUT);
+            PubFunc.DdlDataGet(lstSUPID, "DDL_DOC_SUPID");
+            PubFunc.DdlDataGet("DDL_USERALL", ddlLRY);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            dpkBEGRQ.SelectedDate = DateTime.Now.AddDays(-7);
+            dpkENDRQ.SelectedDate = DateTime.Now;
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！", "异常提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期", "异常提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.AppendFormat(@"SELECT A.SEQNO BILLNO,
+                                                           B.SEQNO JXCSEQ,
+                                                           D.NAME DEPTNAME,
+                                                           C.HISCODE,
+                                                           C.BAR3 EASCODE,
+                                                           C.GDSEQ,
+                                                           C.GDNAME,
+                                                           C.GDSPEC,
+                                                           F_GETUNITNAME(C.UNIT) UNIT,
+                                                           C.HSJJ,
+                                                           -B.SL XSSL,
+                                                           -B.HSJE HSJE,
+                                                           B.PH,
+                                                           B.YXQZ,
+                                                           F_GETSUPNAME(B.SUPID) SUPNAME,
+                                                           F_GETPRODUCERNAME(C.PRODUCER) PRODUCER
+                                                      FROM DAT_XS_DOC A,
+                                                           (SELECT *
+                                                              FROM DAT_GOODSJXC
+                                                             WHERE BILLTYPE IN ('XSD', 'XSG', 'DSH')
+                                                            UNION ALL
+                                                            SELECT *
+                                                              FROM DAT_GOODSJXC
+                                                             WHERE BILLTYPE = 'XST'
+                                                               AND KCADD = '1') B,
+                                                           DOC_GOODS C,
+                                                           (SELECT * FROM SYS_DEPT WHERE TYPE IN ('3','4')) D
+                                                     WHERE A.BILLNO = B.BILLNO
+                                                       AND A.DEPTID = B.DEPTID
+                                                       AND B.GDSEQ = C.GDSEQ
+                                                       AND A.DEPTID = D.CODE
+                                                       AND B.SEQNO NOT IN
+                                                           (SELECT JXCSEQ FROM WDZX_BOOKIN_COM)
+                                                       AND A.SHRQ BETWEEN TO_DATE('{0}', 'yyyy-MM-dd') AND
+                                                           TO_DATE('{1}', 'yyyy-MM-dd') + 1", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (lstDEPTOUT.SelectedValue.Length > 0)
+            {
+                sbSql.Append(" AND A.DEPTID = '" + lstDEPTOUT.SelectedValue + "' ");
+            }
+            if (lstSUPID.SelectedValue.Length > 0)
+            {
+                sbSql.Append(" AND B.SUPID = '" + lstSUPID.SelectedValue + "' ");
+            }
+            if (lstISGZ.SelectedValue != null && lstISGZ.SelectedValue.Length > 0)
+            {
+                sbSql.Append(" AND C.ISGZ = '" + lstISGZ.SelectedValue + "' ");
+            }
+            sbSql.Append(" ORDER BY D.NAME,A.BILLNO,B.ROWNO");
+
+            lblSUBNUM.Text = "0";
+            lblSUBSUM.Text = "0";
+            DataTable table = DbHelperOra.Query("SELECT SUM(NVL(XSSL,0)) SL,SUM(NVL(HSJE,0)) JE FROM (" + sbSql.ToString() + ")").Tables[0];
+            if (table != null && table.Rows.Count > 0)
+            {
+                lblSUBNUM.Text = table.Rows[0]["SL"].ToString();
+                lblSUBSUM.Text = table.Rows[0]["JE"].ToString();
+            }
+
+            int totalPage = 0;
+            DataTable dtBill = GetDataTable(GridCom.PageIndex, GridCom.PageSize, sbSql.ToString(), ref totalPage);
+            GridCom.RecordCount = totalPage;
+            GridCom.DataSource = dtBill;
+            GridCom.DataBind();
+            //计算合计数量
+            decimal feeTotal = 0, hjje = 0, slTotal = 0, sl = 0;
+            foreach (DataRow row in dtBill.Rows)
+            {
+                Decimal.TryParse(row["XSSL"].ToString(), out sl);
+                slTotal += sl;
+                Decimal.TryParse(row["HSJE"].ToString(), out hjje);
+                feeTotal += hjje;
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("XSSL", slTotal.ToString());
+            summary.Add("HSJE", feeTotal.ToString("F2"));
+            GridCom.SummaryData = summary;
+        }
+
+        protected void btnUpLoad_Click(object sender, EventArgs e)
+        {
+            string para = "";
+            if (lstTYPE.SelectedValue == "QJ")
+            {
+                if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+                {
+                    Alert.Show("请输入条件【查询期间】！", "提示信息", MessageBoxIcon.Warning);
+                    return;
+                }
+                else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+                {
+                    Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                    return;
+                }
+                para = lstLRRQ1.Text + "_" + lstLRRQ2.Text;
+            }
+            else
+            {
+                //勾选要下传金算盘的销售单
+                int[] selections = GridCom.SelectedRowIndexArray;
+                if (selections.Count() < 1)
+                {
+                    Alert.Show("请选择需要下传的单据信息！", "提示信息", MessageBoxIcon.Warning);
+                    return;
+                }
+                foreach (int rowIndex in selections)
+                {
+                    para = GridCom.Rows[rowIndex].DataKeys[1].ToString() + ",";
+                }
+            }
+            OracleParameter[] parameters ={
+                                            new OracleParameter("V_CATEGORY" ,OracleDbType.Varchar2,2),
+                                            new OracleParameter("V_DEPTID" ,OracleDbType.Varchar2,10),
+                                            new OracleParameter("V_SUPID" ,OracleDbType.Varchar2,10),
+                                            new OracleParameter("V_ISGZ",OracleDbType.Varchar2,1),
+                                            new OracleParameter("V_USER",OracleDbType.Varchar2,20),
+                                            new OracleParameter("V_STR1",OracleDbType.Varchar2,10),
+                                            new OracleParameter("V_STR2",OracleDbType.Varchar2,10)
+                                           };
+            parameters[0].Value = lstTYPE.SelectedValue;
+            parameters[1].Value = string.IsNullOrWhiteSpace(lstDEPTOUT.SelectedValue) ? "%" : lstDEPTOUT.SelectedValue;
+            parameters[2].Value = string.IsNullOrWhiteSpace(lstSUPID.SelectedValue) ? "%" : lstSUPID.SelectedValue;
+            parameters[3].Value = string.IsNullOrWhiteSpace(lstISGZ.SelectedValue) ? "%" : lstISGZ.SelectedValue;
+            parameters[4].Value = UserAction.UserID;
+            parameters[5].Value = lstLRRQ1.Text;
+            parameters[6].Value = lstLRRQ2.Text;
+
+            parameters[0].Direction = ParameterDirection.Input;
+            parameters[1].Direction = ParameterDirection.Input;
+            parameters[2].Direction = ParameterDirection.Input;
+            parameters[3].Direction = ParameterDirection.Input;
+            parameters[4].Direction = ParameterDirection.Input;
+            parameters[5].Direction = ParameterDirection.Input;
+            parameters[6].Direction = ParameterDirection.Input;
+            //OracleParameter[] parameters ={
+            //                                new OracleParameter("V_CATEGORY" ,OracleDbType.Varchar2,2),
+            //                                new OracleParameter("V_DEPTID" ,OracleDbType.Varchar2,10),
+            //                                new OracleParameter("V_SUPID" ,OracleDbType.Varchar2,10),
+            //                                new OracleParameter("V_ISGZ",OracleDbType.Varchar2,1),
+            //                                new OracleParameter("V_USER",OracleDbType.Varchar2,20),
+            //                                new OracleParameter("V_PARA",OracleDbType.Varchar2,2000)
+            //                               };
+            //parameters[0].Value = lstTYPE.SelectedValue;
+            //parameters[1].Value = string.IsNullOrWhiteSpace(lstDEPTOUT.SelectedValue) ? "%" : lstDEPTOUT.SelectedValue;
+            //parameters[2].Value = string.IsNullOrWhiteSpace(lstSUPID.SelectedValue) ? "%" : lstSUPID.SelectedValue;
+            //parameters[3].Value = string.IsNullOrWhiteSpace(lstISGZ.SelectedValue) ? "%" : lstISGZ.SelectedValue;
+            //parameters[4].Value = UserAction.UserID;
+            //parameters[5].Value = para;
+
+            //parameters[0].Direction = ParameterDirection.Input;
+            //parameters[1].Direction = ParameterDirection.Input;
+            //parameters[2].Direction = ParameterDirection.Input;
+            //parameters[3].Direction = ParameterDirection.Input;
+            //parameters[4].Direction = ParameterDirection.Input;
+            //parameters[5].Direction = ParameterDirection.Input;
+
+            try
+            {
+                DbHelperOra.RunProcedure("P_UPLOADJSP_TEST", parameters);
+                Alert.Show("销售单下传成功!", "消息提示", MessageBoxIcon.Information);
+                btnSearch_Click(null, null);
+            }
+            catch (Exception err)
+            {
+                Alert.Show(err.Message);
+            }
+        }
+        //protected void btnUpLoad_Click(object sender, EventArgs e)
+        //    {
+        //        //勾选要下传金算盘的销售单
+        //        int[] selections = GridList.SelectedRowIndexArray;
+        //    if (selections.Count() < 1)
+        //    {
+        //        Alert.Show("请选择需要下传的单据信息！", "提示信息", MessageBoxIcon.Warning);
+        //        return;
+        //    }
+
+        //    string seqno = string.Empty;
+        //    //上传金算盘成功之后更新数据库标志位STR10
+        //    string strSql = "UPDATE DAT_XS_DOC SET STR10='Y' WHERE SEQNO='{0}'";
+        //    //获取上传金算盘的数据信息
+        //    string jspSql = @"SELECT A.SEQNO,
+        //                                       B.INF_CODE,
+        //                                       B.INF_NAME,
+        //                                       '【' || A.GDSEQ || '】' || A.GDNAME GDNAME,
+        //                                       B.INF_SPEC,
+        //                                       B.INF_UNIT,
+        //                                       B.INF_RATIO,
+        //                                       DECODE(A.ISGZ,'Y','1','0') ISGZ,
+        //                                       A.XSSL / B.INF_RATIO QUANTITY,
+        //                                       B.INF_PRICE,
+        //                                       B.INF_PRICE * (A.XSSL / B.INF_RATIO) AMOUNT
+        //                                  FROM DAT_XS_COM A, (SELECT * FROM DOC_GOODS_INF WHERE INF_TYPE='JSP') B
+        //                                 WHERE A.GDSEQ = B.INF_GDSEQ(+) AND A.SEQNO = '{0}'";
+        //    List<CommandInfo> cmdList = new List<CommandInfo>();
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    stringBuilder.Length = 0;
+        //    stringBuilder.Append(" INSERT INTO BOOKIN@JSP_DATABASE ( ");
+        //    stringBuilder.Append(" STROUTNO, ");
+        //    stringBuilder.Append(" STRDATE, ");
+        //    stringBuilder.Append(" STRITEMCODE, ");
+        //    stringBuilder.Append(" STRITEMNAME, ");
+        //    stringBuilder.Append(" STRMODELSTYLE, ");
+        //    stringBuilder.Append(" STRUNIT, ");
+        //    stringBuilder.Append(" DBLQUANTITY, ");
+        //    stringBuilder.Append(" DBLPRICE, ");
+        //    stringBuilder.Append(" DBLAMOUNT, ");
+        //    stringBuilder.Append(" STATUS_VAL, ");
+        //    stringBuilder.Append(" STRDEPARTMENT ");
+        //    stringBuilder.Append(" ) ");
+        //    stringBuilder.Append(" VALUES ");
+        //    stringBuilder.Append(" ( ");
+        //    stringBuilder.Append(" :STROUTNO, ");//单据编号
+        //    stringBuilder.Append(" :STRDATE, ");//消耗日期
+        //    stringBuilder.Append(" :STRITEMCODE, ");//金算盘商品编码
+        //    stringBuilder.Append(" :STRITEMNAME, ");//金算盘商品名称
+        //    stringBuilder.Append(" :STRMODELSTYLE, ");//金算盘商品规格
+        //    stringBuilder.Append(" :STRUNIT, ");//金算盘商品单位
+        //    stringBuilder.Append(" :DBLQUANTITY, ");//数量
+        //    stringBuilder.Append(" :DBLPRICE, ");//价格
+        //    stringBuilder.Append(" :DBLAMOUNT, ");//金额
+        //    stringBuilder.Append(" :STATUS_VAL, ");//是否高值
+        //    stringBuilder.Append(" :STRDEPARTMENT ");//金算盘科室编码
+        //    stringBuilder.Append(" ) ");
+        //    foreach (int rowIndex in selections)
+        //    {
+        //        seqno = GridList.Rows[rowIndex].DataKeys[1].ToString();
+        //        DataTable table = DbHelperOra.Query(string.Format(jspSql, seqno)).Tables[0];
+        //        if (table == null || table.Rows.Count < 1)
+        //        {
+        //            Alert.Show("单据【" + seqno + "】末查询到商品明细信息，请检查！", "错误信息", MessageBoxIcon.Warning);
+        //            return;
+        //        }
+        //        else
+        //        {
+        //            foreach (DataRow row in table.Rows)
+        //            {
+        //                if (row["INF_NAME"] == null || row["INF_NAME"].ToString() == "")
+        //                {
+        //                    Alert.Show("单据『" + seqno + "』中商品【" + row["GDNAME"].ToString() + "】末匹配金算盘商品名称及规格等数据，请检查！", "错误信息", MessageBoxIcon.Warning);
+        //                    return;
+        //                }
+        //                OracleParameter[] parameters = new OracleParameter[]{
+        //                    new OracleParameter("STROUTNO", OracleDbType.Varchar2,20),
+        //                    new OracleParameter("STRDATE", OracleDbType.Varchar2,10),
+        //                    new OracleParameter("STRITEMCODE", OracleDbType.Varchar2,50),
+        //                    new OracleParameter("STRITEMNAME", OracleDbType.Varchar2,200),
+        //                    new OracleParameter("STRMODELSTYLE", OracleDbType.Varchar2,200),
+        //                    new OracleParameter("STRUNIT", OracleDbType.Varchar2,10),
+        //                    new OracleParameter("DBLQUANTITY", OracleDbType.Decimal,10),
+        //                    new OracleParameter("DBLPRICE", OracleDbType.Decimal,10),
+        //                    new OracleParameter("DBLAMOUNT", OracleDbType.Decimal,10),
+        //                    new OracleParameter("STATUS_VAL", OracleDbType.Varchar2,1),
+        //                    new OracleParameter("STRDEPARTMENT", OracleDbType.Varchar2,50)
+        //                };
+        //                parameters[0].Value = row["SEQNO"].ToString();
+        //                parameters[1].Value = DateTime.Parse(GridList.Rows[rowIndex].DataKeys[2].ToString()).ToString("yyyy-MM-dd");
+        //                parameters[2].Value = row["INF_CODE"].ToString();
+        //                parameters[3].Value = row["INF_NAME"].ToString();
+        //                parameters[4].Value = row["INF_SPEC"].ToString();
+        //                parameters[5].Value = row["INF_UNIT"].ToString();
+        //                parameters[6].Value = row["QUANTITY"].ToString();
+        //                parameters[7].Value = row["INF_PRICE"].ToString();
+        //                parameters[8].Value = row["AMOUNT"].ToString();
+        //                parameters[9].Value = row["ISGZ"].ToString();
+        //                parameters[10].Value = GridList.Rows[rowIndex].DataKeys[3].ToString();
+        //                cmdList.Add(new CommandInfo(stringBuilder.ToString(), parameters));
+        //            }
+        //        }
+        //        cmdList.Add(new CommandInfo(string.Format(strSql, seqno), null));
+        //    }
+
+        //    try
+        //    {
+        //        if (DbHelperOra.ExecuteSqlTran(cmdList))
+        //        {
+        //            Alert.Show("销售单下传成功!", "消息提示", MessageBoxIcon.Information);
+        //            btnSearch_Click(null, null);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Alert.Show("销售单下传失败：\n\r" + ex.Message + "", "错误信息", MessageBoxIcon.Error);
+        //    }
+        //}
+
+        protected void GridCom_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridCom.PageIndex = e.NewPageIndex;
+            btnSearch_Click(null, null);
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            switch (e.EventArgument)
+            {
+                case "GetProgress":
+                    GetProgress();
+                    break;
+                case "DoWork":
+                    DoWork();
+                    break;
+            }
+        }
+        private void DoWork()
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                // 记录进度
+                // 实际应用中需要进一步控制（利用用户信息、cookies等），防止并发造成混乱
+
+                ViewState["progress"] = i + 1;
+                Random r = new Random();
+                Thread.Sleep(r.Next(10, 100));
+            }
+            // 完成后释放资源
+            ViewState["progress"] = null;
+        }
+        /// <summary>
+        /// 查询进度
+        /// </summary>
+        /// <returns>进度</returns>
+        private void GetProgress()
+        {
+            string script = string.Empty;
+            if (ViewState["progress"] != null)
+            {
+                string lable = "当前共上传了" + ViewState["progress"] + "条数据";
+                script = @"setTimeout(GetProgress, 100);
+                                $('#progress').html('" + lable + @"');
+                                $('#progressbar').progressbar({ value: parseInt(" + ViewState["progress"] + ") }); ";
+            }
+            else
+            {
+                script = @"$('#progress').html('done');
+                                $('#progressbar').progressbar({ value: 100 });";
+            }
+            PageContext.RegisterStartupScript(script);
+        }
+
+        private void OutputSummaryData(DataTable table)
+        {
+            //计算合计数量
+            decimal feeTotal = 0, hjje = 0, slTotal = 0, sl = 0;
+            foreach (DataRow row in table.Rows)
+            {
+                Decimal.TryParse(row["DBLQUANTITY"].ToString(), out sl);
+                slTotal += sl;
+                Decimal.TryParse(row["DBLAMOUNT"].ToString(), out hjje);
+                feeTotal += hjje;
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAMEUP", "本页合计");
+            summary.Add("DBLQUANTITY", slTotal.ToString());
+            summary.Add("DBLAMOUNT", feeTotal.ToString("F2"));
+            GridUploadJSP.SummaryData = summary;
+        }
+        private string GetQueryDatSql()
+        {
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.Append(@"SELECT B.BAR3        EASCODE,
+                                                 A.STROUTNO      BILLNO,
+                                                 A.STRITEMCODE HISCODE,
+                                                 A.STRDEPARTMENT DEPTNAME,
+                                                 B.GDSEQ,
+                                                 B.GDNAME GDNAMEUP,
+                                                 B.GDSPEC,
+                                                 A.STRUNIT,
+                                                 A.DBLPRICE,
+                                                 A.DBLQUANTITY,
+                                                 A.DBLAMOUNT,
+                                                 DECODE(A.STATUS_VAL,'1','高值','非高值') ISGZ,
+                                                 A.MODIFYTIME,F_GETUSERNAME(A.MODIFUSER) USERNAME
+                                            FROM WDZX_BOOKIN A, DOC_GOODS B
+                                           WHERE A.GDSEQ = B.GDSEQ(+) AND A.STROUTNO IN (SELECT STROUTNO FROM WDZX_BOOKIN_COM WHERE ISSEND='Y') ");
+            if (!string.IsNullOrWhiteSpace(ddlDEPTJSP.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND A.STRDEPARTMENT = '{0}'", ddlDEPTJSP.SelectedText);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlISGZ.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND A.STATUS_VAL = '{0}'", ddlISGZ.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlLRY.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND A.MODIFUSER = '{0}'", ddlLRY.SelectedValue);
+            }
+
+            sbSql.AppendFormat(" AND TO_DATE(A.STRDATE,'YYYY-MM-DD') BETWEEN TO_DATE('{0}','YYYY-MM-DD') AND TO_DATE('{1}','YYYY-MM-DD') + 1", dpkBEGRQ.Text, dpkENDRQ.Text);
+            sbSql.Append(" ORDER BY A.STROUTNO DESC ");
+            return sbSql.ToString();
+        }
+
+        protected void btnQuery_Click(object sender, EventArgs e)
+        {
+            if (dpkBEGRQ.SelectedDate == null || dpkENDRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (dpkBEGRQ.SelectedDate > dpkENDRQ.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+            lblTOTALSL.Text = "0";
+            lblTOTALJE.Text = "0";
+            DataTable table = DbHelperOra.Query("SELECT SUM(NVL(DBLQUANTITY,0)) SL,SUM(NVL(DBLAMOUNT,0)) JE FROM (" + GetQueryDatSql() + ")").Tables[0];
+            if (table != null && table.Rows.Count > 0)
+            {
+                lblTOTALSL.Text = table.Rows[0]["SL"].ToString();
+                lblTOTALJE.Text = table.Rows[0]["JE"].ToString();
+            }
+
+            int totalPage = 0;
+            DataTable dt = GetDataTable(GridUploadJSP.PageIndex, GridUploadJSP.PageSize, GetQueryDatSql(), ref totalPage);
+            GridUploadJSP.DataSource = dt;
+            GridUploadJSP.RecordCount = totalPage;
+            GridUploadJSP.DataBind();
+            OutputSummaryData(dt);
+        }
+
+        protected void GridUploadJSP_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridUploadJSP.PageIndex = e.NewPageIndex;
+            int totalPage = 0;
+            DataTable dt = GetDataTable(GridUploadJSP.PageIndex, GridUploadJSP.PageSize, GetQueryDatSql(), ref totalPage);
+            GridUploadJSP.DataSource = dt; GridUploadJSP.RecordCount = totalPage;
+            GridUploadJSP.DataBind();
+            OutputSummaryData(dt);
+        }
+    }
+}

@@ -1,0 +1,257 @@
+﻿Object Report
+	Version='5.8.0.6'
+	Title='你的报表标题'
+	Object Font
+		Name='宋体'
+		Size=105000,0
+		Weight=400
+		Charset=134
+	End
+	Object Printer
+		LeftMargin=1
+		RightMargin=1
+	End
+	Object DetailGrid
+		AppendBlankRow=T
+		Object Recordset
+			ConnectionString='Provider=OraOLEDB.Oracle.1;Persist Security Info=False;User ID=spd_wdzx;Password=spd_wdzx;Data Source=SPD_ENIF;Extended Properties=""'
+			QuerySQL='select '心内一病区' dept,'威高讯通耗材院内物流管理系统条码回收版' title,'NO.000001' no,1 cel1,2 cel2 from dual'
+			Items Field
+				Item
+					Name='DEPT'
+				End
+				Item
+					Name='TITLE'
+				End
+				Item
+					Name='NO'
+				End
+				Item
+					Name='CEL1'
+					Type=Float
+				End
+				Item
+					Name='CEL2'
+					Type=Float
+				End
+			End
+		End
+		Items Column
+			Item
+				Name='CEL1'
+				Width=8.17563
+			End
+			Item
+				Name='CEL2'
+				Width=8.59896
+			End
+			Item
+				Name='Column1'
+				Width=1.00542
+			End
+			Item
+				Name='Column2'
+				Width=0.978958
+			End
+		End
+		Object ColumnContent
+			Height=2.19604
+			RowsPerPage=10
+			Items ColumnContentCell
+				Item
+					Column='CEL1'
+					Object Font
+						Name='宋体'
+						Size=157500,0
+						Bold=T
+						Charset=134
+					End
+				End
+				Item
+					Column='CEL2'
+					Object Font
+						Name='宋体'
+						Size=157500,0
+						Bold=T
+						Charset=134
+					End
+				End
+				Item
+					Column='Column1'
+					Object Font
+						Name='宋体'
+						Size=157500,0
+						Bold=T
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					DataField='CEL1'
+				End
+				Item
+					Column='Column2'
+					Object Font
+						Name='宋体'
+						Size=157500,0
+						Bold=T
+						Charset=134
+					End
+					TextAlign=MiddleCenter
+					DataField='CEL2'
+				End
+			End
+		End
+		Object ColumnTitle
+			Height=0
+			Items ColumnTitleCell
+				Item
+					GroupTitle=F
+					Column='Column1'
+					Text='Column1'
+				End
+				Item
+					GroupTitle=F
+					Column='CEL1'
+					TextAlign=MiddleCenter
+					Text='CEL1'
+				End
+				Item
+					GroupTitle=F
+					Column='Column2'
+					Text='Column2'
+				End
+				Item
+					GroupTitle=F
+					Column='CEL2'
+					TextAlign=MiddleCenter
+					Text='CEL2'
+				End
+			End
+		End
+		Items Group
+			Item
+				Name='Group1'
+				PageGroup=T
+				Object GroupHeader
+					Height=1.40229
+					PrintGridBorder=F
+					Items Control
+						Item
+							Type=StaticBox
+							Name='StaticBox3'
+							Left=5.00063
+							Top=0.211667
+							Width=3.175
+							Height=0.9
+							Object Font
+								Name='宋体'
+								Size=240000,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='科 室：'
+						End
+						Item
+							Type=FieldBox
+							Name='FieldBox4'
+							Left=8.20208
+							Top=0.211667
+							Width=9.39271
+							Height=0.926042
+							Object Font
+								Name='宋体'
+								Size=217500,0
+								Bold=T
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							DataField='DEPT'
+						End
+						Item
+							Type=Line
+							Name='Line1'
+							Top=1.37583
+							Width=18.9971
+						End
+					End
+				End
+				Object GroupFooter
+					Height=0
+				End
+			End
+		End
+	End
+	Items Section
+		Item
+			Type=PageHeader
+			Height=1.00542
+			Items Control
+				Item
+					Type=FieldBox
+					Name='FieldBox2'
+					Width=10.795
+					Height=0.608542
+					Object Font
+						Name='宋体'
+						Size=120000,0
+						Weight=400
+						Charset=134
+					End
+					DataField='TITLE'
+				End
+				Item
+					Type=Barcode
+					Name='Barcode1'
+					Left=13.5996
+					Top=0.0264583
+					Width=5.26521
+					Height=0.767292
+					DataField='NO'
+					Text='[#NO#]'
+					Object Font
+						Name='宋体'
+						Size=90000,0
+						Weight=400
+						Charset=134
+					End
+				End
+			End
+		End
+		Item
+			Type=PageFooter
+			Height=1.19063
+			Items Control
+				Item
+					Type=StaticBox
+					Name='StaticBox1'
+					Left=0.396875
+					Top=0.211667
+					Width=3.81
+					Height=0.79375
+					Object Font
+						Name='宋体'
+						Size=217500,0
+						Bold=T
+						Charset=134
+					End
+					Text='签字人：'
+				End
+				Item
+					Type=StaticBox
+					Name='StaticBox2'
+					Left=11.0067
+					Top=0.211667
+					Width=3.81
+					Height=0.79375
+					Object Font
+						Name='宋体'
+						Size=217500,0
+						Bold=T
+						Charset=134
+					End
+					Text='日  期：'
+				End
+			End
+		End
+	End
+End

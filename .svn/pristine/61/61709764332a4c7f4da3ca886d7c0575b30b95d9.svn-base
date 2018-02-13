@@ -1,0 +1,215 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using System;
+using System.Collections.Specialized;
+using System.Collections.Generic;
+using System.Text;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using Newtonsoft.Json;
+using System.IO;
+using XTBase;
+using XTBase.Utilities;
+
+namespace SPDProject.SpdXM
+{
+    public partial class HisUseInfo : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            string path = Request.RawUrl;
+            if (!IsPostBack)
+            {
+                DataInit();
+
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_SYS_DEPTDEF", lstDEPTID, ddlDEPTID);
+            trbLRRQ1.Text = DateTime.Now.AddDays(-7).ToString();
+            trbLRRQ2.Text = DateTime.Now.ToString();
+        }
+       
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+        }
+        
+       
+
+        private void DataSearchList()
+        {
+            
+        }
+
+
+        protected void lstGDSEQ_TriggerClick(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            DataSearList();
+        }
+        private void DataSearList()
+        {
+            string strSql = @"SELECT B.GDSEQ, B.GDNAME, B.GDSPEC, f_getunitname(B.UNIT) UNITNAME,A.SUBSUM,C.CODE DEPTID, C.NAME DEPTNAME ,B.HSJJ,f_getsupname(B.PRODUCER) PRODUCER_CN
+                                FROM
+                                (
+                                select STR5,SUM(STR6) SUBSUM,STR2
+                                from inf_dat_his
+                                WHERE ISSEND= 'Y'
+                                group by STR2,STR5
+                                ) A, DOC_GOODS B , SYS_DEPT C  
+                                WHERE A.STR5 = B.GDSEQ AND A.STR2 = C.BYCODE";
+            string strSearch = "";
+            if (!string.IsNullOrWhiteSpace(lstGDSEQ.Text))
+            {
+                strSearch += string.Format(" AND ( B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' )", lstGDSEQ.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(lstDEPTID.SelectedValue))
+            {
+                strSearch += string.Format(" AND C.CODE = '{0}'", lstDEPTID.SelectedValue);
+            }
+            strSql += strSearch;
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            //GridList.DataSource = dt;
+            int total = 0;
+            GridList.DataSource = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            DataSearList();
+
+        }
+        private void DataSearDoc()
+        {
+            if (trbLRRQ1.Text == null || trbLRRQ2.Text == null)
+            {
+                Alert.Show("请输入条件【查询日期】！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (Convert.ToDateTime(trbLRRQ1.Text.ToString()) > Convert.ToDateTime(trbLRRQ2.Text.ToString()))
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+            string strSql = @"SELECT C.CODE DEPTID, C.NAME DEPTNAME,B.GDSEQ,B.GDNAME,B.GDSPEC,f_getunitname(B.UNIT) UNITNAME,B.HSJJ,f_getsupname(B.PRODUCER) PRODUCER_CN,A.STR3,A.STR7,A.STR1,A.STR6 XHS,A.STR4 CUSTID
+                            FROM INF_DAT_HIS A, DOC_GOODS B , SYS_DEPT C  
+                            WHERE A.STR5 = B.GDSEQ AND A.STR2 = C.BYCODE";
+            string strSearch = "";
+            if (!string.IsNullOrWhiteSpace(trbGDSEQ.Text))
+            {
+                strSearch += string.Format(" AND ( B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' )", trbGDSEQ.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                strSearch += string.Format(" AND C.CODE = '{0}'", ddlDEPTID.SelectedValue);
+            }
+            strSearch += string.Format(" AND TO_DATE(A.STR1, 'yyyy/MM/dd HH24:mi:ss') >= TO_DATE('{0}', 'yyyy/MM/dd HH24:mi:ss')", trbLRRQ1.Text);
+            strSearch += string.Format(" AND TO_DATE(A.STR1, 'yyyy/MM/dd HH24:mi:ss') < TO_DATE('{0}', 'yyyy/MM/dd HH24:mi:ss') + 1", trbLRRQ2.Text);
+
+            strSql += strSearch;
+            DataTable dtDoc = DbHelperOra.Query(strSql).Tables[0];
+            //GridGoods.DataSource = dtDoc;
+            int total = 0;
+            GridGoods.DataSource = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, strSql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+        protected void btnSearDoc_Click(object sender, EventArgs e)
+        {
+            DataSearDoc();
+        }
+
+
+        protected void GridList_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 1;
+            string strGDSEQ = GridList.Rows[e.RowIndex].Values[3].ToString();
+            string strDEPTID = GridList.Rows[e.RowIndex].Values[1].ToString();
+            trbGDSEQ.Text = strGDSEQ;
+            ddlDEPTID.SelectedValue = strDEPTID;
+            DataSearDoc();
+        }
+
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (GridList.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            
+
+            string strSql = @"SELECT A.BILLNO 单据编号,
+                                       F_GETDEPTNAME(A.DEPTID) 申领部门,
+                                       A.XSRQ 申领日期,
+                                       F_GETDEPTNAME(A.DEPTOUT) 出库部门,
+                                       F_GETUSERNAME(A.SLR) 申领人,
+                                       F_GETUSERNAME(A.LRY) 录入人,
+                                       A.LRRQ 录入日期,
+                                       B.ROWNO 行号,
+                                       B.GDSEQ 商品编码,
+                                       B.GDNAME 商品名称,
+                                       B.GDSPEC 商品规格,
+                                       B.PZWH 注册证号,
+                                       F_GETPRODUCERNAME(B.PRODUCER) 生产厂家,
+                                       B.BZHL 包装含量,
+                                       B.BZSL 申领包装数,
+                                       B.DHSL 申领数量,
+                                       B.FPSL 分配数量,
+                                       F_GETUNITNAME(B.UNIT) 单位,
+                                       B.HSJJ 价格,B.HSJE 金额
+                                  FROM DAT_SL_DOC A, DAT_SL_COM B
+                                 WHERE A.SEQNO=B.SEQNO  AND NVL(B.NUM1,0) = 0
+                                   AND A.BILLTYPE = 'LYD'
+                                   AND A.XSTYPE = '1' ";
+            string strSearch = "";
+            if (Request.QueryString["oper"].ToString().ToLower() == "audit")
+            {
+                strSql = strSql + " AND A.FLAG<>'M'";
+
+                //根据DOC_GOODSTYPE表中的STR1字段来确定当前登录人员是否有审核权限 By YuanPeng 2015年11月30日15:04:15
+                strSql += string.Format(" AND F_CHK_AUDIT(NVL(A.CATID,'2'),'{0}') = 'Y'", UserAction.UserID);
+            }
+            else
+            {
+                //根据商品类别【CATID】来加载信息，默认加载耗材-2  By YuanPeng 2015年11月30日15:38:20
+                if (Request.QueryString["tp"] != null && Request.QueryString["tp"].ToString() != "")
+                {
+                    strSql = strSql + string.Format(" AND NVL(A.CATID,'2') ='{0}'", Request.QueryString["tp"].ToString());
+                }
+                else
+                {
+                    strSql = strSql + " AND NVL(A.CATID,'2')  ='2'";
+                }
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY A.BILLNO DESC,B.ROWNO";
+            ExcelHelper.ExportByWeb(DbHelperOra.Query(strSql).Tables[0], "科室申领信息", string.Format("科室申领信息_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+            
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearDoc();
+        }
+    }
+}

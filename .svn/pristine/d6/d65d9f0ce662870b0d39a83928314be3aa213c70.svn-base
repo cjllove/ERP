@@ -1,0 +1,183 @@
+﻿using FineUIPro;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class Manufacturer : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                //打开界面不加载
+                //dataSearch();
+                PubFunc.DdlDataGet(ddlCORPKID, "DDL_DOC_FIRMNATURE");
+                PubFunc.DdlDataGet(ddlCORPTYPE, "DDL_DOC_FIRMTYPE");
+
+                //暂时锁定删除按钮，不允许随意删除
+                btnDelete.Enabled = false;
+
+            }
+        }
+
+        private void dataSearch()
+        {
+            string query = "%";
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                query = trbSearch.Text.Trim();
+            }
+            int total = 0;
+            string sql = "select CODE,NAME,TEL,LINKMAN,LOGINADDR from  DOC_PRODUCER WHERE CODE like '%{0}%' or NAME like'%{0}%'";
+            DataTable dtData = PubFunc.DbGetPage(GridProducer.PageIndex, GridProducer.PageSize, string.Format(sql, query), ref total);
+            GridProducer.RecordCount = total;
+            GridProducer.DataSource = dtData;
+            //GridProducer.DataSource = DbHelperOra.Query(string.Format(sql, query));
+            GridProducer.DataBind();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+
+        protected void GridProducer_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            hfdIsNew.Text = "N";
+            tbxCODE.Enabled = false;
+            string strCode = GridProducer.Rows[e.RowIndex].Values[0].ToString();
+            string strSql = string.Format("select * from DOC_PRODUCER where CODE='{0}'", strCode);
+
+            DataTable dtProducer = DbHelperOra.Query(strSql).Tables[0];
+            if (dtProducer.Rows.Count > 0)
+            {
+                PubFunc.FormDataSet(FormProducer, dtProducer.Rows[0]);
+            }
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormProducer);
+            hfdIsNew.Text = "Y";
+            tbxCODE.Enabled = true;
+        }
+
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.FormDataCheck(FormProducer).Length > 1)
+            {
+                return; //存在为空的非空列则返回！
+            }
+            foreach (FineUIPro.FormRow fr in FormProducer.Rows)
+            {
+                if (fr.Hidden) continue;
+                foreach (Field cl in fr.Items)
+                {
+                    if (cl is FineUIPro.TextBox)
+                    {
+                        FineUIPro.TextBox tbx = (FineUIPro.TextBox)cl;
+                        if (tbx.Text.Length > (tbx.MaxLength ?? 20))
+                        {
+                            Alert.Show(string.Format("您输入的{0}字段长度超长，最大长度为：{1}!", tbx.Label, tbx.MaxLength), "警告提示", MessageBoxIcon.Warning);
+                            return;
+                        }
+                    }
+                }
+            }
+            //if (tbxCODE.Text.Length > 50 || tbxLEADER.Text.Length > 20 || tbxNAME.Text.Length > 60 || tbxTEL.Text.Length > 20)
+            //{
+            //    Alert.Show("您输入的{0}字段超长，!", "警告提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            //if (tbxFAX.Text.Length > 20 || tbxENAME.Text.Length > 60 || tbxZIP.Text.Length > 6 || tbxEMAIL.Text.Length > 60 || tbxLOGINADDR.Text.Length > 60 || tbxJYFW.Text.Length > 60)
+            //{
+            //    Alert.Show("您输入的字段超长!", "警告提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            //if (tbxLINKFAX.Text.Length > 40 || tbxLINKMAN.Text.Length > 20 || tbxLINKTEL.Text.Length > 40 || tbxLINKEMAIL.Text.Length > 40)
+            //{
+            //    Alert.Show("您输入的字段超长!", "警告提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            MyTable mtType = new MyTable("DOC_PRODUCER");
+            mtType.ColRow = PubFunc.FormDataHT(FormProducer);
+            mtType.ColRow.Add("FLAG", "Y");
+            mtType.ColRow.Add("SIMID", XTBase.Utilities.PinYinUtil.GetCodstring(tbxNAME.Text.Trim()));
+            if (hfdIsNew.Text == "Y")
+            {
+                if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_PRODUCER WHERE CODE = '{0}'", mtType.ColRow["CODE"])))
+                {
+                    Alert.Show("生产商编码【" + tbxCODE.Text + "】已存在，请重新输入生产商编码！", "警告提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                mtType.InsertExec();
+            }
+            else
+            {
+                mtType.UpdateExec("");
+            }
+
+            Alert.Show("数据保存成功！");
+            dataSearch();
+            PubFunc.FormDataClear(FormProducer);
+        }
+
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+            int[] rows = GridProducer.SelectedRowIndexArray;
+            if (rows.Length > 0)
+            {
+                string code = "";
+                foreach (int index in rows)
+                {
+                    code += PubFunc.GridDataGet(GridProducer, index)["CODE"].ToString() + ",";
+                }
+                code = code.TrimEnd(',').Replace(",", "','");
+                DbHelperOra.ExecuteSql("DELETE FROM DOC_PRODUCER WHERE CODE IN ('" + code + "')");
+                Alert.Show("生产厂家信息删除成功！");
+                dataSearch();
+            }
+            else
+            {
+                Alert.Show("请选择要删除的生产厂家信息！");
+            }
+        }
+        protected void Grid1_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridProducer.PageIndex = e.NewPageIndex;
+            dataSearch();
+        }
+
+        protected void btExp_Click(object sender, EventArgs e)
+        {
+            if (GridProducer.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+
+            string query = "%";
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                query = trbSearch.Text.Trim();
+            }
+            string sql = string.Format(@"select CODE 生产商编码, NAME 生产商名称, TEL 公司电话, LINKMAN 联系人, LOGINADDR 注册地址
+                                          from DOC_PRODUCER
+                                         WHERE CODE like '%{0}%'
+                                            or NAME like '%{0}%'
+                                        ",query);
+
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+
+            ExcelHelper.ExportByWeb(dt, "生产商资料导出", "生产商资料导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+    }
+}

@@ -1,0 +1,283 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DataTransfer.aspx.cs" Inherits="SPDProject.SpdXM.WH_WDZXPH.DataTransfer" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>消耗数据下传金算盘</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1"
+            runat="server" OnCustomEvent="PageManager1_CustomEvent" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right"
+            EnableTabCloseMenu="false" ActiveTabIndex="0"
+            runat="server">
+            <Tabs>
+                <f:Tab Title="批量下传" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel2" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:Label ID="lblSUBNUM" runat="server" Label="合计数量" LabelWidth="70px"></f:Label>
+                                                <f:Label ID="lblSUBSUM" runat="server" Label="合计金额" LabelWidth="70px"></f:Label>
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:Button ID="btnUpLoad" Icon="ComputerGo" Text="下传金算盘" EnableDefaultState="false" ConfirmText="是否确认将选中单据单据信息下传至金算盘系统?" runat="server" OnClick="btnUpLoad_Click" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSearch" Icon="Magnifier" Text="查 询" EnableDefaultState="false" EnablePostBack="true" ValidateForms="Formlist" runat="server" OnClick="btnSearch_Click" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                                            ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="lstDEPTOUT" runat="server" Label="部门科室" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="lstSUPID" runat="server" Label="供应商" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="lstTYPE" runat="server" Label="传输模式">
+                                                            <f:ListItem Text="按期间" Value="QJ" Selected="true" />
+                                                            <f:ListItem Text="按单据" Value="DJ" />
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="lstISGZ" runat="server" Label="是否高值">
+                                                            <f:ListItem Text="---请选择---" Value="" />
+                                                            <f:ListItem Text="高值" Value="Y" />
+                                                            <f:ListItem Text="非高值" Value="N" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="lstLRRQ1" runat="server" Label="查询期间" Required="true"></f:DatePicker>
+                                                        <f:DatePicker ID="lstLRRQ2" runat="server" Label="      至" Required="true" LabelSeparator=""></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridCom" BoxFlex="1" ShowBorder="false" ShowHeader="false" EnableTextSelection="true" SummaryPosition="Bottom" EnableSummary="true"
+                                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableColumnLines="true" DataKeyNames="JXCSEQ,DEPTNAME,SEQNO"
+                                   EnableMultiSelect="true" EnableCheckBoxSelect="true" KeepCurrentSelection="true"
+                                    AllowPaging="true" IsDatabasePaging="true" PageSize="120" OnPageIndexChange="GridCom_PageIndexChange">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="DEPTNAME" HeaderText="使用科室" />
+                                        <f:BoundField Width="120px" DataField="BILLNO" HeaderText="单据编号" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="EASCODE" HeaderText="EAS编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HISCODE" HeaderText="金算盘编码" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="130px" DataField="GDSPEC" HeaderText="商品规格" />
+                                        <f:BoundField Width="50px" DataField="UNIT" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="HSJJ" HeaderText="价格" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="70px" DataField="XSSL" ColumnID="XSSL" HeaderText="数量 " TextAlign="Right" />
+                                        <f:BoundField Width="70px" DataField="HSJE" ColumnID="HSJE" HeaderText="金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="130px" DataField="PH" HeaderText="批号 " TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="YXQZ" HeaderText="效期 " TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                        <f:BoundField Width="160px" DataField="PRODUCER" HeaderText="生产厂家 " />
+                                        <f:BoundField Width="160px" DataField="SUPNAME" HeaderText="供应商 " />
+                                        <f:BoundField Hidden="true" DataField="JXCSEQ" HeaderText="进销存SEQ " />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="下传信息" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel6" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:Label ID="lblTOTALSL" runat="server" Label="合计数量" LabelWidth="70px"></f:Label>
+                                                <f:Label ID="lblTOTALJE" runat="server" Label="合计金额" LabelWidth="70px"></f:Label>
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnQuery" Icon="Magnifier" Text="查 询" EnableDefaultState="false" runat="server" OnClick="btnQuery_Click" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                                            ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="30% 20% 15% 20% 15%">
+                                                    <Items>
+                                                        <f:DropDownList ID="ddlDEPTJSP" runat="server" Label="使用部门" EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="ddlLRY" runat="server" Label="操作员" EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="ddlISGZ" runat="server" Label="高值" LabelWidth="50px">
+                                                            <f:ListItem Text="---请选择---" Value="" />
+                                                            <f:ListItem Text="高值" Value="1" />
+                                                            <f:ListItem Text="非高值" Value="0" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkBEGRQ" runat="server" Label="查询期间" />
+                                                        <f:DatePicker ID="dpkENDRQ" runat="server" Label="      至" LabelWidth="30px" />
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridUploadJSP" BoxFlex="1" ShowBorder="false" ShowHeader="false" EnableTextSelection="true" SummaryPosition="Bottom" EnableSummary="true"
+                                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableColumnLines="true" DataKeyNames="BILLNO"
+                                    AllowPaging="true" IsDatabasePaging="true" PageSize="100" OnPageIndexChange="GridUploadJSP_PageIndexChange">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="DEPTNAME" HeaderText="部门" />
+                                        <f:BoundField Width="120px" DataField="BILLNO" HeaderText="单据编号" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="EASCODE" HeaderText="EAS编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HISCODE" HeaderText="金算盘编码" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="GDNAMEUP" ColumnID="GDNAMEUP" HeaderText="商品名称" />
+                                        <f:BoundField Width="130px" DataField="GDSPEC" HeaderText="商品规格" />
+                                        <f:BoundField Width="50px" DataField="STRUNIT" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="DBLPRICE" HeaderText="价格" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="70px" DataField="DBLQUANTITY" ColumnID="DBLQUANTITY" HeaderText="数量 " TextAlign="Right" />
+                                        <f:BoundField Width="70px" DataField="DBLAMOUNT" ColumnID="DBLAMOUNT" HeaderText="金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="60px" DataField="ISGZ" HeaderText="高值 " TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="USERNAME" HeaderText="操作员 " TextAlign="Center" />
+                                        <f:BoundField Width="130px" DataField="MODIFYTIME" HeaderText="操作时间 " TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="未传信息" Icon="PageWord" Layout="Fit" runat="server" Hidden="true">
+                    <Items>
+                        <f:Panel ID="Panel4" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel5" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar3" runat="server">
+                                            <Items>
+                                                <f:Label ID="Label1" runat="server" Label="合计数量" LabelWidth="70px"></f:Label>
+                                                <f:Label ID="Label2" runat="server" Label="合计金额" LabelWidth="70px"></f:Label>
+                                                <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                                <f:Button ID="Button1" Icon="Magnifier" Text="查 询" EnableDefaultState="false" runat="server" OnClick="btnQuery_Click" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form3" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                                            ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25% 25% 50%">
+                                                    <Items>
+                                                        <f:DropDownList ID="DropDownList1" runat="server" Label="使用部门" EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="DropDownList3" runat="server" Label="是否下传">
+                                                            <f:ListItem Text="---请选择---" Value="" />
+                                                            <f:ListItem Text="高值" Value="1" />
+                                                            <f:ListItem Text="非高值" Value="0" />
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="DropDownList2" runat="server" Label="供应商" EnableEdit="true" ForceSelection="true" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="DropDownList5" runat="server" Label="操作员" EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="DropDownList6" runat="server" Label="高值">
+                                                            <f:ListItem Text="---请选择---" Value="" />
+                                                            <f:ListItem Text="高值" Value="1" />
+                                                            <f:ListItem Text="非高值" Value="0" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="DatePicker3" runat="server" Label="查询期间" />
+                                                        <f:DatePicker ID="DatePicker4" runat="server" Label="      至" />
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="Grid1" BoxFlex="1" ShowBorder="false" ShowHeader="false" EnableTextSelection="true" SummaryPosition="Bottom" EnableSummary="true"
+                                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableColumnLines="true" DataKeyNames="BILLNO"
+                                    AllowPaging="true" IsDatabasePaging="true" PageSize="100" OnPageIndexChange="GridUploadJSP_PageIndexChange">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="DEPTNAME" HeaderText="部门" />
+                                        <f:BoundField Width="120px" DataField="BILLNO" HeaderText="单据编号" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="EASCODE" HeaderText="EAS编码" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HISCODE" HeaderText="金算盘编码" TextAlign="Center" />
+                                        <f:BoundField Width="150px" DataField="GDNAMEUP" ColumnID="GDNAMEUP" HeaderText="商品名称" />
+                                        <f:BoundField Width="130px" DataField="GDSPEC" HeaderText="商品规格" />
+                                        <f:BoundField Width="50px" DataField="STRUNIT" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="DBLPRICE" HeaderText="价格" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="70px" DataField="DBLQUANTITY" ColumnID="DBLQUANTITY" HeaderText="数量 " TextAlign="Right" />
+                                        <f:BoundField Width="70px" DataField="DBLAMOUNT" ColumnID="DBLAMOUNT" HeaderText="金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="60px" DataField="ISGZ" HeaderText="高值 " TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="USERNAME" HeaderText="操作员 " TextAlign="Center" />
+                                        <f:BoundField Width="130px" DataField="MODIFYTIME" HeaderText="操作时间 " TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+        <f:HiddenField ID="hfdValue" runat="server" />
+        <f:Window ID="Window1" Title="商品信息" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Width="820px" Height="480px">
+        </f:Window>
+        <f:Window ID="winUpLoad" runat="server" Hidden="true" EnableDrag="false"
+            WindowPosition="Center" IsModal="true" Title="数据下传进度" EnableMaximize="false"
+            EnableResize="false" Target="Self" Height="130" Width="600">
+            <Content>
+                <label id="progress"></label>
+                <div id="progressbar"></div>
+            </Content>
+        </f:Window>
+    </form>
+    <script type="text/javascript">
+        function GetProgress() {
+            F.customEvent('GetProgress');
+            $.ajax({
+                url: "/Handler1.ashx",
+                type: "POST",
+                data: { "RequestType": "AjaxRequest", "Method": "" },
+                success: function (data) {
+                    if (data != -1) {
+                        //工作没有结束，继续查询进度
+                        setTimeout(GetProgress, 100);
+                        $("#progress").html(data);
+                        $("#progressbar").progressbar({ value: parseInt(data) });
+                    } else {
+                        //工作完成
+                        $("#progress").html("done");
+                        $("#progressbar").progressbar({ value: 100 });
+                        $("#btn1").attr("disabled", false);
+                    }
+                }
+            });
+        }
+
+        function DoWork() {
+            F.customEvent('DoWork');
+            //禁用按钮
+            $("#btn1").attr("disabled", true);
+            $.ajax({
+                url: "/Handler1.ashx",
+                type: "POST",
+                data: { "RequestType": "AjaxRequest", "Method": "" }
+            });
+            //开始查询进度
+            setTimeout(GetProgress, 500);
+        }
+    </script>
+</body>
+</html>

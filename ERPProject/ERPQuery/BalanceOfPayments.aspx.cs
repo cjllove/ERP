@@ -1,0 +1,182 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class BalanceOfPayments : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ1.MinDate = DateTime.Now.AddDays(-90);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            lstLRRQ2.MaxDate = DateTime.Now;
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID);
+            //PubFunc.DdlDataGet(ddlCATID, "DDL_SYS_CATLNULL");
+            string strSql = @"select * from 
+                                    (SELECT '' CODE,'--请选择--' NAME,0 TreeLevel,0 islast FROM dual
+                                    union all
+                                    select code,
+                                           '【' || code || '】' || name name,
+                                           class TreeLevel,
+                                           decode(islast, 'Y', 1, 0) islast
+                                      from sys_category
+                                     ORDER BY code)
+                                     ORDER BY DECODE(CODE,'',99,0) DESC ,CODE ASC ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            //ddlCATID.DataEnableSelectField = "EnableSelect";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;//DbHelperOra.Query(strSql).Tables[0];
+            ddlCATID.DataBind();
+        }
+
+        private string GetSearchSql()
+        {
+            string strSql = @" SELECT TA.GDSEQ,
+                                                   F_GETHISINFO(TA.GDSEQ, 'GDNAME') GDNAME,
+                                                   F_GETHISINFO(TA.GDSEQ, 'GDSPEC') GDSPEC,
+                                                   F_GETCATNAME(DG.CATID) CATID,
+                                                   F_GETUNITNAME(DG.UNIT) UNIT,
+                                                   F_GETDEPTNAME(TA.DEPTID) DEPTID,
+                                                   NVL(TA.QCKCSL, 0) QCKCSL,
+                                                   NVL(TA.QCKCHSJE, 0) QCKCHSJE,
+                                                   NVL(TB.RKSL, 0) RKSL,
+                                                   NVL(TB.RKJE, 0) RKJE,
+                                                   NVL(TB.CKSL, 0) CKSL,
+                                                   NVL(TB.CKJE, 0) CKJE,
+                                                   NVL(TC.QMKCSL, 0) QMKCSL,
+                                                   NVL(TC.QMKCHSJE, 0) QMKCHSJE,
+                                                   (NVL(TA.QCKCSL, 0) + NVL(TB.RKSL, 0) - NVL(TB.CKSL, 0) - NVL(TC.QMKCSL, 0)) ERRSL,
+                                                   decode(DG.ISGZ,'Y','是','否') ISGZ
+                                              FROM (SELECT GDSEQ, DEPTID,
+                                                           SUM(DECODE(TO_CHAR(RQ, 'YYYYMMDD'), '{2}', KCSL, 0)) QCKCSL,
+                                                           SUM(DECODE(TO_CHAR(RQ, 'YYYYMMDD'), '{2}', KCHSJE, 0)) QCKCHSJE
+                                                      FROM (SELECT GDSEQ, DEPTID, KCSL, KCHSJE, RQ
+                                                                  FROM DAT_STOCKDAY
+                                                                 UNION ALL
+                                                                SELECT GDSEQ, DEPTID, KCSL, KCHSJE, TRUNC(SYSDATE)
+                                                                  FROM DAT_GOODSSTOCK) T
+                                                     WHERE T.RQ = TO_DATE('{2}', 'YYYYMMDD')
+                                                     GROUP BY GDSEQ, DEPTID) TA,
+                                                   (SELECT GDSEQ, DEPTID,
+                                                           SUM(DECODE(A.KCADD, '1', SL, 0)) RKSL,
+                                                           SUM(DECODE(A.KCADD, '1', HSJE, 0)) RKJE,
+                                                           ABS(SUM(DECODE(A.KCADD, '-1', SL, 0))) CKSL,
+                                                           ABS(SUM(DECODE(A.KCADD, '-1', HSJE, 0))) CKJE
+                                                      FROM DAT_GOODSJXC A
+                                                     WHERE A.RQSJ >= TO_DATE('{0}', 'YYYYMMDD')
+                                                       AND A.RQSJ < TO_DATE('{1}', 'YYYYMMDD') + 1
+                                                     GROUP BY GDSEQ, DEPTID) TB,
+                                                   (SELECT GDSEQ, DEPTID, SUM(KCSL) QMKCSL, SUM(KCSL) QMKCHSJE
+                                                      FROM DAT_GOODSSTOCK T GROUP BY GDSEQ, DEPTID) TC,
+                                                   DOC_GOODS DG
+                                             WHERE TA.GDSEQ = TB.GDSEQ(+) AND TA.DEPTID = TB.DEPTID(+) AND TA.GDSEQ = DG.GDSEQ
+                                                  AND TA.GDSEQ = TC.GDSEQ AND TA.DEPTID = TC.DEPTID ";
+            string strWhere = " ";
+
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " AND TA.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+
+            if (!PubFunc.StrIsEmpty(ddlCATID.SelectedValue)) strWhere += " AND DG.CATID = '" + ddlCATID.SelectedValue + "'";
+
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) strWhere += " and DG.ISGZ = '" + ddlISGZ.SelectedValue + "'";
+
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text)) strWhere += " AND (DG.GDSEQ LIKE '%" + tbxGOODS.Text + "%' OR DG.ZJM LIKE '%" + tbxGOODS.Text + "%' OR DG.GDNAME LIKE '%" + tbxGOODS.Text + "%')";
+
+            strWhere += string.Format(" AND TA.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            if (strWhere != " ") strSql = strSql + strWhere;
+
+            strSql = string.Format(strSql, string.Format("{0:yyyyMMdd}", lstLRRQ1.SelectedDate), string.Format("{0:yyyyMMdd}", lstLRRQ2.SelectedDate), DateTime.Parse(lstLRRQ1.Text).AddDays(-1).ToString("yyyyMMdd")) + string.Format(" ORDER BY {0} {1}", GridList.SortField, GridList.SortDirection);
+            return strSql;
+        }
+
+        private void DataSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, GetSearchSql(), ref total);
+            GridList.RecordCount = total;
+            GridList.DataSource = dtData;
+            GridList.DataBind();
+        }
+
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormQuery);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridList.Columns.Count - 1];
+            for (int index = 1; index < GridList.Columns.Count; index++)
+            {
+                GridColumn column = GridList.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            //((FineUIPro.Button)sender).Enabled = false;
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品收支信息", string.Format("商品收支信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+            //((FineUIPro.Button)sender).Enabled = true;
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+    }
+}

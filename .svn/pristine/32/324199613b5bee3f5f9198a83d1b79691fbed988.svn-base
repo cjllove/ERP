@@ -1,0 +1,325 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class GoodsStatus : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_GOODS_TYPE", ddlCATID0, ddlCATID0, winCATID0);
+            PubFunc.DdlDataGet("DDL_GOODS_STATUS", srhFLAG);
+            //PubFunc.DdlDataGet(ddlCATID, "DDL_SYS_CATLAST");
+            string strSql = @"select code,'【'||code||'】'||name name,class TreeLevel,decode(islast,'Y',1,0) islast
+                                    from sys_category
+                                    ORDER BY code  ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            winCATID.EnableSimulateTree = true;
+            winCATID.DataTextField = "Name";
+            winCATID.DataValueField = "Id";
+            winCATID.DataEnableSelectField = "EnableSelect";
+            winCATID.DataSimulateTreeLevelField = "Level";
+            winCATID.DataSource = myList;
+            winCATID.DataBind();
+            winCATID0.SelectedValue = "2";
+            // 绑定到下拉列表（启用模拟树功能）
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            ddlCATID.DataEnableSelectField = "EnableSelect";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;
+            ddlCATID.DataBind();
+            ddlCATID.SelectedValue = "2";
+        }
+        protected void trbPRODUCER_TriggerClick(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+        private void dataSearch()
+        {
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+        private String GetSql()
+        {
+            String Sql = @"SELECT DECODE(A.TYPE,'NEW','新增','MOD','修改','正常') TYPENAME,A.*
+                        FROM V_GOODSUPT A WHERE 1 = 1";
+            if (trbSearch.Text.Trim().Length > 0)
+            {
+                Sql += " AND (A.GDSEQ LIKE '%" + trbSearch.Text.Trim() + "%' OR A.GDNAME LIKE '%" + trbSearch.Text.Trim() + "%')";
+            }
+            if (srhFLAG.SelectedValue.Length > 0)
+            {
+                Sql += " AND A.FLAG = '" + srhFLAG.SelectedValue + "'";
+            }
+            switch (srhTYPE.SelectedValue)
+            {
+                case "NEW":
+                case "MOD":
+                case "NOW":
+                    Sql += " AND A.TYPE = '" + srhTYPE.SelectedValue + "'";
+                    break;
+                case "ALL":
+                    Sql += " AND A.TYPE IN('NEW','MOD') ";
+                    break;
+            }
+            return Sql;
+        }
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            dataSearch();
+        }
+
+        protected void GoodsStatusOper(String type, String flag)
+        {
+            int[] selectsAll = GridGoods.SelectedRowIndexArray;
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            String Gdseq = "";
+            foreach (int selects in selectsAll)
+            {
+                Gdseq += GridGoods.DataKeys[selects][0] + ",";
+            }
+            if (Gdseq.Length < 1)
+            {
+                Alert.Show("请选择需要操作的商品！", MessageBoxIcon.Warning);
+                return;
+            }
+            OracleParameter[] parameters ={
+                                              new OracleParameter("VI_GOODS_LIST" ,OracleDbType.Varchar2),
+                                              new OracleParameter("VI_TYPE" ,OracleDbType.Varchar2,1),
+                                              new OracleParameter("VO_MSG",OracleDbType.Varchar2)
+                                           };
+            parameters[0].Value = Gdseq.TrimEnd(',');
+            parameters[1].Value = flag;
+
+            parameters[0].Direction = ParameterDirection.Input;
+            parameters[1].Direction = ParameterDirection.Input;
+            parameters[2].Direction = ParameterDirection.Output;
+
+            try
+            {
+                DbHelperOra.RunProcedure("P_GOODS_INS", parameters);
+                Alert.Show("商品【" + type + "】成功！", "消息提示", MessageBoxIcon.Information);
+            }
+            catch (Exception err)
+            {
+                Alert.Show(err.Message, "提示信息", MessageBoxIcon.Warning);
+            }
+            dataSearch();
+        }
+
+        protected void btnStopUse_Click(object sender, EventArgs e)
+        {
+            GoodsStatusOper("停用", "S");
+        }
+
+        protected void btStopBuy_Click(object sender, EventArgs e)
+        {
+            GoodsStatusOper("停购", "T");
+        }
+
+        protected void btnEliminated_Click(object sender, EventArgs e)
+        {
+            GoodsStatusOper("淘汰", "E");
+        }
+
+        protected void bntAudit_Click(object sender, EventArgs e)
+        {
+            GoodsStatusOper("审核", "Y");
+        }
+
+
+        protected void btnClosePostBack_Click(object sender, EventArgs e)
+        {
+            JArray ja = GridSure.GetMergedData();
+            JObject dataValue;
+            String gdseq_old = "", gdseq = "", producer = "", unit = "";
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            String SqlIns = @"INSERT INTO DOC_GOODS(GDSEQ,GDID,GDNAME,GDSPEC,UNIT,SUPPLIER,PRODUCER,HSJJ,CATID0,PIZNO,UNIT_DABZ,NUM_DABZ,UNIT_ZHONGBZ,NUM_ZHONGBZ)
+                    SELECT A.GDSEQ,A.GDSEQ,A.GDNAME,A.GDSPEC,C.CODE,'00002',B.CODE,'{0}','{1}',PIZNO,UNIT_DABZ,NUM_DABZ,UNIT_ZHONGBZ,NUM_ZHONGBZ
+                    FROM INF_DOC_GOODS_HIS A,DOC_PRODUCER B,DOC_GOODSUNIT C
+                    WHERE A.PRODUCER = B.NAME AND A.UNIT = C.NAME AND A.GDSEQ = '{2}'";
+            String SqlUpt = @"UPDATE DOC_GOODS SET (GDNAME,GDSPEC,UNIT,PRODUCER,PIZNO,UNIT_DABZ,NUM_DABZ,UNIT_ZHONGBZ,NUM_ZHONGBZ) =
+                           (SELECT GDNAME,GDSPEC,UNIT,PRODUCER,PIZNO,UNIT_DABZ,NUM_DABZ,UNIT_ZHONGBZ,NUM_ZHONGBZ FROM INF_DOC_GOODS_HIS WHERE GDSEQ = '{0}')
+                    WHERE GDSEQ = '{0}'";
+            foreach (JToken jt in ja)
+            {
+                dataValue = jt.Value<JObject>("values");
+                if (dataValue.Value<String>("CATID0").Length > 0 && dataValue.Value<String>("HSJJ").Length > 0 && dataValue.Value<String>("HSJJ") != "0")
+                {
+                    cmdList.Add(new CommandInfo(String.Format(SqlIns, dataValue.Value<String>("HSJJ"), dataValue.Value<String>("CATID0"), dataValue.Value<String>("GDSEQ")), null));
+                    cmdList.Add(new CommandInfo("UPDATE INF_DOC_GOODS_HIS SET FLAG ='Y' WHERE GDSEQ = '" + dataValue.Value<String>("GDSEQ") + "'", null));
+                    gdseq_old = gdseq_old + "," + dataValue.Value<String>("GDSEQ");
+                }
+                else
+                {
+                    Alert.Show("商品" + dataValue.Value<String>("GDNAME") + "信息维护错误！", "提示信息", MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            int[] selectsAll = GridGoods.SelectedRowIndexArray;
+            foreach (int selects in selectsAll)
+            {
+                if (GridGoods.DataKeys[selects][2].ToString() == "正常") { continue; }
+                else if (GridGoods.DataKeys[selects][2].ToString() == "修改")
+                {
+                    cmdList.Add(new CommandInfo(String.Format(SqlUpt, gdseq), null));
+                    cmdList.Add(new CommandInfo("UPDATE INF_DOC_GOODS_HIS SET FLAG ='Y' WHERE GDSEQ = '" + gdseq + "'", null));
+                }
+                gdseq = GridGoods.DataKeys[selects][0].ToString();
+                producer = GridGoods.DataKeys[selects][5].ToString();
+                unit = GridGoods.DataKeys[selects][6].ToString();
+                //if(!DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_PRODUCER WHERE ",)))
+                if (gdseq_old.IndexOf(gdseq) < 1)
+                {
+                    cmdList.Add(new CommandInfo("UPDATE DOC_GOODS SET FLAG ='Y' WHERE GDSEQ = '" + gdseq + "'", null));
+                }
+            }
+            if (DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("商品【审核】成功！");
+                dataSearch();
+            }
+            WinSure.Hidden = true;
+        }
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag2 = row["FLAGNAME"].ToString();
+                if (flag2 == "新增")
+                {
+                    e.RowAttributes["data-color"] = "color1";
+                }
+                else if (flag2 != "审核")
+                {
+                    e.RowAttributes["data-color"] = "color3";
+                }
+            }
+        }
+
+        protected void GridGoods_RowCommand(object sender, GridCommandEventArgs e)
+        {
+            if (e.CommandName == "Action1")
+            {
+                object[] keys = GridGoods.DataKeys[e.RowIndex];
+                hfdGDSEQ.Text = keys[0].ToString();
+                string strFLAG = keys[1].ToString();
+                string strTYPENAME = keys[2].ToString();
+                hfdCATID.Text = (keys[3] ?? "").ToString();
+                hfdCATID0.Text = (keys[4] ?? "").ToString();
+                hfdHSJJ.Text = (keys[5] ?? "").ToString();
+
+                string strCATID = hfdCATID.Text;
+                string strCATID0 = hfdCATID0.Text;
+                string strHSJJ = hfdHSJJ.Text;
+                string strGDSEQ = hfdGDSEQ.Text;
+                winCATID.SelectedValue = strCATID;
+                winCATID0.SelectedValue = strCATID0;
+                winHSJJ.Text = strHSJJ;
+
+                if (!string.IsNullOrWhiteSpace(strTYPENAME) && strTYPENAME == "新增")
+                {
+                    string strSql = string.Format(@"select 1 from sys_category where code='{0}' and type = '{1}'", strCATID, strCATID0);
+                    if (!DbHelperOra.Exists(strSql))
+                    {
+                        if (!string.IsNullOrWhiteSpace(strCATID) && DbHelperOra.Exists(string.Format(@"select 1 from sys_category where code='{0}'", strCATID)))
+                        {
+                            winCATID.SelectedValue = strCATID;
+                            string strTypeSql = "select type from sys_category where code='" + strCATID + "'";
+                            strCATID0 = DbHelperOra.GetSingle(strTypeSql).ToString();
+                            winCATID0.SelectedValue = strCATID0;
+                        }
+                    }
+
+                    object obj = DbHelperOra.GetSingle(string.Format("SELECT CATID,CATID0，HSJJ FROM INF_DOC_GOODS_HIS WHERE GDSEQ = '{0}'", keys[0].ToString()));
+                    //winCATID.SelectedValue = obj[0]
+                    WindowCatID.Hidden = false;
+                }
+                else
+                {
+                    Alert.Show("非新增状态不能调整商品信息");
+                }
+
+            }
+        }
+
+        protected void winCATID_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string strCATID0, strCATID, strSQL;
+            strCATID = ((FineUIPro.DropDownList)sender).SelectedValue;
+            if (PubFunc.StrIsEmpty(strCATID)) return;
+
+            strSQL = "select type from sys_category where code='" + strCATID + "'";
+            strCATID0 = DbHelperOra.GetSingle(strSQL).ToString();
+
+            winCATID0.SelectedValue = strCATID0;
+        }
+
+        protected void btnCatIDSubmit_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.FormDataCheck(Form2).Length > 0) return;
+            string strSqls = string.Format(@"UPDATE INF_DOC_GOODS_HIS SET CATID = '{0}', CATID0 = '{1}', HSJJ = '{2}' WHERE FLAG = 'N' AND GDSEQ = '{3}'", winCATID.SelectedValue, winCATID0.SelectedValue, winHSJJ.Text, hfdGDSEQ.Text);
+            if (DbHelperOra.ExecuteSql(strSqls) > 0)
+            {
+                WindowCatID.Hidden = true;
+                Alert.Show("商品信息调整成功！");
+                dataSearch();
+                OperLog("商品状态维护", "下传商品编码【" + hfdGDSEQ + "】的商品分类由【" + hfdCATID.Text + "】修改为【" + winCATID.SelectedValue + "】,商品种类由【" + hfdCATID0.Text + "】修改为【" + winCATID0.SelectedValue + "】,商品进价由【" + hfdHSJJ.Text + "】修改为【" + winHSJJ.Text + "】");
+            }
+            else
+            {
+                Alert.Show("非下传商品无法调整商品信息！");
+            }
+        }
+
+        protected void ddlCATID_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string strCATID0, strCATID, strSQL, strSQL1, strCATID0NAME;
+            strCATID = ((FineUIPro.DropDownList)sender).SelectedValue;
+            if (PubFunc.StrIsEmpty(strCATID)) return;
+
+            strSQL = "select type from sys_category where code='" + strCATID + "'";
+            strCATID0 = DbHelperOra.GetSingle(strSQL).ToString();
+            strSQL1 = "SELECT NAME FROM doc_goodstype WHERE FLAG = 'Y' and code = '" + strCATID0 + "'";
+            strCATID0NAME = DbHelperOra.GetSingle(strSQL1).ToString();
+
+            ddlCATID0.SelectedValue = strCATID0;
+            ddlCATID0.Text = strCATID0NAME;
+        }
+    }
+}

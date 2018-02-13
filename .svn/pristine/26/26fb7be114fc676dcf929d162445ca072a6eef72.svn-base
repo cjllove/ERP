@@ -1,0 +1,171 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsSupManage.aspx.cs" Inherits="SPDProject.SpdEntrust.GoodsSupManage" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>代管商品配置管理</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="false">
+            <Items>
+                <f:Panel ID="PanelDetail" ShowBorder="false" AnchorValue="100% -75px" BodyPadding="0px"
+                    Layout="HBox" BoxConfigAlign="Stretch" BoxConfigPosition="Start" ShowHeader="False" runat="server">
+                    <Items>
+                        <f:Grid ID="GridGoods" ShowBorder="false" ShowHeader="false" AllowSorting="false" EnableTextSelection="true"
+                            BoxFlex="1" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" PageSize="50" IsDatabasePaging="true" EnableMultiSelect="true" EnableColumnLines="true"
+                            AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange" OnRowCommand="GridGoods_RowCommand">
+                            <Toolbars>
+                                <f:Toolbar runat="server">
+                                    <Items>
+                                        <f:DropDownList runat="server" ID="ddlISFLAG7" Label="商品类型" LabelWidth="75px">
+                                            <f:ListItem Text="-- 全部 --" Value="" />
+                                            <f:ListItem Text="下传商品" Value="N" />
+                                            <f:ListItem Text="本地商品" Value="Y" />
+                                        </f:DropDownList>
+                                        <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                        <f:Button ID="btnSearch" runat="server" Text="查 询" EnableDefaultState="false" Icon="Magnifier" OnClick="btnSearch_Click"></f:Button>
+                                    </Items>
+                                </f:Toolbar>
+                                <f:Toolbar ID="Toolbar1" runat="server">
+                                    <Items>
+                                        <f:DropDownList ID="ddlGoodsType" runat="server" Label="商品种类" LabelWidth="75px" EnableEdit="true" ForceSelection="true" />
+                                        <f:TriggerBox ID="tgbSearch" runat="server" Label="商品信息" EmptyText="商品信息或厂家信息" MaxLength="20" TriggerIcon="Search" ShowTrigger="false" OnTriggerClick="btnSearch_Click" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                <f:BoundField DataField="GDSEQ" Hidden="true" />
+                                <f:BoundField Width="100px" DataField="GDID" HeaderText="商品编码" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="GDNAME" HeaderText="商品名称" />
+                                <f:BoundField Width="50px" DataField="FLAG_CN" HeaderText="状态" TextAlign="Center" />
+                                <f:BoundField Width="50px" DataField="ISFLAG7_CN" HeaderText="类型" TextAlign="Center" />
+                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                <f:LinkButtonField Width="120px" DataTextField="SUPNAME" HeaderText=" 默认供应商" CommandName="sup"></f:LinkButtonField>
+                                <f:BoundField Width="150px" DataField="PRODUCERNAME" HeaderText="生产厂家" ExpandUnusedSpace="true" />
+                                <f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" Hidden="true" />
+                                <f:BoundField DataField="FLAG" Hidden="true" />
+                            </Columns>
+                        </f:Grid>
+                        <f:Panel ID="Panel3" Width="50px" runat="server" BodyPadding="5px" ShowBorder="false" ShowHeader="false" CssStyle="border-left: 1px solid #99bce8;border-right: 1px solid #99bce8;"
+                            Layout="VBox" BoxConfigAlign="Stretch" BoxConfigPosition="Start" BodyStyle="background-color:#d9e7f8;">
+                            <Items>
+                                <f:Panel ID="Panel2" Title="面板1" BoxFlex="1" runat="server" BodyStyle="background-color:#d9e7f8;"
+                                    BodyPadding="5px" ShowBorder="false" ShowHeader="false">
+                                    <Items>
+                                    </Items>
+                                </f:Panel>
+                                <f:Panel ID="Panel4" Height="70px" runat="server" BodyStyle="background-color:#d9e7f8;"
+                                    BodyPadding="4px" ShowBorder="false" ShowHeader="false">
+                                    <Items>
+                                        <f:Button ID="btnAddRight" runat="server" Text=">>" EnableDefaultState="false" CssStyle="margin-bottom:10px;" OnClick="btnAddRight_Click"></f:Button>
+                                        <f:Button ID="btnAddLeft" runat="server" Text="<<" EnableDefaultState="false" OnClick="btnAddLeft_Click"></f:Button>
+                                    </Items>
+                                </f:Panel>
+                                <f:Panel ID="Panel5" BoxFlex="1" Margin="0" BodyStyle="background-color:#d9e7f8;"
+                                    runat="server" BodyPadding="5px" ShowBorder="false" ShowHeader="false">
+                                    <Items>
+                                    </Items>
+                                </f:Panel>
+                            </Items>
+                        </f:Panel>
+                        <f:Grid ID="GridCFGGoods" ShowBorder="false" ShowHeader="false" AllowSorting="false" BoxFlex="1"
+                            EnableTextSelection="true"
+                            AutoScroll="true" runat="server" DataKeyNames="GDSEQ,SUPID" EnableColumnLines="true"
+                            EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridCFGGoods_RowDoubleClick"
+                            EnableMultiSelect="true"
+                            PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridCFGGoods_PageIndexChange">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar2" runat="server">
+                                    <Items>
+                                        <f:DropDownList ID="ddlMODE" runat="server" AutoPostBack="true" Label="供货类型" LabelWidth="70px" OnSelectedIndexChanged="Unnamed_SelectedIndexChanged">
+                                            <f:ListItem Text="托管" Value="0" Selected="true" />
+                                            <%--<f:ListItem Text="代管" Value="1" />--%>
+                                            <f:ListItem Text="直供" Value="Z" />
+                                        </f:DropDownList>
+                                        <f:TriggerBox ID="trbSearch" runat="server" CssStyle="margin-left:0px;" Label="商品信息" EmptyText="商品信息" TriggerIcon="Search" ShowTrigger="false" OnTriggerClick="trbSearch_TriggerClick" />
+                                        <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                        <f:Button ID="BtnRight" runat="server" Text="查 询" EnableDefaultState="false" Icon="Magnifier" OnClick="trbSearch_TriggerClick"></f:Button>
+                                    </Items>
+                                </f:Toolbar>
+                                <f:Toolbar runat="server">
+                                    <Items>
+                                        <f:DropDownList ID="ddlGhs" runat="server" Label="供应商" LabelWidth="70px" AutoPostBack="true" OnSelectedIndexChanged="ddlDept_SelectedIndexChanged" EnableEdit="true" ForceSelection="true">
+                                        </f:DropDownList>
+                                        <f:DropDownList ID="ddlPssId" runat="server" Label="配送商" LabelWidth="70px" AutoPostBack="true" EnableEdit="true" ForceSelection="true">
+                                        </f:DropDownList>
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" />
+                                <f:BoundField Width="130px" DataField="GDNAME" HeaderText="商品名称" />
+                                <f:BoundField Width="0px" DataField="FLAG_CN" HeaderText="状态" TextAlign="Center" Hidden="true" />
+                                <f:BoundField Width="60px" DataField="STR3" HeaderText="代结" />
+                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="规格·容量" />
+                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="PRODUCERNAME" HeaderText="生产厂家" />
+                                <f:BoundField Width="90px" DataField="ZPBH" HeaderText="制品编号" Hidden="true" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+                <f:Form ID="FormConfig" Height="75px" ShowBorder="false" CssStyle="border-top: 1px solid #99bce8;" AutoScroll="false" BodyPadding="10px" ShowHeader="False" LabelWidth="90px" runat="server">
+                    <Rows>
+                        <f:FormRow ColumnWidths="20%  25% 25% 15% 15%">
+                            <Items>
+                                <f:TextBox ID="tbxGDSEQ" runat="server" Label="商品编码" Enabled="false" />
+                                <f:TextBox ID="tbsGDNAME" runat="server" Label="商品名称" Enabled="false" />
+                                <f:TextBox ID="tbxGDSPEC" runat="server" Label="规格" Enabled="false" />
+                                <f:TextBox ID="tbxUNITNAME" runat="server" Label="单位" Enabled="false" />
+                                <f:Button ID="Button1" runat="server" CssStyle="margin-left:120px;" Text="保 存" EnableDefaultState="false" Icon="Disk" OnClick="btnSave_Click" ValidateForms="FormConfig"></f:Button>
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow ColumnWidths="20%  25% 25% 15% 15%">
+                            <Items>
+                                <f:TextBox ID="tbxPRODUCERNAME" runat="server" Label="生产厂家" Enabled="false" />
+                                <f:TextBox ID="tbxPIZNO" runat="server" Label="注册证号" Enabled="false" />
+                                <f:NumberBox ID="nbxORDERZQ" runat="server" Label="送货周期" EmptyText="供应商单品的送货周期" NoDecimal="true" MaxLength="2" MinValue="1" Required="true" ShowRedStar="true"></f:NumberBox>
+                                <%--<f:CheckBox ID="ckbSTR3" runat="server" Label="代结" LabelSeparator="" />--%>
+                                <f:DropDownList ID="ddlSTR3" runat="server" Label="结算" ShowRedStar="true" Required="true">
+                                    <f:ListItem Text="入库结" Value="R" />
+                                    <f:ListItem Text="出库结" Value="C" />
+                                    <f:ListItem Text="用后结" Value="X" Selected="true" />
+                                </f:DropDownList>
+                                <f:HiddenField runat="server"></f:HiddenField>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+<f:Window ID="winSup" Title="默认供货商" Hidden="true" EnableIFrame="false" runat="server"
+    EnableMaximize="false" EnableResize="false" IsModal="True" Layout="Fit" Width="370px" Height="220px">
+    <Items>
+        <f:Grid ID="GridSup" ShowBorder="false" ShowHeader="false" AllowSorting="false" AutoScroll="true" runat="server" EnableMultiSelect="false" EnableCheckBoxSelect="true" KeepCurrentSelection="false"
+            DataKeyNames="SUPID,GDSEQ" EnableColumnLines="true">
+            <Columns>
+                <f:RowNumberField runat="server" Width="30" TextAlign="Center" />
+                <f:BoundField DataField="SUPID" Hidden="true" />
+                <f:BoundField MinWidth="120px" DataField="SUPNAME" HeaderText="供货商" EnableColumnHide="true" EnableHeaderMenu="false" ExpandUnusedSpace="true" />
+                <f:BoundField DataField="GDSEQ" HeaderText="添加人" Hidden="true" />
+            </Columns>
+        </f:Grid>
+    </Items>
+    <Toolbars>
+        <f:Toolbar ID="Toolbar8" runat="server" Position="Bottom" ToolbarAlign="Right">
+            <Items>
+                <f:Button ID="btnLoadTemplateClose" Text="保存确定" EnableDefaultState="false" Icon="SystemSave" OnClick="btnLoadTemplateClose_Click" runat="server">
+                </f:Button>
+            </Items>
+        </f:Toolbar>
+    </Toolbars>
+</f:Window>
+</html>

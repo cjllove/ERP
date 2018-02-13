@@ -1,0 +1,215 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System.Data;
+using Oracle.ManagedDataAccess.Client;
+using System.IO;
+
+namespace SPDProject.SpdCart
+{
+    public partial class CartShowAndDo : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            String gdseq = "";
+            decimal dhs = 0;
+            String userId = "";
+            String result = "";
+            string deptid = "";
+            if (Request.QueryString["dhs"] != null && !"".Equals(Request.QueryString["dhs"]))
+            {
+                userId = UserAction.UserID;
+                
+                try
+                {
+                    gdseq = Request.QueryString["gdseq"];
+                    deptid = Request.QueryString["deptid"];
+                    dhs = Convert.ToDecimal(Request.QueryString["dhs"]);
+                }
+                catch
+                {
+                    result = "获取参数时发生错误";
+                }
+                string operType = "add";
+                if (Request.QueryString["oper"] != null && "update".Equals(Request.QueryString["oper"]))
+                {
+                    operType = "update";
+                }
+                result = addCart(gdseq, dhs.ToString(), userId, operType,deptid);
+            }
+            else if (Request.QueryString["gdseq"] != null && !"".Equals(Request.QueryString["gdseq"]))
+            {
+                gdseq = Request.QueryString["gdseq"];
+                result = getGoodsData(gdseq);
+            }
+            else if (Request.QueryString["oper"] != null && "submit".Equals(Request.QueryString["oper"]))
+            {
+                result = submitCart();
+            }
+            else
+            {
+                result = "获取参数时发生错误";
+            }
+
+            Response.ContentType = "text/plain";
+            Response.Write(result);
+            Response.End();
+        }
+
+        private string getGoodsData(string gdseq)
+        {
+            DataTable picTable = DbHelperOra.Query(String.Format("select hanghao,picpath from (select rownum hanghao,picpath from doc_goodspicture where gdseq='{0}' and nvl(str2,'N') = 'N' order by rownum)", gdseq)).Tables[0];
+            string strGoodsSql = @"SELECT GDSEQ,";
+
+            //判断系统默认设置显示的商品名
+            if(PubFunc.DbGetPara("ShowName") == "HIS")
+            {
+                strGoodsSql += "NVL(HISNAME,GDNAME) GDNAME,NVL(G.STR3,GDSPEC) GDSPEC,";
+            }
+            else
+            {
+                strGoodsSql += "GDNAME,GDSPEC,";
+            }
+
+            strGoodsSql += @"BZHL,UNIT,U.NAME UNITNAME,CATID,C.NAME CATNAME,PIZNO,BAR3 EASCODE,SUPPLIER SUPID,S.SUPNAME SUPNAME,PRODUCER,f_getproducername(PRODUCER) PRODUCERNAME,JXTAX,HSJJ JJ FROM DOC_GOODS G
+                                LEFT JOIN DOC_GOODSUNIT U ON G.UNIT=U.CODE
+                                LEFT JOIN SYS_CATEGORY C ON G.CATID=C.CODE
+                                LEFT JOIN DOC_SUPPLIER S ON G.SUPPLIER=S.SUPID
+                                LEFT JOIN DOC_SUPPLIER P ON G.PRODUCER=P.STR2
+                                WHERE GDSEQ='{0}'";
+            DataTable goodsInfo = DbHelperOra.Query(String.Format(strGoodsSql, gdseq)).Tables[0];
+            DataTable cartTable = DbHelperOra.Query(String.Format("select dhs from dat_cart where userid='{0}' and gdseq='{1}'", UserAction.UserID, gdseq)).Tables[0];
+            JObject jo = new JObject();
+            JArray ja = new JArray();
+            jo.Add("gdseq", goodsInfo.Rows[0]["GDSEQ"].ToString());
+            jo.Add("gdname", goodsInfo.Rows[0]["GDNAME"].ToString());
+            jo.Add("gdspec", goodsInfo.Rows[0]["GDSPEC"].ToString());
+            jo.Add("bzhl", goodsInfo.Rows[0]["BZHL"].ToString());
+            jo.Add("unit", goodsInfo.Rows[0]["UNIT"].ToString());
+            jo.Add("unitname", goodsInfo.Rows[0]["UNITNAME"].ToString());
+            jo.Add("catid", goodsInfo.Rows[0]["CATID"].ToString());
+            jo.Add("catname", goodsInfo.Rows[0]["CATNAME"].ToString());
+            jo.Add("eascode", goodsInfo.Rows[0]["EASCODE"].ToString());
+            jo.Add("pizno", goodsInfo.Rows[0]["PIZNO"].ToString());
+            jo.Add("supid", goodsInfo.Rows[0]["SUPID"].ToString());
+            jo.Add("supname", goodsInfo.Rows[0]["SUPNAME"].ToString());
+            jo.Add("producer", goodsInfo.Rows[0]["PRODUCER"].ToString());
+            jo.Add("producername", goodsInfo.Rows[0]["PRODUCERNAME"].ToString());
+            jo.Add("jxtax", goodsInfo.Rows[0]["JXTAX"].ToString());
+            jo.Add("jj", goodsInfo.Rows[0]["JJ"].ToString());
+            foreach (DataRow dr in picTable.Rows)
+            {
+                JObject joPath = new JObject();
+                joPath.Add("rowno", Convert.ToInt16(dr["HANGHAO"]));
+                if (dr["PICPATH"] != null && !"".Equals(dr["PICPATH"].ToString()))
+                {
+                    //string strPICPATH = ApiUtil.GetConfigCont("CLOUD_URL_PREFIX") + dr["PICPATH"].ToString().Substring(2);
+                    string strPICPATH = "";
+                    string path = dr["PICPATH"].ToString();
+                    if (!string.IsNullOrWhiteSpace(path))
+                    {
+                        if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+                        {
+                            strPICPATH = "http://" + Request.Url.Authority + path.Substring(1);
+                        }
+                        else
+                        {
+                            strPICPATH = ApiUtil.GetConfigCont("PIC_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+                        }
+                    }
+                    else
+                    {
+                        strPICPATH = "/res/images/noPic.jpg"; 
+                    }
+                    
+
+                    joPath.Add("path", strPICPATH);
+                }
+                ja.Add(joPath);
+            }
+            jo.Add("picpath", ja);
+            if (cartTable != null && cartTable.Rows.Count > 0)
+            {
+                jo.Add("dhs", cartTable.Rows[0]["dhs"].ToString());
+            }
+
+            return JsonConvert.SerializeObject(jo);
+        }
+
+        private string addCart(string gdseq, string dhs, string userId, string operType,string deptid="")
+        {
+            JObject jo = new JObject();
+            int result = 0;
+            Object obj;
+            if (deptid=="")
+            {
+                obj = DbHelperOra.GetSingle("select nvl((SELECT A.STOCK FROM SYS_DEPT A WHERE A.CODE = '" + UserAction.UserDept + "'),(select value from sys_para where code = 'DEFDEPT')) from dual");
+            }
+            else
+            {
+                obj = deptid;
+            }
+            string sql = "select count(1) from  dat_cart where userid='{0}' and gdseq='{1}' and deptid = '{2}'";
+            sql = string.Format(sql, userId, gdseq, obj.ToString());
+            result = Convert.ToInt32(DbHelperOra.GetSingle(sql));
+            if (result > 0)
+            {
+                if ("update".Equals(operType))
+                {
+                    sql = "update dat_cart set dhs={2} where userid='{0}' and gdseq='{1}' and deptid = '{3}'";
+                }
+                else
+                {
+                    sql = "update dat_cart set dhs=dhs+{2} where userid='{0}' and gdseq='{1}' and deptid = '{3}'";
+                }
+            }
+            else
+            {
+                sql = "insert into dat_cart (seqno,userid,gdseq,dhs,deptid) values (seq_cart.nextval,'{0}','{1}',{2},'{3}')";
+            }
+
+
+            sql = string.Format(sql, userId, gdseq, dhs, obj.ToString());
+            result = DbHelperOra.ExecuteSql(sql);
+            if (result > 0)
+            {
+                jo.Add("result", "success");
+            }
+            else
+            {
+                jo.Add("result", "false");
+            }
+            return JsonConvert.SerializeObject(jo);
+        }
+
+        private string submitCart()
+        {
+            JObject jo = new JObject();
+            try
+            {
+                OracleParameter[] param = { new OracleParameter("VS_DEPTID", OracleDbType.Varchar2, 20),
+                                          new OracleParameter("VS_USERID", OracleDbType.Varchar2, 20)};
+                param[0].Direction = ParameterDirection.Input;
+                param[1].Direction = ParameterDirection.Input;
+                param[0].Value = UserAction.UserDept;
+                param[1].Value = UserAction.UserID;
+
+                int result = DbHelperOra.RunProcedure("P_SAVECARTTODD", param);
+
+                jo.Add("result", "success");
+                jo.Add("seqno", "");
+            }
+            catch (Exception ex)
+            {
+                jo.Add("result", "false");
+            }
+            return JsonConvert.SerializeObject(jo);
+        }
+    }
+}

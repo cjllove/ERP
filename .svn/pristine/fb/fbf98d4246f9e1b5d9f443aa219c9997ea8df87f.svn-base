@@ -1,0 +1,171 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+
+
+namespace SPDProject.SpdXM.WH_RCRM
+{
+    public partial class GoodsKSXH : BillBase
+    {
+        protected static string DefaultDEPT="155";
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            lisDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            lisDATE2.SelectedDate = DateTime.Now;
+
+        }
+
+        private void DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(dpkDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(dpkDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (dpkDATE1.SelectedDate > dpkDATE2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+
+            string strSql = @"SELECT DEPTID,(SELECT NAME FROM SYS_DEPT WHERE CODE=DEPTID)DEPTNAME,COUNTGDSEQ,COUNTSL,COUNTJE FROM( SELECT DEPTID,COUNT(GDSEQ)COUNTGDSEQ,SUM(XSSL)COUNTSL,SUM(HSJE)COUNTJE FROM(
+SELECT DXD.DEPTID,DXC.GDSEQ,DXC.XSSL,HSJE
+FROM DAT_XS_DOC DXD,DAT_XS_COM DXC 
+WHERE DXD.SEQNO=DXC.SEQNO(+) AND BILLTYPE IN('XST','XSD') AND DXC.GDSEQ IN(SELECT GDSEQ FROM DOC_GOODSCFG WHERE DEPTID='{0}' AND ISCFG='Y' AND ISJF LIKE NVL('{1}','%') )
+AND DXD.DEPTID LIKE NVL('{2}','%')
+)GROUP BY DEPTID
+ORDER BY DEPTID)";
+            string strWhere = "";
+            if (!PubFunc.StrIsEmpty(txbGDSEQ.Text)) strWhere += " and (sp.gdseq like '%" + txbGDSEQ.Text + "%' or sj.gdname like '%" + txbGDSEQ.Text + "%' or sj.zjm like '%" + txbGDSEQ.Text + "%')";
+            if (strWhere.Trim().Length > 0) strSql = strSql + strWhere;
+            strSql = string.Format(strSql,DefaultDEPT,ddlISJF.SelectedValue, ddlDEPTID.SelectedValue);
+            //DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text), ref total);
+            //GridGoods.RecordCount = total;
+            //GridGoods.DataSource = dtData;
+            GridGoods.DataSource = DbHelperOra.QueryForTable(string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text));
+            GridGoods.DataBind();
+        }
+        protected void btnSch_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.StrIsEmpty(lisDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(lisDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (lisDATE1.SelectedDate > lisDATE2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+            string strSql = @"SELECT A.SEQNO,DECODE(nvl(B.SEQNO,'#'),'#','未入库','已入库') FLAGNAME,F_GETDEPTNAME(A.DEPTDH) DEPTDHNAME,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.SUBNUM NUM_DH,F_GETUSERNAME(A.LRY) LRYNAME,A.SHRQ,B.SEQNO SEQNO_RK,B.NUM_RK,B.SHRQ_RK,F_GETUSERNAME(B.SHR) SHRNAME
+                FROM DAT_DD_DOC A,(SELECT SEQNO,DDBH,SUM(SUBNUM) NUM_RK,MAX(SHRQ) SHRQ_RK,MAX(SHR) SHR FROM DAT_RK_DOC WHERE FLAG IN ('Y','G') GROUP BY SEQNO,DDBH) B
+                WHERE A.SEQNO = B.DDBH(+) AND A.FLAG IN ('Y','G') AND A.SHRQ BETWEEN TO_DATE('{0}','yyyy-mm-dd') AND TO_DATE('{1}','yyyy-mm-dd')";
+            string strWhere = "";
+            if (!PubFunc.StrIsEmpty(lisBILL.Text.Trim())) strWhere += " AND A.SEQNO LIKE '%" + lisBILL.Text.Trim() + "%'";
+            if (!PubFunc.StrIsEmpty(ddlFLAG.SelectedValue.Trim()))
+            {
+                if (ddlFLAG.SelectedValue == "N") strWhere += " AND NVL(B.SEQNO,'#') = '#'";
+                if (ddlFLAG.SelectedValue == "Y") strWhere += " AND NVL(B.SEQNO,'#') <>'#'";
+            }
+            if (strWhere.Trim().Length > 0) strSql = strSql + strWhere;
+            strSql += " order by SHRQ DESC";
+            GridList.DataSource = DbHelperOra.QueryForTable(string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text));
+            GridList.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                txbGDSEQ.Text = string.Empty;
+                dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+                dpkDATE2.SelectedDate = DateTime.Now;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                lisBILL.Text = string.Empty;
+                lisDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+                lisDATE2.SelectedDate = DateTime.Now;
+            }
+
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                if (GridGoods.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=单品到货分析.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridGoods));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                if (GridList.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=单据到货分析.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridList));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            TabStrip1.ActiveTabIndex = 1;
+            lisDATE1.SelectedDate = dpkDATE1.SelectedDate;
+            lisDATE2.SelectedDate = dpkDATE2.SelectedDate;
+            DateTime BEGRQ = Convert.ToDateTime(lisDATE1.SelectedDate);
+            DateTime ENDRQ = Convert.ToDateTime(lisDATE2.SelectedDate);
+            string DEPTID = GridGoods.Rows[GridGoods.SelectedRowIndex].DataKeys[0].ToString();
+            string strSql = @"SELECT DISTINCT(DXC.GDSEQ),DXC.XSSL,DXC.HSJE
+FROM  DAT_XS_DOC DXD, DAT_XS_COM DXC
+         WHERE DXD.SEQNO = DXC.SEQNO(+)
+         AND DXD.DEPTID='{0}' AND DXC.GDSEQ IS NOT NULL AND TRUNC(DXD.SHRQ,'dd') BETWEEN TRUNC('{1}','dd') AND TRUNC('{2}','dd')";
+            GridList.DataSource = DbHelperOra.QueryForTable(string.Format(strSql, BEGRQ, ENDRQ));
+            GridList.DataBind();
+        }
+
+
+
+
+    }
+}

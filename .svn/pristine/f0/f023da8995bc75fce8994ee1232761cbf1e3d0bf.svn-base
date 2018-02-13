@@ -1,0 +1,533 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using Oracle.ManagedDataAccess.Client;
+
+namespace SPDProject.SpdXM.XJ_CJRM
+{
+    public partial class MonthlyReport : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-30);
+                lstLRRQ2.SelectedDate = DateTime.Now;
+                PubFunc.DdlDataGet("DDL_DOC_SUPID", lstSUPID);
+                PubFunc.DdlDataGet("DDL_GOODSTYPE", docDHLX);
+                docDHLX.SelectedValue = "2";
+            }
+        }
+
+        protected void bntClear_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private string GetQuerySql()
+        {
+            string qcb, qmb;
+            if (lstLRRQ1.Text == DateTime.Now.ToString("yyyy-MM-dd"))
+            {
+                qcb = @"(SELECT SUBSTR(A.CATID, 1, 6) CATID, SUM(A.KCSL * A.KCHSJJ) KCJE
+                                FROM DAT_GOODSSTOCK A WHERE A.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='" + docDHLX.SelectedValue + "')";
+                if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+                {
+                    qcb += " AND A.SUPID = '" + lstSUPID.SelectedValue + " '";
+                }
+                qcb += " GROUP BY SUBSTR(A.CATID, 1, 6)) QC";
+            }
+            else
+            {
+                qcb = string.Format(@"(SELECT SUBSTR(A.CATID, 1, 6) CATID, SUM(A.KCSL * A.KCHSJJ) KCJE
+                                                    FROM DAT_STOCKDAY A
+                                                   WHERE TO_CHAR(A.RQ+1,'YYYY-MM-DD') = '{0}' 
+                                                        AND A.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{1}') ",
+                                             lstLRRQ1.Text, docDHLX.SelectedValue);
+                if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+                {
+                    qcb += " AND A.SUPID = '" + lstSUPID.SelectedValue + "'";
+                }
+                qcb += " GROUP BY SUBSTR(A.CATID, 1, 6)) QC";
+            }
+            if (lstLRRQ2.Text == DateTime.Now.ToString("yyyy-MM-dd"))
+            {
+                qmb = @"(SELECT SUBSTR(A.CATID, 1, 6) CATID, SUM(A.KCSL * A.KCHSJJ) KCJE
+                                   FROM DAT_GOODSSTOCK A WHERE A.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='" + docDHLX.SelectedValue + "')";
+                if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+                {
+                    qmb += " AND A.SUPID = '" + lstSUPID.SelectedValue + "'";
+                }
+                qmb += " GROUP BY SUBSTR(A.CATID, 1, 6)) QM";
+            }
+            else
+            {
+                qmb = string.Format(@"(SELECT SUBSTR(A.CATID, 1, 6) CATID, SUM(A.KCSL * A.KCHSJJ) KCJE
+                                                       FROM DAT_STOCKDAY A
+                                                      WHERE TO_CHAR(A.RQ,'YYYY-MM-DD') = '{0}'  
+                                                      AND A.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{1}') ",
+                                                      lstLRRQ2.Text, docDHLX.SelectedValue);
+                if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+                {
+                    qmb += " AND A.SUPID = '" + lstSUPID.SelectedValue + "'";
+                }
+                qmb += " GROUP BY SUBSTR(A.CATID, 1, 6)) QM";
+            }
+            string supid = "";
+            if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+            {
+                supid = " AND J.SUPID = '" + lstSUPID.SelectedValue + "'";
+            }
+            StringBuilder sbSql = new StringBuilder();
+            //昌吉州人民医院期初数据处理 By YuanPeng 2016年5月3日09:53:21
+            if (lstLRRQ1.Text == "2016-03-01")
+            {
+                sbSql.AppendFormat(@"SELECT C.CODE CATEGORYID,
+                                                           C.NAME CATEGORYNAME,
+                                                           NVL(QC.KCJE,0)  QCJE,
+                                                           NVL(RK.BYRKJE, 0)-NVL(QC.KCJE,0) BYRKJE,
+                                                           NVL(RK.PYJE, 0)+NVL(CK.PYJE, 0) PYJE,
+                                                           NVL(BNLJRK.RKJE, 0)+ABS(NVL(CK.BYCKJE, 0)) + NVL(QM.KCJE, 0) - 
+                                                           NVL(RK.PKJE, 0) - NVL(CK.PKJE, 0) - NVL(RK.BSJE, 0) -
+                                                           NVL(CK.BSJE, 0) BNLJRKJE,
+                                                           ABS(NVL(CK.BYCKJE, 0)) BYCKJE,
+                                                           NVL(RK.PKJE, 0)+NVL(CK.PKJE, 0) PKJE,
+                                                           NVL(RK.BSJE, 0)+NVL(CK.BSJE, 0) BSJE,
+                                                           NVL(ABS(BNLJCK.BNLJCKJE+NVL(RK.PKJE, 0)+NVL(CK.PKJE, 0)+NVL(RK.BSJE, 0)+NVL(CK.BSJE, 0)), 0) BNLJCKJE,
+                                                           NVL(QM.KCJE,0)  QMJE
+                                                      FROM (SELECT B.* FROM SYS_CATEGORY A ,SYS_CATEGORY B  WHERE B.SJCODE=A.CODE AND B.TYPE='{5}' AND B.CLASS='2') C, {2},
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   SUM(DECODE(J.BILLTYPE, 'RKD', J.HSJE, 'THD', J.HSJE, 0)) BYRKJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'TJD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) BSJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0), 0)) PYJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) PKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('1', '2')
+                                                                                   AND ISLAST = 'Y')      {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) RK,
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   0 BSJE,--SUM(DECODE(J.BILLTYPE, 'TJD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) BSJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0), 0)) PYJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) PKJE,
+                                                                   SUM(DECODE(J.BILLTYPE,
+                                                                              'XSD',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XSG',
+                                                                              J.SL * J.HSJJ,
+                                                                              'DSH',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XST',
+                                                                              DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+                                                                              0)) BYCKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('3', '4')
+                                                                                   AND ISLAST = 'Y')       {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) CK,
+                                                           (SELECT J.CATID, J.HSJE RKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.SEQNO = 43483 {4}
+                                                                 AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')) BNLJRK,
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   SUM(DECODE(J.BILLTYPE,
+                                                                              'XSD',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XSG',
+                                                                              J.SL * J.HSJJ,
+                                                                              'DSH',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XST',
+                                                                              DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+                                                                              0)) BNLJCKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('3', '4')
+                                                                                   AND ISLAST = 'Y')       {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ < TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) BNLJCK,{3}
+                                                     WHERE C.CODE = RK.CATID(+)
+                                                       AND C.CODE = CK.CATID(+)
+                                                       AND C.CODE = BNLJRK.CATID(+)
+                                                       AND C.CODE = BNLJCK.CATID(+)
+                                                       AND C.CODE = QC.CATID(+)
+                                                       AND C.CODE = QM.CATID(+)
+                                                     ORDER BY C.NAME", lstLRRQ1.Text, lstLRRQ2.Text, qcb, qmb, supid, docDHLX.SelectedValue);
+            }
+            else
+            {
+                sbSql.AppendFormat(@"SELECT C.CODE CATEGORYID,
+                                                           C.NAME CATEGORYNAME,
+                                                           NVL(QC.KCJE,0)  QCJE,
+                                                           --NVL(RK.BYRKJE, 0) BYRKJE,
+                                                           NVL(QM.KCJE,0) + ABS(NVL(CK.BYCKJE, 0)) -NVL(QC.KCJE,0) BYRKJE,
+                                                           NVL(RK.PYJE, 0)+NVL(CK.PYJE, 0) PYJE,
+                                                           NVL(BNLJRK.RKJE, 0) BNLJRKJE,
+                                                           ABS(NVL(CK.BYCKJE, 0)) BYCKJE,
+                                                           NVL(RK.PKJE, 0)+NVL(CK.PKJE, 0) PKJE,0 BSJE,
+                                                           NVL(ABS(BNLJCK.BNLJCKJE), 0) BNLJCKJE,
+                                                           NVL(QM.KCJE,0)  QMJE
+                                                      FROM (SELECT B.* FROM SYS_CATEGORY A ,SYS_CATEGORY B  WHERE B.SJCODE=A.CODE AND B.TYPE='{5}' AND B.CLASS='2') C, {2},
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   SUM(DECODE(J.BILLTYPE, 'RKD', J.HSJE, 'THD', J.HSJE, 0)) BYRKJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0), 0)) PYJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) PKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('1', '2')
+                                                                                   AND ISLAST = 'Y')        {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) RK,
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0), 0)) PYJE,
+                                                                   SUM(DECODE(J.BILLTYPE, 'SYD', DECODE(J.KCADD, '-1', J.SL * J.HSJJ, 0), 0)) PKJE,
+                                                                   SUM(DECODE(J.BILLTYPE,
+                                                                              'XSD',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XSG',
+                                                                              J.SL * J.HSJJ,
+                                                                              'DSH',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XST',
+                                                                              DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+                                                                              0)) BYCKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('3', '4')
+                                                                                   AND ISLAST = 'Y')          {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) CK,
+                                                           (SELECT CATID, SUM(RKJE) RKJE
+                                                              FROM (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                           ABS(SUM(DECODE(J.BILLTYPE,
+                                                                                          'XSD',
+                                                                                          J.SL * J.HSJJ,
+                                                                                          'XSG',
+                                                                                          J.SL * J.HSJJ,
+                                                                                          'DSH',
+                                                                                          J.SL * J.HSJJ,
+                                                                                          'XST',
+                                                                                          DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+                                                                                          0))) RKJE
+                                                                      FROM DAT_GOODSJXC J
+                                                                     WHERE J.DEPTID IN (SELECT CODE
+                                                                                          FROM SYS_DEPT
+                                                                                         WHERE TYPE IN ('3', '4')
+                                                                                           AND ISLAST = 'Y')
+                                                                       AND J.SEQNO > 43484  {4}
+                                                                       AND J.RQSJ < TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                                     GROUP BY SUBSTR(J.CATID, 1, 6)
+                                                                    UNION ALL
+                                                                    SELECT J.CATID, J.HSJE RKJE
+                                                                      FROM DAT_GOODSJXC J
+                                                                     WHERE J.SEQNO = 43483  {4})
+                                                             WHERE CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                             GROUP BY CATID) BNLJRK,
+                                                           (SELECT SUBSTR(J.CATID, 1, 6) CATID,
+                                                                   SUM(DECODE(J.BILLTYPE,
+                                                                              'XSD',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XSG',
+                                                                              J.SL * J.HSJJ,
+                                                                              'DSH',
+                                                                              J.SL * J.HSJJ,
+                                                                              'XST',
+                                                                              DECODE(J.KCADD, '1', J.SL * J.HSJJ, 0),
+                                                                              0)) BNLJCKJE
+                                                              FROM DAT_GOODSJXC J
+                                                             WHERE J.DEPTID IN (SELECT CODE
+                                                                                  FROM SYS_DEPT
+                                                                                 WHERE TYPE IN ('3', '4')
+                                                                                   AND ISLAST = 'Y')      {4}
+                                                               AND J.CATID IN (SELECT CODE FROM SYS_CATEGORY WHERE TYPE='{5}')
+                                                               AND J.RQSJ < TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                                             GROUP BY SUBSTR(J.CATID, 1, 6)) BNLJCK,{3}
+                                                     WHERE C.CODE = RK.CATID(+)
+                                                       AND C.CODE = CK.CATID(+)
+                                                       AND C.CODE = BNLJRK.CATID(+)
+                                                       AND C.CODE = BNLJCK.CATID(+)
+                                                       AND C.CODE = QC.CATID(+)
+                                                       AND C.CODE = QM.CATID(+)
+                                                     ORDER BY C.NAME", lstLRRQ1.Text, lstLRRQ2.Text, qcb, qmb, supid, docDHLX.SelectedValue);
+            }
+            //昌吉有结存处理，取库存时如果有结存库存则取结存，无结存库存则取日库存
+            //By YuanPeng 2016年5月25日12:31:59 At 新疆昌吉
+            string stockjc = @"(SELECT A.*
+                                      FROM DAT_STOCKDAY A
+                                     WHERE NOT EXISTS
+                                     (SELECT 1
+                                              FROM DAT_STOCKJCDAY B
+                                             WHERE TO_CHAR(B.RQSJ, 'YYYY-MM-DD') = TO_CHAR(A.RQ, 'YYYY-MM-DD'))
+                                    UNION ALL
+                                    SELECT *
+                                      FROM DAT_STOCKJCDAY)";
+            return sbSql.ToString().Replace("DAT_STOCKDAY", stockjc);
+        }
+
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询日期】！", "消息提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！", "消息提醒", MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(docDHLX.SelectedValue))
+            {
+                Alert.Show("请先选择商品类型！", "异常提示", MessageBoxIcon.Warning);
+                return;
+            }
+            DataTable table = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            GridMonthly.DataSource = table;
+            GridMonthly.DataBind();
+
+            decimal dec_qc = 0, dec_byrk = 0, dec_py = 0, dec_bnrk = 0, dec_byck = 0, dec_pk = 0, dec_bs = 0, dec_bnck = 0, dec_qm = 0;
+            JObject summary = new JObject();
+            summary.Add("CATEGORYNAME", "汇总合计");
+            foreach (DataRow row in table.Rows)
+            {
+                dec_qc += decimal.Parse((row["QCJE"] ?? "0").ToString());
+                dec_byrk += decimal.Parse((row["BYRKJE"] ?? "0").ToString());
+                dec_py += decimal.Parse((row["PYJE"] ?? "0").ToString());
+                dec_bnrk += decimal.Parse((row["BNLJRKJE"] ?? "0").ToString());
+                dec_byck += decimal.Parse((row["BYCKJE"] ?? "0").ToString());
+                dec_pk += decimal.Parse((row["PKJE"] ?? "0").ToString());
+                dec_bs += decimal.Parse((row["BSJE"] ?? "0").ToString());
+                dec_bnck += decimal.Parse((row["BNLJCKJE"] ?? "0").ToString());
+                dec_qm += decimal.Parse((row["QMJE"] ?? "0").ToString());
+            }
+            summary.Add("QCJE", dec_qc);
+            summary.Add("BYRKJE", dec_byrk);
+            summary.Add("PYJE", dec_py);
+            summary.Add("BNLJRKJE", dec_bnrk);
+            summary.Add("BYCKJE", dec_byck);
+            summary.Add("PKJE", dec_pk);
+            summary.Add("BSJE", dec_bs);
+            summary.Add("BNLJCKJE", dec_bnck);
+            summary.Add("QMJE", dec_qm);
+            GridMonthly.SummaryData = summary;
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            List<string> colmns = new List<string>();
+
+            for (int index = 1; index < GridMonthly.Columns.Count; index++)
+            {
+                GridColumn column = GridMonthly.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    colmns.Add(column.HeaderText);
+                }
+                else if (column is FineUIPro.GroupField)
+                {
+                    FineUIPro.GroupField group = column as FineUIPro.GroupField;
+                    for (int i = 0; i < group.Columns.Count; i++)
+                    {
+                        GridColumn column1 = group.Columns[i];
+                        if (column1 is FineUIPro.BoundField)
+                        {
+                            dtData.Columns[((FineUIPro.BoundField)(column1)).DataField.ToUpper()].ColumnName = column1.HeaderText;
+                            colmns.Add(column1.HeaderText);
+                        }
+                    }
+                }
+            }
+            ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, colmns.ToArray()), "医疗物资库房" + string.Format("{0:yyyy年MM月}", lstLRRQ2.SelectedDate) + "月报明细表", string.Format("医疗物资库房月报明细表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void btnPrintAll_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            DataTable table = GetData(false);
+            if (table == null || table.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法打印！");
+                return;
+            }
+            string sql_del = "DELETE FROM TEMP_YYYDBB WHERE BEGRQ='{0}' AND ENDRQ='{1}'";
+            if (!string.IsNullOrWhiteSpace(lstSUPID.SelectedValue))
+            {
+                sql_del += " AND SUPID='" + lstSUPID.SelectedValue + "'";
+            }
+            DbHelperOra.ExecuteSql(string.Format(sql_del, lstLRRQ1.Text, lstLRRQ2.Text));
+
+            string sql = String.Format(@"INSERT INTO TEMP_YYYDBB(ROWNO,BEGRQ,ENDRQ,SUPID,CATEGORYID,CATEGORYNAME,QCJE,BYRKJE,PYJE,BNLJRKJE,BYCKJE,PKJE,BSJE,BNLJCKJE,QMJE) 
+                                           VALUES(:ROWNO,'{0}','{1}','{2}',:CATEGORYID,:CATEGORYNAME,:QCJE,:BYRKJE,:PYJE,:BNLJRKJE,:BYCKJE,:PKJE,:BSJE,:BNLJCKJE,:QMJE)", lstLRRQ1.Text, lstLRRQ2.Text, lstSUPID.SelectedValue);
+            OracleConnection con = new OracleConnection(DbHelperOra.connectionString);
+            OracleDataAdapter da = new OracleDataAdapter(sql, con);
+            //在批量添加数据前的准备工作
+            da.InsertCommand = new OracleCommand(sql, con);
+            OracleParameter param = new OracleParameter();
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("ROWNO", OracleDbType.Int16));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "序号";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("CATEGORYID", OracleDbType.Varchar2, 20));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "CATEGORYID";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("CATEGORYNAME", OracleDbType.Varchar2, 100));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "CATEGORYNAME";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("QCJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "QCJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("BYRKJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "BYRKJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("PYJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "PYJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("BNLJRKJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "BNLJRKJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("BYCKJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "BYCKJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("PKJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "PKJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("BSJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "BSJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("BNLJCKJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "BNLJCKJE";
+
+            param = da.InsertCommand.Parameters.Add(new OracleParameter("QMJE", OracleDbType.Decimal));
+            param.SourceVersion = DataRowVersion.Current;
+            param.SourceColumn = "QMJE";
+
+            //批量添加数据
+            try
+            {
+                con.Open();
+                da.Update(table);
+            }
+            catch (Exception ex)
+            {
+                Alert.Show("数据库错误：" + ex.Message.ToString(), "异常信息", MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                con.Close();
+            }
+
+            PageContext.RegisterStartupScript("PrintYDBB()");
+        }
+        private DataTable GetData(bool IsSum)
+        {
+            DataTable dtData = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            DataTable table = new DataTable();
+            table.Columns.Add(new DataColumn("序号", typeof(int)));
+            foreach (DataColumn col in dtData.Columns)
+            {
+                table.Columns.Add(new DataColumn(col.ColumnName, col.DataType));
+            }
+            //计算汇总金额
+            decimal rowno = 0, sum_qc = 0, sum_byrk = 0, sum_py = 0, sum_bnrk = 0, sum_byck = 0, sum_pk = 0, sum_bs = 0, sum_bnck = 0, sum_qm = 0;
+            foreach (DataRow row in dtData.Rows)
+            {
+                DataRow dr = table.NewRow();
+                dr["序号"] = ++rowno;
+                foreach (DataColumn col in dtData.Columns)
+                {
+                    dr[col.ColumnName] = row[col.ColumnName];
+                }
+                table.Rows.Add(dr);
+
+                sum_qc += decimal.Parse(row["QCJE"].ToString());
+                sum_byrk += decimal.Parse(row["BYRKJE"].ToString());
+                sum_py += decimal.Parse(row["PYJE"].ToString());
+                sum_bnrk += decimal.Parse(row["BNLJRKJE"].ToString());
+                sum_byck += decimal.Parse(row["BYCKJE"].ToString());
+                sum_pk += decimal.Parse(row["PKJE"].ToString());
+                sum_bs += decimal.Parse(row["BSJE"].ToString());
+                sum_bnck += decimal.Parse(row["BNLJCKJE"].ToString());
+                sum_qm += decimal.Parse(row["QMJE"].ToString());
+            }
+            if (IsSum)
+            {
+                DataRow dr2 = table.NewRow();
+                dr2["CATEGORYNAME"] = "汇总合计";
+                dr2["QCJE"] = sum_qc;
+                dr2["BYRKJE"] = sum_byrk;
+                dr2["PYJE"] = sum_py;
+                dr2["BNLJRKJE"] = sum_bnrk;
+                dr2["BYCKJE"] = sum_byck;
+                dr2["PKJE"] = sum_pk;
+                dr2["BSJE"] = sum_bs;
+                dr2["BNLJCKJE"] = sum_bnck;
+                dr2["QMJE"] = sum_qm;
+                table.Rows.Add(dr2);
+            }
+            return table;
+        }
+    }
+}

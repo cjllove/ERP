@@ -1,0 +1,553 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Data;
+using System.Linq;
+using System.Web.UI.WebControls;
+using System.IO;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using XTBase.Utilities;
+
+
+namespace SPDProject.SpdApply
+{
+    public partial class DepartmentApplyCheck : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                btnNew_Click(null, null);
+            }
+        }
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_SYS_DEPOT", lstDEPTOUT, docDEPTOUT);
+
+            //当前用户是护士长，申领人下拉只显示当前科室下的用户
+            if (UserAction.UserRole == "02")
+            {
+                string sqls = string.Format(@"select  CODE,NAME from (
+                                                                    SELECT '--请选择--' NAME,'' CODE  FROM dual
+                                                                    union all
+                                                                    select username name, userid code
+                                                                           from sys_operuser 
+                                                                           where roleid = '{0}' and dept = '{1}' and islogin = 'Y')",
+                                                        UserAction.UserRole, UserAction.UserDept);
+                PubFunc.DdlDataSql(lstSLR, sqls);
+                PubFunc.DdlDataSql(docLRY, sqls);
+                PubFunc.DdlDataSql(docSLR, sqls);
+                PubFunc.DdlDataSql(docSHR, sqls);
+            }
+            else
+            {
+                PubFunc.DdlDataGet("DDL_USER", lstSLR, docLRY, docSLR, docSHR);
+                ButtonHidden(btnAuditBatch, btnAudit);
+            }
+
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, docDEPTID, lstDEPTID);
+            PubFunc.DdlDataGet(ddlReject, "DDL_BILL_REASON");
+
+            if (docDEPTOUT.Items.Count > 0)
+            {
+                docDEPTOUT.SelectedIndex = 1;
+            }
+            if (docDEPTID.Items.Count > 0)
+            {
+                docDEPTID.SelectedIndex = 1;
+            }
+
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            string strDept = docDEPTID.SelectedValue;
+            string strDeptOut = docDEPTOUT.SelectedValue;
+            if (PubFunc.StrIsEmpty(strDept))
+            {
+                if (docDEPTID.Items.Count > 1)
+                    strDept = docDEPTID.Items[1].Value;
+            }
+            if (PubFunc.StrIsEmpty(strDeptOut))
+            {
+                if (docDEPTOUT.Items.Count > 1)
+                    strDeptOut = docDEPTOUT.Items[1].Value;
+            }
+            docFLAG.SelectedValue = "";
+            hfdISSH.Text = "N";
+            btnAudit.Enabled = true;
+            PubFunc.FormDataClear(FormDoc);
+            docSLR.SelectedValue = UserAction.UserID;
+            docLRY.SelectedValue = UserAction.UserID;
+            docLRRQ.SelectedDate = DateTime.Now;
+            docXSRQ.SelectedDate = DateTime.Now;
+            docDEPTID.SelectedValue = strDept;
+            docDEPTOUT.SelectedValue = strDeptOut;
+            docDEPTID.Enabled = true;
+            docSEQNO.Enabled = false;
+            docBILLNO.Text = string.Empty;
+            GridGoods.DataSource = null;
+            GridGoods.DataBind();
+
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("BZSL", "0");
+            summary.Add("HSJE", "0");
+            summary.Add("DHSL", "0");
+            GridGoods.SummaryData = summary;
+        }
+        protected void tgbBILLNO_TriggerClick(object sender, EventArgs e)
+        {
+            btnSearch_Click(null, null);
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                FineUIPro.BoundField flagcol = GridList.FindColumn("FLAG_CN") as FineUIPro.BoundField;
+                if (flag == "M")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color1";
+                }
+                if (flag == "N")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                if (flag == "R")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+        }
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+        private string GetSearchSQL()
+        {
+            StringBuilder sql = new StringBuilder();
+            sql.Append(@"SELECT A.SEQNO,
+                                               A.BILLNO,
+                                               A.BILLTYPE,
+                                               NVL(B.FLAG,'N') FLAG,
+                                               DECODE(B.FLAG,
+                                                      'Y',
+                                                      '已收货',
+                                                      DECODE(A.FLAG, 'Y', '已出库', 'G', '已出库', '未出库')) FLAG_CN,
+                                               A.DEPTOUT,
+                                               F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,
+                                               A.DEPTID,
+                                               F_GETDEPTNAME(A.DEPTID) DEPTNAME,
+                                               A.SUBNUM,
+                                               A.SUBSUM,
+                                               A.XSRQ CKRQ,
+                                               F_GETUSERNAME(B.SHR) SHR,
+                                               B.SHRQ,
+                                               B.MEMO
+                                          FROM DAT_CK_DOC A, DAT_CK_CHK B
+                                         WHERE A.SEQNO = B.SEQNO(+)
+                                           AND INSTR('LCD,CKD,DSC',A.BILLTYPE) > 0
+                                           AND INSTR('Y,G', A.FLAG) > 0 ");
+            if (!PubFunc.StrIsEmpty(tgbBILLNO.Text))
+            {
+                sql.AppendFormat(" AND A.SEQNO = '{0}'", tgbBILLNO.Text.Trim());
+            }
+            if (!PubFunc.StrIsEmpty(lstFLAG.SelectedValue))
+            {
+                string flag = "";
+                if (lstFLAG.SelectedValue == "SH")
+                {
+                    flag = "已收货";
+                }
+                else if (lstFLAG.SelectedValue == "CK")
+                {
+                    flag = "已出库";
+                }
+                else if (lstFLAG.SelectedValue == "NK")
+                {
+                    flag = "未出库";
+                }
+
+                sql.AppendFormat(@"DECODE(B.FLAG,
+                                                      'Y',
+                                                      '已收货',
+                                                      DECODE(A.FLAG, 'Y', '已出库', 'G', '已出库', '未出库')) = '{0}'", flag);
+            }
+            if (!PubFunc.StrIsEmpty(lstSLR.SelectedValue))
+            {
+                sql.AppendFormat(" AND A.LRY = '{0}'", lstSLR.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(lstDEPTOUT.SelectedValue))
+            {
+                sql.AppendFormat(" AND A.DEPTOUT = '{0}'", lstDEPTOUT.SelectedValue);
+            }
+            if (!PubFunc.StrIsEmpty(lstDEPTID.SelectedValue))
+            {
+                sql.AppendFormat(" AND A.DEPTID = '{0}'", lstDEPTID.SelectedValue);
+            }
+
+            sql.AppendFormat(" AND A.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            sql.AppendFormat(" AND A.SHRQ BETWEEN TO_DATE('{0}','YYYY-MM-DD') AND TO_DATE('{1}','YYYY-MM-DD') + 1",
+                                       lstLRRQ1.Text, lstLRRQ2.Text);
+            sql.Append(" ORDER BY A.SHRQ DESC");
+            return sql.ToString();
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【申领日期】！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+            int total = 0;
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, GetSearchSQL(), ref total);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+            decimal Total1 = 0, Total2 = 0;
+            foreach (DataRow row in dt.Rows)
+            {
+                Total1 += Convert.ToDecimal(row["SUBSUM"] ?? "0");
+                Total2 += Convert.ToDecimal(row["SUBNUM"] ?? "0");
+            }
+            JObject summary = new JObject();
+            summary.Add("DEPTOUTNAME", "本页合计");
+            summary.Add("SUBSUM", Total1);
+            summary.Add("SUBNUM", Total2);
+            GridList.SummaryData = summary;
+        }
+
+        protected void GridList_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            billOpen(GridList.Rows[e.RowIndex].DataKeys[0].ToString());
+            if (GridList.Rows[e.RowIndex].Values[4].ToString() == "已收货")
+            {
+                hfdISSH.Text = "Y";
+                btnAudit.Enabled = false;
+            }
+            else
+            {
+                hfdISSH.Text = "N";
+                btnAudit.Enabled = true;
+            }
+            string flag = "";
+            switch (GridList.Rows[e.RowIndex].Values[4].ToString())
+            {
+                case "已收货": flag = "SH"; break;
+                case "已出库": flag = "CK"; break;
+                case "未出库": flag = "NK"; break;
+            }
+            docFLAG.SelectedValue = flag;
+        }
+
+        protected void billOpen(string strBillno)
+        {
+            string strDocSql = "SELECT * FROM DAT_CK_DOC WHERE SEQNO='{0}'";
+            string strComSql = @"SELECT C.*, F_GETUNITNAME(C.UNIT) UNITNAME, F_GETSUPNAME(C.PRODUCER) PRODUCERNAME
+                                            FROM DAT_CK_COM C
+                                           WHERE SEQNO = '{0}'";
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+
+            DataTable dtBill = DbHelperOra.Query(string.Format(strComSql, strBillno)).Tables[0];
+            GridGoods.DataSource = dtBill;
+            GridGoods.DataBind();
+
+            decimal bzslTotal = 0, feeTotal = 0;
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    bzslTotal += Convert.ToDecimal(row["XSSL"] ?? "0");
+                    feeTotal += Convert.ToDecimal(row["HSJE"] ?? "0");
+                }
+            }
+            //增加合计
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("XSSL", bzslTotal.ToString());
+            summary.Add("HSJE", feeTotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+            PubFunc.FormLock(FormDoc, true, "");
+            TabStrip1.ActiveTabIndex = 1;
+        }
+
+        protected void btnAuditBatch_Click(object sender, EventArgs e)
+        {
+            int[] rowIndex = GridList.SelectedRowIndexArray;
+            if (rowIndex.Length == 0)
+            {
+                Alert.Show("请选择要收货的单据信息！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            int count = 0;
+            List<string> sqlList = new List<string>();
+            foreach (int index in rowIndex)
+            {
+                if (GridList.Rows[index].DataKeys[1].ToString() != "Y")
+                {
+                    count += 1;
+                    sqlList.Add(string.Format(@"INSERT INTO DAT_CK_CHK
+                          (SEQNO, BILLNO, BILLTYPE, FLAG, CKRQ, SHR, SHRQ)
+                          SELECT SEQNO, BILLNO, BILLTYPE, 'Y', XSRQ, '{1}', SYSDATE
+                            FROM DAT_CK_DOC
+                           WHERE SEQNO = '{0}'",
+                    GridList.Rows[index].DataKeys[0].ToString(), UserAction.UserID));
+                }
+            }
+            if (count > 0 && DbHelperOra.ExecuteSqlTran(sqlList))
+            {
+                Alert.Show("批量收货成功！", "消息提示", MessageBoxIcon.Information);
+                btnSearch_Click(null, null);
+            }
+        }
+
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (GridList.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【申领日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+            string strSql = @"SELECT A.BILLNO 单据编号,
+                                       F_GETDEPTNAME(A.DEPTID) 申领部门,
+                                       A.XSRQ 申领日期,
+                                       F_GETDEPTNAME(A.DEPTOUT) 出库部门,
+                                       F_GETUSERNAME(A.SLR) 申领人,
+                                       F_GETUSERNAME(A.LRY) 录入人,
+                                       A.LRRQ 录入日期,
+                                       B.ROWNO 行号,
+                                       ' '||B.GDSEQ 商品编码,
+                                       B.GDNAME 商品名称,
+                                       B.GDSPEC 商品规格,
+                                       B.PZWH 注册证号,
+                                       F_GETPRODUCERNAME(B.PRODUCER) 生产厂家,
+                                       B.BZHL 包装含量,
+                                       B.BZSL 申领包装数,
+                                       B.DHSL 申领数量,
+                                       B.FPSL 分配数量,
+                                       F_GETUNITNAME(B.UNIT) 单位,
+                                       B.HSJJ 价格,B.HSJE 金额
+                                  FROM DAT_SL_DOC A, DAT_SL_COM B
+                                 WHERE A.SEQNO=B.SEQNO  AND NVL(B.NUM1,0) = 0
+                                   AND BILLTYPE IN ('LYD','GBD')
+                                   AND A.XSTYPE = '1' ";
+            string strSearch = "";
+            if (Request.QueryString["oper"].ToString().ToLower() == "audit")
+            {
+                strSql = strSql + " AND A.FLAG<>'M'";
+
+                //根据DOC_GOODSTYPE表中的STR1字段来确定当前登录人员是否有审核权限 By YuanPeng 2015年11月30日15:04:15
+                strSql += string.Format(" AND F_CHK_AUDIT(NVL(A.CATID,'2'),'{0}') = 'Y'", UserAction.UserID);
+            }
+            else
+            {
+                //根据商品类别【CATID】来加载信息，默认加载耗材-2  By YuanPeng 2015年11月30日15:38:20
+                if (Request.QueryString["tp"] != null && Request.QueryString["tp"].ToString() != "")
+                {
+                    strSql = strSql + string.Format(" AND NVL(A.CATID,'2') ='{0}'", Request.QueryString["tp"].ToString());
+                }
+                else
+                {
+                    strSql = strSql + " AND NVL(A.CATID,'2')  ='2'";
+                }
+            }
+
+            if (lstFLAG.SelectedItem != null && lstFLAG.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.FLAG='{0}'", lstFLAG.SelectedItem.Value);
+            }
+            if (lstDEPTID.SelectedValue != null && lstDEPTID.SelectedValue.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedValue);
+            }
+            if (lstDEPTOUT.SelectedItem != null && lstDEPTOUT.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTOUT='{0}'", lstDEPTOUT.SelectedItem.Value);
+            }
+
+            strSearch += string.Format(" AND A.deptid in( select code FROM SYS_DEPT where type <>'1' and  F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += string.Format(" AND A.LRRQ>=TO_DATE('{0}','YYYY-MM-DD')", lstLRRQ1.Text);
+            strSearch += string.Format(" AND A.LRRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lstLRRQ2.Text);
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY A.BILLNO DESC,B.ROWNO";
+            ExcelHelper.ExportByWeb(DbHelperOra.Query(strSql).Tables[0], "科室申领信息", string.Format("科室申领信息_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+        }
+
+        protected void btnAudit_Click(object sender, EventArgs e)
+        {
+            //if (docSEQNO.Text.Length < 1)
+            //{
+            //    Alert.Show("申领单:" + docSEQNO.Text + "没有保存，不能提交!", "消息提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            //string flg = (string)DbHelperOra.GetSingle(string.Format("SELECT NVL(FLAG,'M') FROM DAT_SL_DOC WHERE SEQNO='{0}'", docSEQNO.Text));
+            //if (!PubFunc.StrIsEmpty(flg) && (",M").IndexOf(flg) < 0)
+            //{
+            //    Alert.Show("申领单:" + docSEQNO.Text + "不是新增单据，不能提交!", "消息提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            ////增加待办事宜
+            //List<CommandInfo> cmdList = new List<CommandInfo>();
+            //cmdList.Add(new CommandInfo(string.Format("update DAT_SL_DOC set flag='N' where seqno='{0}' and flag='M'", docBILLNO.Text), null));
+            //if (!DbHelperOra.Exists("select * from DAT_DO_LIST where PARA='" + docBILLNO.Text.Trim() + "'"))
+            //{
+            //    cmdList.Add(new CommandInfo(" UPDATE DAT_DO_LIST SET DOUSER='" + UserAction.UserID + "',DORQ=SYSDATE,FLAG='Y' WHERE DOTYPE='" + docDEPTID.SelectedValue + "' AND PARA='" + docBILLNO.Text + "'", null));
+            //    cmdList.Add(Doc.GETDOADD("DO_4", docDEPTID.SelectedValue, docLRY.SelectedValue, docBILLNO.Text));
+            //}
+            if (hfdISSH.Text == "N")
+            {
+                string sql = string.Format(@"INSERT INTO DAT_CK_CHK
+                          (SEQNO, BILLNO, BILLTYPE, FLAG, CKRQ, SHR, SHRQ)
+                          SELECT SEQNO, BILLNO, BILLTYPE, 'Y', XSRQ, '{1}', SYSDATE
+                            FROM DAT_CK_DOC
+                           WHERE SEQNO = '{0}'", docSEQNO.Text.Trim(), UserAction.UserID);
+                if (DbHelperOra.ExecuteSql(sql) > 0)
+                {
+                    Alert.Show("收货确认成功！", "消息提示", MessageBoxIcon.Information);
+                    btnAudit.Enabled = false;
+                    hfdISSH.Text = "Y";
+                }
+            }
+        }
+
+        protected void btnReject_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btnRejectSubmit_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            //switch (e.EventArgument)
+            //{
+            //    case "CONTROLM_ENTER": billGoods(); break;
+            //}
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataTable tbnew = table.Clone();
+            tbnew.Columns["SUBSUM"].DataType = typeof(double);//指定SUBSUM为double类型
+            foreach (DataRow s in table.Rows)
+            {
+                tbnew.ImportRow(s);//导入旧数据
+            }
+
+            DataView view1 = tbnew.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            //billSearch();
+        }
+
+        protected void docDEPTID_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //if (OPER())
+            //{
+            //    rblBILLTYPE.Enabled = true;
+            //    GetBudgetAndExec();
+            //}
+            //else
+            //{
+
+            //    rblBILLTYPE.Enabled = false;
+            //    rblBILLTYPE.SelectedIndex = 0;
+            //}
+            if (docDEPTID.SelectedValue.Length > 0)
+            {
+                GetBudgetAndExec();
+            }
+        }
+
+
+        public void GetBudgetAndExec()
+        {
+            //          string strSQL = string.Format(@"SELECT  F_GETYSTOTAL(A.DEPTID,'{0}','{1}') PRENUM, NVL(SUM(A.SUBSUM),0) AS EXENUM
+            //                                          FROM DAT_CK_DOC A WHERE A.FLAG IN ('Y', 'G')  AND BILLTYPE='CKD'  AND A.SHRQ BETWEEN TO_DATE('{1}', 'YYYY-MM-dd') AND   TO_DATE('{2}', 'YYYY-MM-dd') + 1    AND A.DEPTID = '{3}' GROUP BY DEPTID", Convert.ToDateTime(docXSRQ.SelectedDate).AddMonths(-1).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM-dd"), docDEPTID.SelectedValue.ToString());
+
+            string strSQL = string.Format(@"SELECT  F_GETYSTOTAL(A.DEPTID,'{0}','{1}') PRENUM, ABS(NVL(SUM(B.HSJE),0)) AS EXENUM
+                                         FROM DAT_XS_DOC A,DAT_XS_COM B WHERE A.SEQNO=B.SEQNO AND A.FLAG IN ('Y', 'G')  AND A.SHRQ BETWEEN TO_DATE('{1}', 'YYYY-MM-dd') AND   TO_DATE('{2}', 'YYYY-MM-dd') + 1    AND A.DEPTID = '{3}' GROUP BY DEPTID", Convert.ToDateTime(docXSRQ.SelectedDate).AddMonths(-1).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM-dd"), docDEPTID.SelectedValue.ToString());
+            string ACCOUNTDAY = Doc.DbGetSysPara("ACCOUNTDAY");
+
+
+            if (ACCOUNTDAY != "31")
+            {
+                strSQL = string.Format(@"SELECT  NVL((SELECT D.SUBSUM    FROM DAT_YS_DOC D  WHERE  D.FLAG = 'S' AND   D.SHRQ BETWEEN TO_DATE('{0}','YYYY-MM-dd') AND  TO_DATE('{1}', 'YYYY-MM-dd') + 1 AND DEPTID =A.DEPTID  AND   D.Begrq<TO_DATE('{2}','YYYY-MM-DD')  AND  D.ENDRQ> TO_DATE('{2}','YYYY-MM-DD')),0) PRENUM, NVL(SUM(A.SUBSUM),0) AS EXENUM
+                                          FROM DAT_CK_DOC A WHERE A.FLAG IN ('Y', 'G') AND BILLTYPE='CKD'   AND A.SHRQ BETWEEN TO_DATE('{2}', 'YYYY-MM-dd') AND   TO_DATE('{3}', 'YYYY-MM-dd') + 1    AND A.DEPTID = '{4}' GROUP BY DEPTID", Convert.ToDateTime((Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM") + "-" + ACCOUNTDAY)).AddMonths(-1).ToString("yyyy-MM-dd"), Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM") + "-" + ACCOUNTDAY, Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM-dd"), Convert.ToDateTime(docXSRQ.SelectedDate).AddMonths(1).ToString("yyyy-MM") + "-" + ACCOUNTDAY, docDEPTID.SelectedValue.ToString());
+
+
+
+            }
+            DataTable dtnull = DbHelperOra.QueryForTable(strSQL);
+            if (dtnull.Rows.Count < 1)
+            {
+                if (PubFunc.StrIsEmpty(docDEPTID.SelectedValue))
+                {
+                    Alert.Show("请先选择查询科室！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                strSQL = string.Format("SELECT  F_GETYSTOTAL('{0}','{1}','{2}') PRENUM, 0 EXENUM FROM DUAL", docDEPTID.SelectedValue, Convert.ToDateTime(docXSRQ.SelectedDate).AddMonths(-1).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM") + "-01", Convert.ToDateTime(docXSRQ.SelectedDate).ToString("yyyy-MM-dd"));
+            }
+            DataTable dt = DbHelperOra.QueryForTable(strSQL);
+            //if (dt != null && dt.Rows.Count > 0)
+            //{
+            //    docBuget.Text = "预算金额：" + dt.Rows[0]["PRENUM"].ToString() + " 元  已使用金额：" + dt.Rows[0]["EXENUM"].ToString() + "元 ";
+
+            //}
+            //else
+            //{
+            //    docBuget.Text = "预算金额：0  元    已使用金额：0  元 ";
+
+            //}
+
+
+
+        }
+    }
+}

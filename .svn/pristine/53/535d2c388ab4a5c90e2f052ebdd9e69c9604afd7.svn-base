@@ -1,0 +1,429 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+
+namespace SPDProject.SpdAssist
+{
+    public partial class MyMemo : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                btnAddNew_Click(null, null);
+            }
+
+        }
+
+        #region page load event
+
+        public void DataInit()
+        {
+            dptWARINGRQ.MinDate = DateTime.Now;
+            dptWARINGRQ.SelectedDate = DateTime.Now.AddDays(1);
+            dpSearchStart.SelectedDate = DateTime.Now.AddDays(-7);
+            dpSearchEnd.SelectedDate = DateTime.Now;
+            btnSearch();
+
+            PubFunc.DdlDataGet("DDL_SYS_ROLE", ddlDept);
+            DataSet dt = DbHelperOra.Query("select userid,username from sys_operuser where userid!='admin' and islogin='Y'");
+            if (dt != null)
+            {
+                chkPersons.DataTextField = "userName";
+                chkPersons.DataValueField = "userid";
+                chkPersons.DataSource = dt;
+                chkPersons.DataBind();
+            }
+        }
+        #endregion
+
+        #region button event
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            tbxTITLE.Text = "";
+            dptWARINGRQ.SelectedDate = DateTime.Now.AddDays(1);
+            hfdLOOKPER.Text = ""; ;
+            taxMEMO.Text = "";
+            hfdIsNew.Text = "Y";
+            rblISPRIVATE.SelectedValue = "N";
+            btnDistribution.Enabled = false;
+            GridPerson.DataSource = null;
+            GridPerson.DataBind();
+        }
+        protected void btnAddNew_Click(object sender, EventArgs e)
+        {
+            tbxTITLE.Text = "";
+            dptWARINGRQ.SelectedDate = DateTime.Now.AddDays(1);
+            hfdLOOKPER.Text = ""; ;
+            taxMEMO.Text = "";
+            hfdIsNew.Text = "Y";
+            rblISPRIVATE.SelectedValue = "N";
+            btnDistribution.Enabled = false;
+            GridPerson.DataSource = null;
+            GridPerson.DataBind();
+        }
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+            if (tbxTITLE.Text.Trim().Length == 0)
+            {
+                Alert.Show("请输入【提醒标题】！");
+                return;
+
+            }
+            if (tbxTITLE.Text.Trim().Length > 50)
+            {
+                Alert.Show("请输入有效主题,【提醒标题】字数不能超过50！");
+                return;
+            }
+            if (dptWARINGRQ.SelectedDate == null)
+            {
+
+                Alert.Show("请输入【提醒时间】！");
+                return;
+
+            }
+            if (dptWARINGRQ.SelectedDate < DateTime.Now.Date)
+            {
+                Alert.Show("【提醒时间】不能早于当前日期！");
+                return;
+            }
+            if (rblISPRIVATE.SelectedValue != "N" && GridPerson.Rows.Count < 1)
+            {
+                Alert.Show("请选择可以查看信息的人员！", "错误提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            string strTitle = tbxTITLE.Text.Trim();
+            string strWaringRQ = Convert.ToDateTime(dptWARINGRQ.SelectedDate).ToString("yyyy-MM-dd");
+            string strIsPrivate = rblISPRIVATE.SelectedValue;
+            string strLookPer = hfdLOOKPER.Text;
+            string strMemo = taxMEMO.Text;
+
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            if (hfdIsNew.Text == "" || hfdIsNew.Text == "Y")
+            {
+                hfdSeqno.Text = DbHelperOra.GetSingle("SELECT SEQ_PUBLIC.NEXTVAL FROM DUAL").ToString();
+            }
+            else
+            {
+                cmdList.Add(new CommandInfo("DELETE FROM SYS_MYMEMO_USER WHERE SEQNO='" + hfdSeqno.Text + "'", null));
+            }
+
+            if (rblISPRIVATE.SelectedValue != "N" && GridPerson.Rows.Count > 0)
+            {
+                string sql = string.Empty;
+                //string[] users = hfdLOOKPER.Text.Split(',');
+                //foreach (string item in users)
+                string lrrq = string.Empty;
+                string lookrq = string.Empty;
+                foreach (GridRow row in GridPerson.Rows)
+                {
+                    if (string.IsNullOrWhiteSpace(Convert.ToString(row.DataKeys[5])))
+                    {
+                        lookrq = "NULL";
+                    }
+                    else
+                    {
+                        lookrq = string.Format("TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS')", row.DataKeys[5].ToString());
+                    }
+                    if (string.IsNullOrWhiteSpace(row.DataKeys[4].ToString()))
+                    {
+                        lrrq = "SYSDATE";
+                    }
+                    else
+                    {
+                        lrrq = string.Format("TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS')", row.DataKeys[4].ToString());
+                    }
+                    sql = "INSERT INTO SYS_MYMEMO_USER(SEQNO,FLAG,LRRQ,ISPRIVATE,LOOKPER,LOOKRQ) VALUES(" + hfdSeqno.Text + ",'" + row.DataKeys[3].ToString() + "'," + lrrq + ",'" + rblISPRIVATE.SelectedValue + "','" + row.DataKeys[0].ToString() + "'," + lookrq + ")";
+                    cmdList.Add(new CommandInfo(sql, null));
+                }
+            }
+            else
+            {
+                strLookPer = UserAction.UserID;
+            }
+
+            if (hfdIsNew.Text == "" || hfdIsNew.Text == "Y")
+            {
+                cmdList.Add(new CommandInfo("INSERT INTO  SYS_MyMEMO (SEQNO,FLAG,ISPRIVATE,LRR,LRRQ,TITLE,MEMO,WARINGRQ,LOOKPER) VALUES(" + hfdSeqno.Text + ",'N','" + strIsPrivate + "','" + UserAction.UserID + "', to_date('" + DateTime.Now.ToString("yyyy-MM-dd") + "','yyyy-mm-dd'),'" + strTitle + "','" + strMemo + "',to_date('" + strWaringRQ + "','yyyy-mm-dd'),'" + strLookPer + "')", null));
+                if (DbHelperOra.ExecuteSqlTran(cmdList))
+                {
+                    Alert.Show("数据保存成功！");
+                    btnSave.Enabled = false;
+                }
+            }
+            else
+            {
+                cmdList.Add(new CommandInfo("Update SYS_MYMEMO SET ISPRIVATE='" + strIsPrivate + "',TITLE='" + strTitle + "',MEMO='" + strMemo + "',WARINGRQ=to_date('" + strWaringRQ + "','yyyy-mm-dd'),LOOKPER='" + strLookPer + "' WHERE SEQNO=" + hfdSeqno.Text, null));
+                if (DbHelperOra.ExecuteSqlTran(cmdList))
+                {
+                    Alert.Show("数据更新成功！");
+                }
+                else
+                {
+
+                    Alert.Show("该条数据不允许修改！");
+                }
+
+            }
+            btnSearch();
+            btnSave.EnablePostBack = true;
+            btnSave.Enabled = true;
+            btnSave.EnableAjax = true;
+            btnSave.EnableAjaxLoading = true;
+            tbxTITLE.Text = "";
+            dptWARINGRQ.SelectedDate = DateTime.Now.AddDays(1);
+            hfdLOOKPER.Text = ""; ;
+            taxMEMO.Text = "";
+            hfdIsNew.Text = "Y";
+            GridPerson.DataSource = null;
+            GridPerson.DataBind();
+        }
+
+        protected void btnCancel_Click(object sender, EventArgs e)
+        {
+            if (GridList.SelectedRowIndexArray.Length <= 0)
+            {
+                Alert.Show("未选择行不能删除操作！", "提示信息", MessageBoxIcon.Information);
+                return;
+
+            }
+            string seqno = GridList.Rows[GridList.SelectedRowIndex].DataKeys[0].ToString();
+            string strSQL = "UPDATE SYS_MYMEMO Set FLAG='C',Closeper='" + UserAction.UserID + "', closerq=to_date('" + DateTime.Now.ToString("yyyy-MM-dd") + "','yyyy-mm-dd') WHERE FLAG!='E' AND seqno=" + seqno;
+            if (DbHelperOra.ExecuteSql(strSQL) > 0)
+            {
+                Alert.Show("取消设置成功！");
+            }
+            else
+            {
+                Alert.Show("已完成不能设置取消！");
+            }
+            btnSearch();
+
+        }
+        protected void btnComplete_Click(object sender, EventArgs e)
+        {
+            if (GridList.SelectedRowIndexArray.Length <= 0)
+            {
+                Alert.Show("未选择行不能完成操作！", "提示信息", MessageBoxIcon.Information);
+                return;
+
+            }
+            string seqno = GridList.Rows[GridList.SelectedRowIndex].DataKeys[0].ToString();
+            string strSQL = "UPDATE SYS_MYMEMO Set FLAG='E',Closeper='" + UserAction.UserID + "', closerq=to_date('" + DateTime.Now.ToString("yyyy-MM-dd") + "','yyyy-mm-dd') WHERE FLAG!='C' AND seqno=" + seqno;
+            if (DbHelperOra.ExecuteSql(strSQL) > 0)
+            {
+                Alert.Show("完成设置成功！");
+            }
+            else
+            {
+                Alert.Show("已取消不能设置完成！");
+            }
+            btnSearch();
+        }
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            btnSearch();
+        }
+
+        protected void btnSearch()
+        {
+            string strSQL = " select seqno,isprivate,(select username from sys_operuser where userid = lrr) as lrName,lrrq,title,Memo,waringRQ,lookper,(select username from sys_operuser where userid = closeper) as closename, closerq ,case when flag = 'N' then '新备忘' when flag='C' then '已取消' else '已完成' end as status from sys_mymemo  where (lrr='" + UserAction.UserID + "' or LookPer||','  like '%" + UserAction.UserID + ",%')  ";
+            if (!string.IsNullOrEmpty(tbSearchTitle.Text.Trim()))
+            {
+                strSQL += "  AND TITLE LIKE '%" + tbSearchTitle.Text.Trim() + "'";
+
+            }
+            if (dpSearchStart.SelectedDate != null)
+            {
+                strSQL += "  AND lrrq >=to_date('" + Convert.ToDateTime(dpSearchStart.SelectedDate).ToString("yyyy-MM-dd") + "','YYYY-MM-DD')";
+            }
+            if (dpSearchEnd.SelectedDate != null)
+            {
+                strSQL += "  AND lrrq <to_date('" + Convert.ToDateTime(dpSearchEnd.SelectedDate).ToString("yyyy-MM-dd") + "','YYYY-MM-DD')+1";
+            }
+            strSQL += " order by lrrq desc";
+            int total = 0;
+
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSQL, ref total);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+        #endregion
+
+
+        #region grid event
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            btnSearch();
+        }
+
+        protected void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            GridPerson.DataSource = null;
+            GridPerson.DataBind();
+
+            hfdIsNew.Text = "N";
+            string seqno = GridList.Rows[e.RowIndex].DataKeys[0].ToString();
+            string strSql = string.Format("select * from SYS_MyMemo where seqno='{0}'", seqno);
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            if (dt.Rows.Count > 0)
+            {
+                hfdSeqno.Text = dt.Rows[0]["SEQNO"].ToString();
+                tbxTITLE.Text = dt.Rows[0]["TITLE"].ToString();
+                dptWARINGRQ.SelectedDate = Convert.ToDateTime(dt.Rows[0]["WARINGRQ"]);
+                rblISPRIVATE.SelectedValue = dt.Rows[0]["ISPRIVATE"].ToString();
+                hfdLOOKPER.Text = dt.Rows[0]["LOOKPER"].ToString();
+                taxMEMO.Text = dt.Rows[0]["MEMO"].ToString();
+                if (dt.Rows[0]["ISPRIVATE"].ToString() != "N")
+                {
+                    string strSQL = @"SELECT O.USERID,O.USERNAME,MU.FLAG,MU.LRRQ,CASE
+                                                     WHEN MU.FLAG = 'N' THEN
+                                                      '新备忘'
+                                                     WHEN MU.FLAG = 'C' THEN
+                                                      '已查看'
+                                                     ELSE
+                                                      '已提醒'
+                                                   END AS FLAGNAME,MU.LOOKRQ FROM SYS_MYMEMO_USER MU,SYS_OPERUSER O 
+                                              WHERE MU.LOOKPER=O.USERID AND MU.SEQNO='{0}'";
+                    GridPerson.DataSource = DbHelperOra.Query(string.Format(strSQL, hfdSeqno.Text)).Tables[0];
+                    GridPerson.DataBind();
+                    btnDistribution.Enabled = true;
+                }
+                else
+                {
+                    btnDistribution.Enabled = false;
+                }
+            }
+            else
+            {
+                hfdSeqno.Text = "";
+            }
+        }
+        #endregion
+
+        #region common function
+
+        public string getPersonNamesString(string PersonIDs)
+        {
+            string retval = string.Empty;
+            string strSQL = string.Empty;
+            if (PersonIDs.Length > 0)
+            {
+
+                strSQL = "SELECT userName From sys_operuser where userid in ('" + PersonIDs.Replace(",", "','") + "')";
+                DataTable dtuser = DbHelperOra.Query(strSQL).Tables[0];
+                if (dtuser.Rows.Count > 0)
+                {
+                    foreach (DataRow dr in dtuser.Rows)
+                    {
+                        retval += dr["UserName"].ToString() + ",";
+                    }
+                }
+            }
+            return retval.TrimEnd(',');
+        }
+
+
+        #endregion
+
+        protected void ddlDept_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            GridPerson.SelectedRowIndexArray = null;
+            string strSQL = "SELECT USERID FROM SYS_OPERUSER WHERE INSTR(ROLEID,'" + ddlDept.SelectedValue + "')>0";
+            DataTable dtuser = DbHelperOra.Query(strSQL).Tables[0];
+            if (dtuser.Rows.Count > 0)
+            {
+                string[] users = new string[dtuser.Rows.Count];
+                for (int index = 0; index < dtuser.Rows.Count; index++)
+                {
+                    users[index] = dtuser.Rows[index]["USERID"].ToString();
+                }
+                chkPersons.SelectedValueArray = users;
+            }
+            else
+            {
+
+                chkPersons.Reset();
+            }
+        }
+
+        protected void btnDistribution_Click(object sender, EventArgs e)
+        {
+            string personIDs = hfdLOOKPER.Text;
+            if (personIDs.Length > 0)
+            {
+                chkPersons.SelectedValueArray = personIDs.Split(',');
+            }
+            winPerson.Hidden = false;
+        }
+
+        protected void btnCondSave_Click(object sender, EventArgs e)
+        {
+            DataTable dt = PubFunc.GridDataGet(GridPerson);
+            //DataTable dt = new DataTable();
+            //dt.Columns.Add(new DataColumn("USERID", typeof(string)));
+            //dt.Columns.Add(new DataColumn("USERNAME", typeof(string)));
+            //dt.Columns.Add(new DataColumn("FLAGNAME", typeof(string)));
+            //dt.Columns.Add(new DataColumn("FLAG", typeof(string)));
+
+            string strVal = string.Empty;
+            foreach (CheckItem item in chkPersons.SelectedItemArray)
+            {
+                strVal += item.Value + ",";
+                DataRow[] rows = dt.Select("USERID='" + item.Value + "'");
+                if (rows.Length <= 0)
+                {
+                    DataRow dr = dt.NewRow();
+                    dr["USERID"] = item.Value;
+                    dr["USERNAME"] = item.Text;
+                    dr["FLAGNAME"] = "新备忘";
+                    dr["FLAG"] = "N";
+                    dr["LRRQ"] = "";
+                    dr["LOOKRQ"] = "";
+                    dt.Rows.Add(dr);
+                }
+            }
+            GridPerson.DataSource = dt;
+            GridPerson.DataBind();
+
+            hfdLOOKPER.Text = strVal.TrimEnd(',');
+            winPerson.Hidden = true;
+            chkPersons.SelectedValueArray = new string[] { };
+        }
+
+        protected void rblISPRIVATE_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (rblISPRIVATE.SelectedIndex != 0)
+            {
+                btnDistribution.Enabled = true;
+            }
+            else
+            {
+                btnDistribution.Enabled = false;
+            }
+        }
+    }
+}

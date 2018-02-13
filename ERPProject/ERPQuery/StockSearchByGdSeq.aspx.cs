@@ -1,0 +1,222 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Collections.Specialized;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using System.Text;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class StockSearchByGdSeq : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+
+        private void BindDDL()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID);
+            if (ddlDEPTID.Items.Count >= 2)
+            {
+                ddlDEPTID.SelectedIndex = 1;
+            }
+            PubFunc.DdlDataGet(ddlSHSID, "DDL_DOC_SUPPLIERALL");
+            PubFunc.DdlDataGet(ddlPRODUCER, "DDL_PRODUCER");
+
+            // 绑定到下拉列表（启用模拟树功能）
+            string strSql = @"SELECT *
+                                      FROM (SELECT '' CODE, '--请选择--' NAME, 0 TREELEVEL, 0 ISLAST
+                                              FROM DUAL
+                                            UNION ALL
+                                            SELECT CODE,
+                                                   '【' || CODE || '】' || NAME NAME,
+                                                   CLASS TREELEVEL,
+                                                   DECODE(ISLAST, 'Y', 1, 0) ISLAST
+                                              FROM SYS_CATEGORY
+                                             ORDER BY CODE)
+                                     ORDER BY DECODE(CODE, '', 99, 0) DESC, CODE ASC";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                if (dr["CODE"].ToString() == "")
+                {
+                    myList.Add(new CategoryTreeBean(dr["CODE"].ToString(), dr["NAME"].ToString(), Convert.ToInt16(dr["TREELEVEL"]), true));
+                }
+                else
+                {
+                    myList.Add(new CategoryTreeBean(dr["CODE"].ToString(), dr["NAME"].ToString(), Convert.ToInt16(dr["TREELEVEL"]), Convert.ToInt16(dr["ISLAST"]) == 1));
+                }
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            docCategory.EnableSimulateTree = true;
+            docCategory.DataTextField = "Name";
+            docCategory.DataValueField = "Id";
+            docCategory.DataEnableSelectField = "EnableSelect";
+            docCategory.DataSimulateTreeLevelField = "Level";
+            docCategory.DataSource = myList;
+            docCategory.DataBind();
+        }
+
+        private string GetSearchSql()
+        {
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.Append(@"SELECT F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                                   A.DEPTID,
+                                                   F_GETSUPNAME(A.SUPID) SUPID,
+                                                   F_GETCATNAME(A.CATID) CATID,
+                                                   D.ZDKC,
+                                                   D.ZGKC,
+                                                   A.GDSEQ,
+                                                   F_GETHISINFO(A.GDSEQ, 'GDNAME') GDNAME,
+                                                   F_GETHISINFO(A.GDSEQ, 'GDSPEC') GDSPEC,
+                                                   C.NAME UNIT,
+                                                   A.BZHL,
+                                                   F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                                   B.PIZNO,
+                                                   A.HWID,
+                                                   SUM(A.KCSL) KCSL,
+                                                   SUM(A.KCHSJE) HSJE,
+                                                   DECODE(A.SUPID, '00002', '非代管', '代管') ISDG,
+                                                   DECODE(B.ISGZ, 'Y', '是', '否') ISGZ,
+                                                   F_GETSUPPLIERNAME(A.PSSID) PSSID
+                                              FROM (SELECT GDSEQ,
+                                                           DEPTID,
+                                                           SUPID,
+                                                           PSSID,
+                                                           CATID,
+                                                           UNIT,
+                                                           BZHL,
+                                                           HWID,
+                                                           KCHSJJ,
+                                                           SUM(KCSL) KCSL,
+                                                           SUM(KCSL) * KCHSJJ KCHSJE
+                                                      FROM DAT_GOODSSTOCK
+                                                     GROUP BY GDSEQ,
+                                                              DEPTID,
+                                                              SUPID,
+                                                              PSSID,
+                                                              CATID,
+                                                              UNIT,
+                                                              BZHL,
+                                                              HWID,
+                                                              KCHSJJ) A,
+                                                   DOC_GOODS B,
+                                                   DOC_GOODSUNIT C,
+                                                   DOC_GOODSCFG D
+                                             WHERE A.GDSEQ = B.GDSEQ
+                                               AND A.UNIT = C.CODE(+)
+                                               AND A.DEPTID = D.DEPTID(+)
+                                               AND A.GDSEQ = D.GDSEQ(+) ");
+
+            if (cbxKC.Checked) sbSql.Append(" and A.KCSL > 0");
+
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) sbSql.Append(" and A.DEPTID = '" + ddlDEPTID.SelectedValue + "'");
+
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text))
+            {
+                sbSql.AppendFormat(" AND (A.GDSEQ LIKE '%{0}%' OR UPPER(B.ZJM) LIKE UPPER('%{0}%') OR B.GDNAME LIKE '%{0}%' OR B.GDSPEC LIKE '%{0}%' OR UPPER(A.HWID) LIKE UPPER('%{0}%'))", tbxGOODS.Text);
+            }
+
+            if (ddlSHSID.SelectedValue.Length > 0) sbSql.Append(" AND A.SUPID = '" + ddlSHSID.SelectedValue + "'");
+
+            if (docCategory.SelectedValue.Length > 0) sbSql.Append(" AND A.CATID = '" + docCategory.SelectedValue + "'");
+
+            if (ddlPRODUCER.SelectedValue.Length > 0) sbSql.Append(" AND B.PRODUCER = '" + ddlPRODUCER.SelectedValue + "'");
+
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) sbSql.Append(" AND B.ISGZ = '" + ddlISGZ.SelectedValue + "'");
+
+            sbSql.AppendFormat(" AND A.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+
+            sbSql.AppendFormat(" GROUP BY A.GDSEQ, A.DEPTID, A.SUPID, A.PSSID, A.CATID,  C.NAME, A.BZHL, B.PRODUCER, B.PIZNO, A.HWID, A.KCHSJJ, D.ZDKC, D.ZGKC, B.ISGZ");
+            sbSql.AppendFormat(" ORDER BY {0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            return sbSql.ToString();
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+            lblSUBNUM.Text = "0";
+            lblSUBSUM.Text = "0";
+            DataTable dtSum = DbHelperOra.Query("SELECT SUM(NVL(KCSL,0)) SL,SUM(NVL(HSJE,0)) JE FROM (" + GetSearchSql() + ")").Tables[0];
+            if (dtSum.Rows.Count > 0)
+            {
+                lblSUBNUM.Text = dtSum.Rows[0]["SL"].ToString();
+                lblSUBSUM.Text = dtSum.Rows[0]["JE"].ToString();
+            }
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            OutputSummaryData(dtData);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            List<string> columnNames = new List<string>();
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column.Hidden == false && column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames.Add(column.HeaderText);
+                }
+            }
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames.ToArray()), "商品库存信息", string.Format("商品库存报表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal HSJJTotal = 0, HSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HSJJTotal += Convert.ToInt32(row["KCSL"]);
+                HSJETotal += Convert.ToDecimal(row["HSJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "全部合计");
+            summary.Add("KCSL", HSJJTotal.ToString("F2"));
+            summary.Add("HSJE", HSJETotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+    }
+}

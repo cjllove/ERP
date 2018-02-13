@@ -1,0 +1,338 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="HisInterfaceReport.aspx.cs" Inherits="SPDProject.SpdXM.HisInterfaceReport" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head runat="server">
+    <title>HIS接口运行</title>
+    <script src="../../res/js/CreateControl.js" type="text/javascript"></script>
+    <script src="../../res/js/GRInstall.js" type="text/javascript"></script>
+    <style type="text/css" media="all">
+        .ColBlue {
+            font-size: 12px;
+            color: blue;
+        }
+
+        .x-grid-row-summary .x-grid-cell-inner {
+            font-weight: bold;
+            color: blue;
+        }
+
+        .x-grid-row-summary .x-grid-cell {
+            background-color: #fff !important;
+        }
+
+        .x-grid-row.highlight td {
+            background-color: lightgreen;
+            background-image: none;
+        }
+
+        .x-grid-row.highRedwlight td {
+            background-color: red;
+            background-image: none;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right" AutoScroll="false"
+            EnableTabCloseMenu="false" ActiveTabIndex="0" runat="server">
+            <Tabs>
+                <f:Tab Title="接口日志信息" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel4" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel5" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar3" runat="server">
+                                            <Items>
+                                                <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                                <f:Button ID="btnAction" Icon="ArrowRotateClockwise" Text="执行接口" OnClick="btnAction_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSearLog" Icon="Magnifier" Text="查 询" OnClick="btnSearLog_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form4" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25% 25% 25% 25%">
+                                                    <Items>
+                                                        <f:TriggerBox ID="logGDSEQ" runat="server" Label="商品信息" EmptyText="可输入编码、名称或助记码" ShowTrigger="false" TriggerIcon="Search" OnTriggerClick="btSearch_Click"></f:TriggerBox>
+
+                                                        <f:DropDownList ID="ddlISLOG" runat="server" Label="日志类型" EnableEdit="true" ForceSelection="true" Required="true" ShowRedStar="true">
+                                                            <f:ListItem Text="-- 请选择 --" Value="" />
+                                                            <f:ListItem Text="日志" Value="LOG" />
+                                                            <f:ListItem Text="错误" Value="ERR" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="logRQSJ1" runat="server" Label="执行日期" Required="true" ShowRedStar="true" />
+                                                        <f:DatePicker ID="logRQSJ2" runat="server" Label="　　至" LabelSeparator="" Required="true" ShowRedStar="true" />
+
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow Hidden="true">
+                                                    <Items>
+                                                        <f:DropDownList ID="logDEPTID" runat="server" Label="科室" Hidden="true" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridLog" AnchorValue="100% -75" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                                    PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridLog_PageIndexChange" EnableColumnLines="true" EnableTextSelection="true"
+                                    AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="SEQNO" OnSort="GridLog_Sort" SortField="SEQNO" SortDirection="DESC"
+                                    EnableSummary="true" SummaryPosition="Bottom">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                        <f:BoundField Width="80px" DataField="SEQNO" SortField="SEQNO" HeaderText="流水号" TextAlign="Center" />
+                                        <f:BoundField Width="160px" DataField="EXECRQ" SortField="EXECRQ" HeaderText="记录日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+
+                                        <f:BoundField Width="400px" DataField="MEMO" SortField="MEMO" HeaderText="执行情况" />
+                                        <f:BoundField Width="50px" DataField="TYPE_CN" SortField="TYPE_CN" HeaderText="类型" TextAlign="Center" />
+
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="接口执行明细" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:CheckBox Text="排除【忽略】商品" runat="server" ID="chkISEXCLUED" OnCheckedChanged="chkISEXCLUED_CheckedChanged" Checked="True" AutoPostBack="True"></f:CheckBox>
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:Button ID="btnAudit" Icon="ArrowRotateClockwise" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出" OnClick="btExport_Click" ConfirmText="是否导出当前商品信息?" DisableControlBeforePostBack="false"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" EnableDefaultState="false" />
+                                                <f:Button ID="btnNeglect" Icon="Delete" Text="忽 略" OnClick="btnNeglect_Click" ConfirmText="确认忽略当前商品信息?" DisableControlBeforePostBack="false"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" EnableDefaultState="false" />
+                                                <f:Button ID="btnRecovery" Icon="Accept" Text="恢 复" OnClick="btnRecovery_Click" ConfirmText="确认恢复当前商品信息?" DisableControlBeforePostBack="false"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" OnClick="btSearch_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TriggerBox ID="tbxGOODS" runat="server" Label="商品信息" EmptyText="可输入编码、名称或助记码" ShowTrigger="false" TriggerIcon="Search" OnTriggerClick="btSearch_Click"></f:TriggerBox>
+                                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="科室" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                                        <f:DropDownList ID="ddlISSEND" runat="server" Label="执行情况" EnableEdit="true" ForceSelection="true">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="成功" Value="Y" />
+                                                            <f:ListItem Text="失败" Value="N" Selected="true" />
+                                                            <%--<f:ListItem Text="忽略" Value="S" />--%>
+                                                        </f:DropDownList>
+                                                        <%--<f:DatePicker ID="lstCZTIME1" runat="server" Label="执行日期" Required="true" ShowRedStar="true" />
+                                                        <f:DatePicker ID="lstCZTIME2" runat="server" Label="　　至" LabelSeparator="" Required="true" ShowRedStar="true" />--%>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow ColumnWidths="25% 25% 25% 25% ">
+                                                    <Items>
+                                                        <f:DropDownList ID="ddlISGZ" runat="server" Label="高值商品" EnableEdit="true" ForceSelection="true">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="是" Value="Y" />
+                                                            <f:ListItem Text="否" Value="N" />
+                                                        </f:DropDownList>
+                                                        <f:TriggerBox ID="tbxJSTIME1" Required="true" ShowRedStar="True" Label="执行日期" EmptyText="请选择日期和时间" TriggerIcon="Date" runat="server"></f:TriggerBox>
+                                                        <f:TriggerBox ID="tbxJSTIME2" Required="true" ShowRedStar="True" Label="　　至" EmptyText="请选择日期和时间" TriggerIcon="Date" runat="server"></f:TriggerBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridGoods" AnchorValue="100% -108" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                                    PageSize="100" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange" EnableColumnLines="true" EnableTextSelection="true"
+                                    AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="GDSEQ,SEQNO,ROWNO,ISSEND" OnSort="GridGoods_Sort" SortField="GDNAME" SortDirection="ASC"
+                                    EnableSummary="true" SummaryPosition="Bottom" OnRowDataBound="GridGoods_RowDataBound" OnRowCommand="GridGoods_RowCommand" AllowColumnLocking="true"
+                                    EnableCollapse="true" EnableCheckBoxSelect="true" KeepCurrentSelection="true">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                        <f:BoundField Width="80px" DataField="ISSEND_CN" ColumnID="ISSEND_CN" SortField="ISSEND_CN" HeaderText="执行情况" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="DEPTID" SortField="DEPTID" HeaderText="科室ID" Hidden="true" TextAlign="Center" />
+                                        <f:BoundField Width="200px" DataField="DEPTIDNAME" SortField="DEPTIDNAME" HeaderText="科室名称" TextAlign="Center" />
+                                        <f:BoundField Width="105px" DataField="GDSEQ" SortField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="GDNAME" SortField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="100px" DataField="GDSPEC" SortField="GDSPEC" HeaderText="规格·容量" />
+                                        <f:BoundField Width="50px" DataField="UNITNAME" SortField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="HSJJ" SortField="HSJJ" HeaderText="含税进价" DataFormatString="{0:F4}" TextAlign="Right" />
+                                        <f:BoundField Width="80px" DataField="STR6" ColumnID="STR6" SortField="STR6" HeaderText="HIS使用数" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="SPD_KCSL" SortField="SPD_KCSL" HeaderText="SPD库存数" TextAlign="Center" />
+                                        <%--<f:BoundField Width="100px" DataField="HSJE" SortField="HSJE" ColumnID="HSJE" HeaderText="含税金额" DataFormatString="{0:F2}" TextAlign="Right" />--%>
+                                        <f:BoundField Width="220px" DataField="PRODUCERNAME" SortField="PRODUCERNAME" HeaderText="生产厂家" />
+                                        <f:BoundField Width="60px" DataField="ISGZ_CN" SortField="ISGZ_CN" HeaderText="是否高值" />
+                                        <f:BoundField Width="160px" DataField="JSTIME" SortField="JSTIME" HeaderText="执行时间" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+                                        <f:BoundField Width="160px" DataField="CZTIME" SortField="CZTIME" HeaderText="操作时间" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+                                        <f:LinkButtonField Width="40px" TextAlign="Center" HeaderText="忽略" ConfirmText="你确定执行【忽略】操作么？" ConfirmTarget="Top" CommandName="Action1" Icon="Delete" EnableLock="true" Locked="true" />
+                                        <f:LinkButtonField Width="40px" TextAlign="Center" HeaderText="恢复" ConfirmText="你确定执行【恢复】么？" ConfirmTarget="Top" CommandName="Action2" Icon="Accept" EnableLock="true" Locked="true" />
+                                        <f:BoundField Width="80px" Hidden="true" DataField="ISSEND" ColumnID="ISSEND" SortField="ISSEND" HeaderText="执行情况" TextAlign="Center" />
+                                        <f:BoundField Width="220px" Hidden="true" DataField="SEQNO" SortField="SEQNO" HeaderText="单据编号" />
+                                        <f:BoundField Width="220px" Hidden="true" DataField="ROWNO" SortField="ROWNO" HeaderText="行号" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="过滤商品信息" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel2" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnNew" Icon="PageAdd" Text="清 空" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnNew_Click" />
+                                                <f:Button ID="Button1" Icon="ArrowRotateClockwise" Hidden="true" Text="清 空" OnClick="btClear_Click" EnablePostBack="true" runat="server" EnableDefaultState="false" />
+                                                <f:Button ID="btnDelRow" Icon="Delete" Text="删 行" EnableDefaultState="false" EnablePostBack="true" runat="server" ConfirmText="是否确认删除选中行信息?" OnClick="btnDelRow_Click" />
+                                                <f:Button ID="btnAdd" Icon="Add" Text="添 加" OnClick="btnAdd_Click" runat="server" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSearch2" Icon="Magnifier" Text="查 询" OnClick="btnSearch2_Click" runat="server" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25% 25% 50% ">
+                                                    <Items>
+                                                        <f:DropDownList ID="lstDEPTID" runat="server" Label="科室" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                                        <f:TextBox ID="lstGDSEQ" runat="server" Label="商品编码" EmptyText="仅根据商品编码过滤"></f:TextBox>
+                                                        <f:Label runat="server"></f:Label>
+
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridStop" AnchorValue="100% -75" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                                    PageSize="50" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridStop_PageIndexChange" EnableColumnLines="true" EnableTextSelection="true"
+                                    AllowSorting="true" AutoScroll="true" runat="server" DataKeyNames="DEPTID,GDSEQ" OnSort="GridStop_Sort" SortField="UPTIME" SortDirection="DESC"
+                                    EnableSummary="true" SummaryPosition="Bottom">
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                        <f:BoundField Width="80px" DataField="DEPTID" SortField="DEPTID" HeaderText="科室编码" TextAlign="Center" />
+                                        <f:BoundField Width="220px" DataField="DEPTIDNAME" SortField="DEPTIDNAME" HeaderText="科室名称" TextAlign="Center" />
+                                        <f:BoundField Width="105px" DataField="GDSEQ" SortField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField Width="180px" DataField="GDNAME" SortField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="100px" DataField="GDSPEC" SortField="GDSPEC" HeaderText="规格·容量" />
+                                        <f:BoundField Width="50px" DataField="UNITNAME" SortField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="HSJJ" SortField="HSJJ" HeaderText="含税进价" DataFormatString="{0:F4}" TextAlign="Right" />
+                                        <f:BoundField Width="220px" DataField="PRODUCERNAME" SortField="PRODUCERNAME" HeaderText="生产厂家" />
+                                        <f:BoundField Width="120px" DataField="LRY_CN" SortField="LRY_CN" HeaderText="录入员" />
+                                        <f:BoundField Width="160px" DataField="UPTIME" SortField="UPTIME" HeaderText="操作时间" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd HH:mm:ss}" />
+                                        <f:BoundField Width="220px" DataField="MEMO" SortField="MEMO" HeaderText="备注" />
+
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+
+
+            </Tabs>
+        </f:TabStrip>
+    </form>
+    <f:Window ID="WindowAddGoods" Title="添加过滤商品" Hidden="true" EnableIFrame="false" runat="server"
+        EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Layout="Fit" Width="370px" Height="280px">
+        <Items>
+            <f:Form ID="Form3" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px"
+                ShowHeader="False" LabelWidth="75px" runat="server">
+                <Rows>
+                    <f:FormRow>
+                        <Items>
+                            <f:DropDownList ID="winDEPTID" runat="server" Label="科室" EnableEdit="true" ForceSelection="true" Required="true" ShowRedStar="true"></f:DropDownList>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:TriggerBox ID="winGDSEQ" runat="server" Required="true" Label="商品编码" ShowRedStar="true" TriggerIcon="Search" OnTriggerClick="winGDSEQ_TriggerClick"></f:TriggerBox>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:Label ID="winHISSPD" runat="server" CssClass="padding:0 10px;"></f:Label>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:TextBox ID="winMEMO" runat="server" Label="备注" EmptyText=""></f:TextBox>
+                        </Items>
+                    </f:FormRow>
+                </Rows>
+            </f:Form>
+        </Items>
+        <Toolbars>
+            <f:Toolbar ID="Toolbar4" runat="server" Position="Bottom" ToolbarAlign="Right">
+                <Items>
+                    <f:Button ID="btnAddGoods" Text="确定" Icon="SystemSave" EnableDefaultState="false" runat="server" OnClick="btnAddGoods_Click">
+                    </f:Button>
+                </Items>
+            </f:Toolbar>
+        </Toolbars>
+    </f:Window>
+
+    <script src="../../res/my97/WdatePicker.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        var tbxJSTIME1ClientID = '<%= tbxJSTIME1.ClientID %>';
+        var tbxJSTIME2ClientID = '<%= tbxJSTIME2.ClientID %>';
+        F.ready(function () {
+            var tbxJSTIME1 = F(tbxJSTIME1ClientID);
+            var tbxJSTIME2 = F(tbxJSTIME2ClientID);
+
+            tbxJSTIME1.onTriggerClick = function () {
+                WdatePicker({
+                    el: tbxJSTIME1ClientID + '-inputEl',
+                    dateFmt: 'yyyy-MM-dd HH:mm:ss',
+                    onpicked: function () {
+                        // 确认选择后，执行触发器输入框的客户端验证
+                        tbxJSTIME1.validate();
+                    }
+                });
+            };
+            tbxJSTIME2.onTriggerClick = function () {
+                WdatePicker({
+                    el: tbxJSTIME2ClientID + '-inputEl',
+                    dateFmt: 'yyyy-MM-dd HH:mm:ss',
+                    onpicked: function () {
+                        // 确认选择后，执行触发器输入框的客户端验证
+                        tbxJSTIME2.validate();
+                    }
+                });
+            };
+
+
+        });
+    </script>
+</body>
+</html>

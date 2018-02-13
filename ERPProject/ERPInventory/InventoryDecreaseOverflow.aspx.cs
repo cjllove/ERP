@@ -1,0 +1,189 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPInventory
+{
+    public partial class InventoryDecreaseOverflow : BillBase
+    {
+        private string strDocSql = "SELECT a.* FROM dat_sy_doc a WHERE a.SEQNO ='{0}'";
+        private string strLisSQL = "SELECT a.*,F_GETUNITNAME(UNIT) UNITNAME FROM dat_sy_com a WHERE SEQNO = '{0}' ORDER by rowno";
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_USER", ddlLRY, ddlSPR);
+            //PubFunc.DdlDataGet("DDL_SYS_DEPT", ddlDEPTID);
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, lstDEPTOUT, ddlDEPTID);
+            PubFunc.DdlDataGet("DDL_BILL_STATUS", ddlFLAG);
+            PubFunc.DdlDataGet("DDL_DAT_SYTYPE", ddlSYTYPE);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            dpkLRRQ.SelectedDate = DateTime.Now;
+            ddlLRY.SelectedValue = UserAction.UserID;
+        }
+        protected override void billDel()
+        {
+            return;
+        }
+        protected override void billDelRow()
+        {
+            return;
+        }
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected override void billSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【盘点日期】！");
+                return;
+            }
+            string strSql = @"select a.*,F_GETUSERNAME(LRY) LRYNAME,F_GETUSERNAME(SPR) SPRNAME,F_GETDEPTNAME(DEPTID) DEPTIDNAME,decode(FLAG,'N','新单','Y','已审核','已完结') FLAGNAME,DECODE(SYTYPE,'4','盘点','0','益余','1','损耗','未定义') SYTYPENAME from dat_sy_doc a  ";
+            string strSearch = " where ";
+            strSearch += string.Format(" deptid in( select code FROM SYS_DEPT where   F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += string.Format(" AND (LRRQ between TO_DATE('{0}','YYYY-MM-DD') and (TO_DATE('{1}','YYYY-MM-DD')) + 1)", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (lstBILLNO.Text.Length > 0)
+            { strSearch += string.Format(" AND SEQNO like '%{0}%'", lstBILLNO.Text); }
+
+            if (!string.IsNullOrWhiteSpace(lstDEPTOUT.SelectedValue))
+            {
+                strSearch += string.Format(" AND deptid ='{0}'", lstDEPTOUT.SelectedValue);
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY LRRQ DESC";
+            DataTable dtBill = new DataTable();
+            dtBill = DbHelperOra.Query(strSql).Tables[0];
+            GridList.DataSource = dtBill;
+            GridList.DataBind();
+        }
+
+        protected override void billAudit()
+        {
+            return;
+        }
+        protected override void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            //dpkPDRQ.Enabled = false;
+            tbxBILLNO.Enabled = false;
+            billOpen(GridList.Rows[e.RowIndex].Values[1].ToString());
+        }
+
+        protected override void billOpen(string strBillno)
+        {
+            //表头进行赋值
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+            //表体赋值
+            DataTable dtBill = new DataTable();
+            dtBill = DbHelperOra.Query(string.Format(strLisSQL, strBillno)).Tables[0];
+            GridGoods.DataSource = dtBill;
+            GridGoods.DataBind();
+            TabStrip1.ActiveTabIndex = 1;
+            //增加合计
+            decimal bzslTotal = 0, feeTotal = 0, ddslTotal = 0, je1 = 0, je2 = 0, je3 = 0;
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    ddslTotal += Convert.ToDecimal(row["KCSL"]);
+                    bzslTotal += Convert.ToDecimal(row["SYSL"]);
+                    feeTotal += Convert.ToDecimal(row["KCHSJE"]);
+                    je1 += Convert.ToDecimal(row["HSJE"]);
+                    je2 += Convert.ToDecimal(row["BHSJE"]);
+                    je3 += Convert.ToDecimal(row["LSJE"]);
+                }
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("KCSL", ddslTotal.ToString());
+            summary.Add("SYSL", bzslTotal.ToString());
+            summary.Add("KCHSJE", feeTotal.ToString("F2"));
+            summary.Add("HSJE", je1.ToString("F2"));
+            summary.Add("BHSJE", je2.ToString("F2"));
+            summary.Add("LSJE", je3.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (GridList.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+
+            string strSql = @"select SEQNO 损益单号,
+                               STR1 计划盘点单号,
+                               STR2 盘点单号,
+                               decode(FLAG, 'N', '新单', 'Y', '已审核', '已完结') 单据状态,
+                               F_GETDEPTNAME(DEPTID) 损益科室,
+                               DECODE(SYTYPE, '4', '盘点', '0', '益余', '1', '损耗', '未定义') 损益类别,
+                               SUBSUM 损益金额,
+                               SUBNUM 明细条数,
+                               F_GETUSERNAME(LRY) 录入员,
+                               LRRQ 录入日期,
+                               F_GETUSERNAME(SPR) 审核员,
+                               SPRQ 审核日期,
+                               MEMO 备注
+                          from dat_sy_doc a";
+            string strSearch = " where ";
+            strSearch += string.Format(" deptid in( select code FROM SYS_DEPT where   F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSearch += string.Format(" AND (LRRQ between TO_DATE('{0}','YYYY-MM-DD') and (TO_DATE('{1}','YYYY-MM-DD')) + 1)", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (lstBILLNO.Text.Length > 0)
+            { strSearch += string.Format(" AND SEQNO like '%{0}%'", lstBILLNO.Text); }
+
+            if (!string.IsNullOrWhiteSpace(lstDEPTOUT.SelectedValue))
+            {
+                strSearch += string.Format(" AND deptid ='{0}'", lstDEPTOUT.SelectedValue);
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY LRRQ DESC";
+
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "盘点损益导出", "盘点损益导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+
+    }
+}

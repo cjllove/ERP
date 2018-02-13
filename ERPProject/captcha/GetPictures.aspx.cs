@@ -1,0 +1,29 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.IO;
+
+namespace ERPProject.captcha
+{
+    public partial class GetPictures : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            //String gdseq = Request["gdseq"];
+            //String rowno = Request["rowno"];
+            String picpath = Request["picpath"];
+            if (!string.IsNullOrWhiteSpace(picpath))
+            {
+                String[] paramSup = new String[1] { picpath };
+                byte[] img = ApiClientService.getUploadgoodsPic("DOC_GOODSPICTURE", paramSup);
+                Response.ContentType = "application/binary;";
+                Response.BinaryWrite(img);
+                Response.Flush();
+                Response.End();
+            }
+        }
+    }
+}

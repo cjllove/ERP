@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:intf="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" xmlns:apachesoap="http://xml.apache.org/xml-soap" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:tns1="urn:client.platformspdfacade" xmlns:impl="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" targetNamespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <xsd:schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:client.platformspdfacade">
+      <xsd:import namespace="http://schemas.xmlsoap.org/soap/encoding/" />
+      <xsd:complexType name="WSInvokeException">
+        <xsd:sequence />
+      </xsd:complexType>
+    </xsd:schema>
+  </wsdl:types>
+  <wsdl:message name="importSaleIssueBillRequest">
+    <wsdl:part name="content" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialsResponse">
+    <wsdl:part name="exportMaterialsReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="queryStateResponse">
+    <wsdl:part name="queryStateReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="importStockTransferBillResponse">
+    <wsdl:part name="importStockTransferBillReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialGroupsRequest">
+    <wsdl:part name="begin" type="xsd:int" />
+    <wsdl:part name="rows" type="xsd:int" />
+    <wsdl:part name="after" type="xsd:string" />
+    <wsdl:part name="type" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="countResponse">
+    <wsdl:part name="countReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialGroupsResponse1">
+    <wsdl:part name="exportMaterialGroupsReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="WSInvokeException">
+    <wsdl:part name="fault" type="tns1:WSInvokeException" />
+  </wsdl:message>
+  <wsdl:message name="importSaleIssueBillResponse">
+    <wsdl:part name="importSaleIssueBillReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportUnitsResponse">
+    <wsdl:part name="exportUnitsReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialGroupsResponse">
+    <wsdl:part name="exportMaterialGroupsReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialsRequest1">
+    <wsdl:part name="begin" type="xsd:int" />
+    <wsdl:part name="rows" type="xsd:int" />
+    <wsdl:part name="after" type="xsd:string" />
+    <wsdl:part name="type" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="countRequest">
+    <wsdl:part name="type" type="xsd:string" />
+    <wsdl:part name="after" type="xsd:string" />
+    <wsdl:part name="materialType" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="importStockTransferBillRequest">
+    <wsdl:part name="content" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="queryStateRequest">
+    <wsdl:part name="number" type="xsd:string" />
+    <wsdl:part name="mat" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialsRequest">
+    <wsdl:part name="after" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportUnitsRequest">
+    <wsdl:part name="after" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialsResponse1">
+    <wsdl:part name="exportMaterialsReturn" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:message name="exportMaterialGroupsRequest1">
+    <wsdl:part name="after" type="xsd:string" />
+  </wsdl:message>
+  <wsdl:portType name="WSPlatformSpdFacadeSrvProxy">
+    <wsdl:operation name="importSaleIssueBill" parameterOrder="content">
+      <wsdl:input name="importSaleIssueBillRequest" message="impl:importSaleIssueBillRequest" />
+      <wsdl:output name="importSaleIssueBillResponse" message="impl:importSaleIssueBillResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterialGroups" parameterOrder="begin rows after type">
+      <wsdl:input name="exportMaterialGroupsRequest" message="impl:exportMaterialGroupsRequest" />
+      <wsdl:output name="exportMaterialGroupsResponse" message="impl:exportMaterialGroupsResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterialGroups" parameterOrder="after">
+      <wsdl:input name="exportMaterialGroupsRequest1" message="impl:exportMaterialGroupsRequest1" />
+      <wsdl:output name="exportMaterialGroupsResponse1" message="impl:exportMaterialGroupsResponse1" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterials" parameterOrder="after">
+      <wsdl:input name="exportMaterialsRequest" message="impl:exportMaterialsRequest" />
+      <wsdl:output name="exportMaterialsResponse" message="impl:exportMaterialsResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterials" parameterOrder="begin rows after type">
+      <wsdl:input name="exportMaterialsRequest1" message="impl:exportMaterialsRequest1" />
+      <wsdl:output name="exportMaterialsResponse1" message="impl:exportMaterialsResponse1" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="importStockTransferBill" parameterOrder="content">
+      <wsdl:input name="importStockTransferBillRequest" message="impl:importStockTransferBillRequest" />
+      <wsdl:output name="importStockTransferBillResponse" message="impl:importStockTransferBillResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="exportUnits" parameterOrder="after">
+      <wsdl:input name="exportUnitsRequest" message="impl:exportUnitsRequest" />
+      <wsdl:output name="exportUnitsResponse" message="impl:exportUnitsResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="queryState" parameterOrder="number mat">
+      <wsdl:input name="queryStateRequest" message="impl:queryStateRequest" />
+      <wsdl:output name="queryStateResponse" message="impl:queryStateResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+    <wsdl:operation name="count" parameterOrder="type after materialType">
+      <wsdl:input name="countRequest" message="impl:countRequest" />
+      <wsdl:output name="countResponse" message="impl:countResponse" />
+      <wsdl:fault name="WSInvokeException" message="impl:WSInvokeException" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="WSPlatformSpdFacadeSoapBinding" type="impl:WSPlatformSpdFacadeSrvProxy">
+    <wsdlsoap:binding transport="http://schemas.xmlsoap.org/soap/http" style="rpc" />
+    <wsdl:operation name="importSaleIssueBill">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="importSaleIssueBillRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="importSaleIssueBillResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterialGroups">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="exportMaterialGroupsRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="exportMaterialGroupsResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterialGroups">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="exportMaterialGroupsRequest1">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="exportMaterialGroupsResponse1">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterials">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="exportMaterialsRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="exportMaterialsResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="exportMaterials">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="exportMaterialsRequest1">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="exportMaterialsResponse1">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="importStockTransferBill">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="importStockTransferBillRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="importStockTransferBillResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="exportUnits">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="exportUnitsRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="exportUnitsResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="queryState">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="queryStateRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="queryStateResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="count">
+      <wsdlsoap:operation soapAction="" />
+      <wsdl:input name="countRequest">
+        <wsdlsoap:body use="encoded" namespace="http://webservice.platform.wg.custom.eas.kingdee.com" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:input>
+      <wsdl:output name="countResponse">
+        <wsdlsoap:body use="encoded" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:output>
+      <wsdl:fault name="WSInvokeException">
+        <wsdlsoap:fault use="encoded" name="WSInvokeException" namespace="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="WSPlatformSpdFacadeSrvProxyService">
+    <wsdl:port name="WSPlatformSpdFacade" binding="impl:WSPlatformSpdFacadeSoapBinding">
+      <wsdlsoap:address location="http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

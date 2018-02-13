@@ -1,0 +1,109 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="IndexDept.aspx.cs" Inherits="ERPProject.ERPWorkbench.IndexDept" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <style>
+        .x-grid-body {
+            border-top-width: 0px;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" AjaxLoadingType="Mask" EnableAjax="true" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="True" EnableCollapse="true"
+            Layout="HBox" BoxConfigAlign="Stretch" BoxConfigPosition="Start"
+            BoxConfigChildMargin="0 0 0 0" BodyPadding="1px" ShowHeader="false">
+            <Items>
+                <f:Panel ID="Panel2" Title="左" BoxFlex="1" runat="server"
+                    BodyPadding="5px" Margin="0 0 0 0" ShowBorder="false" ShowHeader="false" Layout="Fit">
+                    <Items>
+                        <f:Grid ID="GridList" ShowBorder="true" ShowHeader="false" EnableColumnLines="true"
+                            AutoScroll="true" runat="server" DataKeyNames="OUTBILLNO,OUTRQ,BARCODE" Title="未扫描条码"
+                            AllowSorting="true" EnableHeaderMenu="true" SortField="OUTRQ" OnSort="GridList_Sort" SortDirection="DESC" EnableTextSelection="true"
+                            AllowPaging="true" IsDatabasePaging="true" OnPageIndexChange="GridList_PageIndexChange" PageSize="100">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar2" runat="server">
+                                    <Items>
+                                        <f:ToolbarText ID="ToolbarText2" Text="未扫描条码：" runat="server" />
+                                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                        <f:TriggerBox ID="trbSearch" runat="server" Width="200px" ShowEmptyLabel="false" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick"></f:TriggerBox>
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                <f:BoundField Width="80px" DataField="OUTRQ" HeaderText="收货日期" SortField="OUTRQ" DataFormatString="{0:yyyy-MM-dd}" />
+                                <f:BoundField Width="170px" DataField="BARCODE" HeaderText="条码" SortField="BARCODE" TextAlign="Center" />
+                                <f:BoundField Width="80px" DataField="GDSEQ" HeaderText="商品编码" SortField="GDSEQ" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="GDNAME" HeaderText="商品名称" SortField="GDNAME" />
+                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="商品规格" SortField="GDSPEC" />
+                                <f:BoundField Width="60px" DataField="SL" HeaderText="数量" SortField="SL" TextAlign="Right" />
+                                <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" SortField="UNITNAME" TextAlign="Center" />
+                                <f:BoundField Width="100px" DataField="OUTBILLNO" HeaderText="单据编号" SortField="OUTBILLNO" TextAlign="Center" />
+                                <f:BoundField Width="60px" DataField="FLAGCH" HeaderText="当前状态" SortField="FLAGCH" TextAlign="Center" />
+                                <f:BoundField Width="60px" DataField="BTYPE" HeaderText="条码类别" SortField="BTYPE" TextAlign="Center" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+                <f:Panel ID="Panel3" Title="右" BoxFlex="1" runat="server"
+                    Margin="5px 5px 5px 0" ShowBorder="true" ShowHeader="false" Layout="Fit">
+                    <Items>
+                        <f:Grid ID="GridGoodsList" ShowBorder="false" ShowHeader="true" Title="科室配置商品" AutoScroll="true" runat="server" PageSize="100" EnableColumnLines="true"
+                            DataKeyNames="GDSEQ" EnableRowLines="true" EnableTextSelection="true"
+                            AllowPaging="true" IsDatabasePaging="true" OnPageIndexChange="GridGoodsList_PageIndexChange">
+                            <Columns>
+                                <f:RowNumberField Width="30px" EnablePagingNumber="true" TextAlign="Center"></f:RowNumberField>
+                                <f:BoundField DataField="GDSEQ" HeaderText="商品编码" Width="100px" TextAlign="Center" />
+                                <f:BoundField DataField="GDNAME" HeaderText="商品名称" Width="170px" />
+                                <f:BoundField DataField="GDSPEC" HeaderText="商品规格" Width="120px" />
+                                <f:BoundField DataField="UNITNAME" HeaderText="单位" Width="40px" TextAlign="Center" />
+                                <f:BoundField DataField="HSJJ" HeaderText="价格" Width="60px" TextAlign="Right" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="hfdRoleList" runat="server"></f:HiddenField>
+        <f:Window ID="WindowMemo" Width="650px" Height="450px" Icon="TagBlue" Title="系统公告通知"
+            EnableCollapse="false" runat="server" EnableResize="true" EnableClose="false"
+            IsModal="true" AutoScroll="true" BodyPadding="10px" Hidden="true">
+            <Content>
+                <p><%=MyMemo %></p>
+            </Content>
+            <Toolbars>
+                <f:Toolbar runat="server" Position="Bottom" ToolbarAlign="Center">
+                    <Items>
+                        <f:HiddenField ID="hfdSeqNo" runat="server"></f:HiddenField>
+                        <f:Button runat="server" ID="btnClose" OnClick="btnClose_Click" Text="我知道了" Icon="RosetteBlue"></f:Button>
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+        </f:Window>
+
+    </form>
+    <script>
+        var basePath = '<%= ResolveUrl("~") %>';
+        function openTODOLINK(id, url, name) {
+            parent.addExampleTab.apply(null, [id, basePath + url, name, basePath + 'extjs/res/ext-theme-classic/images/tree/leaf.gif', true]);
+        }
+        <%--F.ready(function () {
+            F('<% =GridList.ClientID %>').addTool({
+                id: 'tool_1',
+                renderTpl: '<span style="color:blue;text-decoration: underline;font-weight:bold">更多....</span>',
+                width: 50,
+                handler: function (event) {
+                    openTODOLINK('1315', 'ERPAssist/MyMemo.aspx', '备忘录');
+                }
+
+            })
+        })--%>
+    </script>
+</body>
+</html>

@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://localhost:3787/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://localhost:3787/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://localhost:3787/">
+      <s:element name="Login">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="username" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="password" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="token" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="LoginResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LoginResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Logout">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="username" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="password" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="token" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="LogoutResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LogoutResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CommonApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfString">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="string" nillable="true" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="CommonApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="CommonApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CommonBillApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CommonBillApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="CommonBillApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CommonExecApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CommonExecApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="CommonExecApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BulkExecApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BulkExecApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="BulkExecApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BulkExecBillApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BulkExecBillApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="BulkExecBillApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CertPicUpload">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="bytes" type="s:base64Binary" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CertPicUploadResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="CertPicUploadResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatus">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="billno" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="custid" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="username" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="uuid" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatusResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="QueryBillStatusResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatusXDD">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="billno" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="custid" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="username" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="uuid" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatusXDDResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="QueryBillStatusXDDResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatusCDD">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="billno" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="custid" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="warehouse" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="username" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="uuid" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QueryBillStatusCDDResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="QueryBillStatusCDDResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QuerySupBillApi">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="key" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="paramArray" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="QuerySupBillApiResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="QuerySupBillApiResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="LoginSoapIn">
+    <wsdl:part name="parameters" element="tns:Login" />
+  </wsdl:message>
+  <wsdl:message name="LoginSoapOut">
+    <wsdl:part name="parameters" element="tns:LoginResponse" />
+  </wsdl:message>
+  <wsdl:message name="LogoutSoapIn">
+    <wsdl:part name="parameters" element="tns:Logout" />
+  </wsdl:message>
+  <wsdl:message name="LogoutSoapOut">
+    <wsdl:part name="parameters" element="tns:LogoutResponse" />
+  </wsdl:message>
+  <wsdl:message name="CommonApiSoapIn">
+    <wsdl:part name="parameters" element="tns:CommonApi" />
+  </wsdl:message>
+  <wsdl:message name="CommonApiSoapOut">
+    <wsdl:part name="parameters" element="tns:CommonApiResponse" />
+  </wsdl:message>
+  <wsdl:message name="CommonBillApiSoapIn">
+    <wsdl:part name="parameters" element="tns:CommonBillApi" />
+  </wsdl:message>
+  <wsdl:message name="CommonBillApiSoapOut">
+    <wsdl:part name="parameters" element="tns:CommonBillApiResponse" />
+  </wsdl:message>
+  <wsdl:message name="CommonExecApiSoapIn">
+    <wsdl:part name="parameters" element="tns:CommonExecApi" />
+  </wsdl:message>
+  <wsdl:message name="CommonExecApiSoapOut">
+    <wsdl:part name="parameters" element="tns:CommonExecApiResponse" />
+  </wsdl:message>
+  <wsdl:message name="BulkExecApiSoapIn">
+    <wsdl:part name="parameters" element="tns:BulkExecApi" />
+  </wsdl:message>
+  <wsdl:message name="BulkExecApiSoapOut">
+    <wsdl:part name="parameters" element="tns:BulkExecApiResponse" />
+  </wsdl:message>
+  <wsdl:message name="BulkExecBillApiSoapIn">
+    <wsdl:part name="parameters" element="tns:BulkExecBillApi" />
+  </wsdl:message>
+  <wsdl:message name="BulkExecBillApiSoapOut">
+    <wsdl:part name="parameters" element="tns:BulkExecBillApiResponse" />
+  </wsdl:message>
+  <wsdl:message name="CertPicUploadSoapIn">
+    <wsdl:part name="parameters" element="tns:CertPicUpload" />
+  </wsdl:message>
+  <wsdl:message name="CertPicUploadSoapOut">
+    <wsdl:part name="parameters" element="tns:CertPicUploadResponse" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusSoapIn">
+    <wsdl:part name="parameters" element="tns:QueryBillStatus" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusSoapOut">
+    <wsdl:part name="parameters" element="tns:QueryBillStatusResponse" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusXDDSoapIn">
+    <wsdl:part name="parameters" element="tns:QueryBillStatusXDD" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusXDDSoapOut">
+    <wsdl:part name="parameters" element="tns:QueryBillStatusXDDResponse" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusCDDSoapIn">
+    <wsdl:part name="parameters" element="tns:QueryBillStatusCDD" />
+  </wsdl:message>
+  <wsdl:message name="QueryBillStatusCDDSoapOut">
+    <wsdl:part name="parameters" element="tns:QueryBillStatusCDDResponse" />
+  </wsdl:message>
+  <wsdl:message name="QuerySupBillApiSoapIn">
+    <wsdl:part name="parameters" element="tns:QuerySupBillApi" />
+  </wsdl:message>
+  <wsdl:message name="QuerySupBillApiSoapOut">
+    <wsdl:part name="parameters" element="tns:QuerySupBillApiResponse" />
+  </wsdl:message>
+  <wsdl:portType name="PlatformWebServiceSoap">
+    <wsdl:operation name="Login">
+      <wsdl:input message="tns:LoginSoapIn" />
+      <wsdl:output message="tns:LoginSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Logout">
+      <wsdl:input message="tns:LogoutSoapIn" />
+      <wsdl:output message="tns:LogoutSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CommonApi">
+      <wsdl:input message="tns:CommonApiSoapIn" />
+      <wsdl:output message="tns:CommonApiSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CommonBillApi">
+      <wsdl:input message="tns:CommonBillApiSoapIn" />
+      <wsdl:output message="tns:CommonBillApiSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CommonExecApi">
+      <wsdl:input message="tns:CommonExecApiSoapIn" />
+      <wsdl:output message="tns:CommonExecApiSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecApi">
+      <wsdl:input message="tns:BulkExecApiSoapIn" />
+      <wsdl:output message="tns:BulkExecApiSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecBillApi">
+      <wsdl:input message="tns:BulkExecBillApiSoapIn" />
+      <wsdl:output message="tns:BulkExecBillApiSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CertPicUpload">
+      <wsdl:input message="tns:CertPicUploadSoapIn" />
+      <wsdl:output message="tns:CertPicUploadSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatus">
+      <wsdl:input message="tns:QueryBillStatusSoapIn" />
+      <wsdl:output message="tns:QueryBillStatusSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusXDD">
+      <wsdl:input message="tns:QueryBillStatusXDDSoapIn" />
+      <wsdl:output message="tns:QueryBillStatusXDDSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusCDD">
+      <wsdl:input message="tns:QueryBillStatusCDDSoapIn" />
+      <wsdl:output message="tns:QueryBillStatusCDDSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="QuerySupBillApi">
+      <wsdl:input message="tns:QuerySupBillApiSoapIn" />
+      <wsdl:output message="tns:QuerySupBillApiSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="PlatformWebServiceSoap" type="tns:PlatformWebServiceSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Login">
+      <soap:operation soapAction="http://localhost:3787/Login" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Logout">
+      <soap:operation soapAction="http://localhost:3787/Logout" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonApi">
+      <soap:operation soapAction="http://localhost:3787/CommonApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonBillApi">
+      <soap:operation soapAction="http://localhost:3787/CommonBillApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonExecApi">
+      <soap:operation soapAction="http://localhost:3787/CommonExecApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecApi">
+      <soap:operation soapAction="http://localhost:3787/BulkExecApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecBillApi">
+      <soap:operation soapAction="http://localhost:3787/BulkExecBillApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CertPicUpload">
+      <soap:operation soapAction="http://localhost:3787/CertPicUpload" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatus">
+      <soap:operation soapAction="http://localhost:3787/QueryBillStatus" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusXDD">
+      <soap:operation soapAction="http://localhost:3787/QueryBillStatusXDD" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusCDD">
+      <soap:operation soapAction="http://localhost:3787/QueryBillStatusCDD" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QuerySupBillApi">
+      <soap:operation soapAction="http://localhost:3787/QuerySupBillApi" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="PlatformWebServiceSoap12" type="tns:PlatformWebServiceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Login">
+      <soap12:operation soapAction="http://localhost:3787/Login" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Logout">
+      <soap12:operation soapAction="http://localhost:3787/Logout" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonApi">
+      <soap12:operation soapAction="http://localhost:3787/CommonApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonBillApi">
+      <soap12:operation soapAction="http://localhost:3787/CommonBillApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CommonExecApi">
+      <soap12:operation soapAction="http://localhost:3787/CommonExecApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecApi">
+      <soap12:operation soapAction="http://localhost:3787/BulkExecApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BulkExecBillApi">
+      <soap12:operation soapAction="http://localhost:3787/BulkExecBillApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CertPicUpload">
+      <soap12:operation soapAction="http://localhost:3787/CertPicUpload" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatus">
+      <soap12:operation soapAction="http://localhost:3787/QueryBillStatus" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusXDD">
+      <soap12:operation soapAction="http://localhost:3787/QueryBillStatusXDD" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QueryBillStatusCDD">
+      <soap12:operation soapAction="http://localhost:3787/QueryBillStatusCDD" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="QuerySupBillApi">
+      <soap12:operation soapAction="http://localhost:3787/QuerySupBillApi" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="PlatformWebService">
+    <wsdl:port name="PlatformWebServiceSoap" binding="tns:PlatformWebServiceSoap">
+      <soap:address location="http://172.16.5.200:8002/WeiGo/WebService/PlatformWebService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="PlatformWebServiceSoap12" binding="tns:PlatformWebServiceSoap12">
+      <soap12:address location="http://172.16.5.200:8002/WeiGo/WebService/PlatformWebService.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

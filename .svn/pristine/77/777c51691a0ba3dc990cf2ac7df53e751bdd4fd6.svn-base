@@ -1,0 +1,102 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System.Data;
+using System.Collections.Specialized;
+using System.Text;
+using System.Globalization;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class EvaluationDepartment : BillBase
+    {
+
+        public static string dt;
+        public static string week;
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+        private void DataInit()
+        {
+            
+            //使用部门下拉表
+            PubFunc.DdlDataGet("DDL_SYS_DEPTDEF", lstDEPTID,OJXXDEPTID);
+            lstPJSJ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstPJSJ2.SelectedDate = DateTime.Now;
+            DQRI.SelectedDate = DateTime.Now;
+            DQRI.Enabled = false;
+            dt = DateTime.Today.DayOfWeek.ToString();
+            switch (dt)
+            {
+                case "Monday":
+                    week = "星期一";
+                    break;
+                case "Tuesday":
+                    week = "星期二";
+                    break;
+                case "Wednesday":
+                    week = "星期三";
+                    break;
+                case "Thursday":
+                    week = "星期四";
+                    break;
+                case "Friday":
+                    week = "星期五";
+                    break;
+                case "Saturday":
+                    week = "星期六";
+                    break;
+                case "Sunday":
+                    week = "星期日";
+                    break;
+            }
+            docWeek.Text = week;
+            docWeek.Enabled = false;
+        }
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstPJSJ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstPJSJ2.SelectedDate = DateTime.Now;
+        }
+        protected override void billSave()
+        {
+            string GETFKJY;
+            if (OJXXDEPTID.SelectedItem == null || OJXXDEPTID.SelectedIndex == 0)
+                {
+                Alert.Show("请选择当前科室");
+                return;
+                }
+            if (FKJY.Text.Trim().Length > 0)
+            {
+                GETFKJY= FKJY.Text ;
+            }
+            else
+            {
+                GETFKJY = "总体好评，没有反馈建议。";
+            }
+            string Sql = string.Empty;
+            Sql = "INSERT INTO DAT_EVALUATE (DEPTID,CLS,PJR,SHSJ,SHTD,SHMZ,TMHS,CLWT,MEMO) VALUES ('" +OJXXDEPTID.SelectedValue+"','"+ZTPJ.SelectedValue+"','"+UserAction.UserID+"','"+SHJSX.SelectedValue+"','"+SHYTD.SelectedValue+"','"+SHMZL.SelectedValue+"','"+TMHSJSX.SelectedValue+"','"+CLWTJSX.SelectedValue+"','"+ GETFKJY + "')";
+            if (DbHelperOra.ExecuteSql(Sql) > 0)
+            {
+                Alert.Show("反馈建议提交成功！");
+            }
+            else
+            {
+                Alert.Show("提交失败，请稍后尝试！");
+            }
+            
+        }
+    }
+}

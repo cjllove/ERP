@@ -1,0 +1,346 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Collections.Specialized;
+using FineUIPro;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Data;
+using XTBase.Utilities;
+
+namespace SPDProject.SpdApply
+{
+    public partial class DepartmentBudget : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billNew();
+                //billSearch();
+            }
+        }
+        #region page load event
+
+        private void DataInit()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID);
+            //lstDEPTID.SelectedValue = UserAction.UserDept;
+            //dpkMonth.Text = DateTime.Now.ToString("yyyy-MM");
+            dpkBegRQ.SelectedDate = DateTime.Now.AddDays(-DateTime.Now.Day + 1);
+            dpkEndRQ.SelectedDate = DateTime.Now;
+        }
+        #endregion
+
+
+        #region gridlist event
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            GridList.DataBind();
+        }
+
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            billSearch();
+        }
+        #endregion
+
+        #region button event
+        protected override void billNew()
+        {
+
+        }
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            btnExp.Enabled = false;
+            if (GridList.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            #region 月选择
+
+            //string currentMonth = DateTime.Now.ToString("yyyy-MM");
+            ////if (string.IsNullOrEmpty(dpkMonth.Text))
+            ////{
+            ////    Alert.Show("请选择查询月份！");
+            ////    return;
+            ////}
+            ////else
+            ////{
+            ////    currentMonth = dpkMonth.Text;
+            ////}
+            //string startTime = string.Empty;
+            //string endTime = string.Empty;
+            //string ACCOUNTDAY = Doc.DbGetSysPara("ACCOUNTDAY");
+            //if (ACCOUNTDAY == "31")
+            //{
+            //    startTime = Convert.ToDateTime( currentMonth + "-01").ToString("yyyy-MM-dd");
+            //    endTime = Convert.ToDateTime(currentMonth + "-01").AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd");
+
+            //}
+            //else
+            //{
+            //    startTime = Convert.ToDateTime( currentMonth + "-" + ACCOUNTDAY).AddMonths(-1).ToString("yyyy-MM-dd");
+            //    endTime = Convert.ToDateTime(currentMonth + "-" + ACCOUNTDAY).AddDays(-1).ToString("yyyy-MM-dd");
+            //} 
+            #endregion
+
+            if (dpkBegRQ.SelectedDate == null || dpkEndRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkBegRQ.SelectedDate > dpkEndRQ.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            string strSql = string.Format(@"SELECT f_GetDEPTNAME(SA.DEPTID) as 部门名称,
+                                                  
+                                                   ' '||SD.GDSEQ　商品编码,
+                                                   SD.GdNAME　商品名称,
+                                               
+                                                   SD.GDSPEC　商品规格,
+                                                   F_GETUNITNAME(SD.Unit) 商品单位,
+                                                   F_GETPRODUCERNAME(SD.Producer) 生产厂商,
+   　　　　　　　　　　　　　　　　　　　　　　　　 SD.HSJJ　单价,
+  　　　　　　　　　　　　　　　　　　　　　　　　 NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) SPD消耗数量,
+                                                   NVL(SB.PDSL, 0) 盘点数量,
+  　　　　　　　　　　　　　　　　　　　　　　　　 F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}') 系统库存数,
+                                                   NVL(SC.YSSL, 0) 预算数量,
+ 　　　　　　　　　　　　　　　　　　　　　　　　　 NVL((NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) -
+                                                       NVL(SB.PDSL, 0) + F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}')),
+                                                       0) 实际消耗数量,
+                                                   NVL(SC.YSJE, 0) 预算金额,
+                                                   NVL((NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) -
+                                                       NVL(SB.PDSL, 0) + F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}')),
+                                                       0) * SD.HSJJ 实际消耗金额
+                                              FROM (SELECT DISTINCT DEPTID, GDSEQ
+                                                      FROM (SELECT DEPTID, GDSEQ
+                                                              FROM DAT_GOODSJXC A
+                                                             WHERE RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                               AND EXISTS (SELECT 1
+                                                                      FROM SYS_DEPT
+                                                                     WHERE TYPE = '3'
+                                                                       AND CODE = A.DEPTID)
+                                                            UNION
+                                                            SELECT A.DEPTID, B.GDSEQ
+                                                              FROM DAT_PD_DOC A, DAT_PD_COM B
+                                                             WHERE A.SEQNO = B.SEQNO
+                                                               AND A.PDTYPE = '3' AND A.FLAG = 'Y'
+                                                               AND A.SPRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                            UNION
+                                                            SELECT A.DEPTID, B.GDSEQ
+                                                              FROM DAT_YS_DOC A, DAT_YS_COM B
+                                                             WHERE A.SEQNO = B.SEQNO AND A.FLAG = 'Y'
+                                                               AND A.YSRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD'))) SA,
+                                                   (SELECT A.DEPTID, B.GDSEQ, SUM(B.PDSL) PDSL, SUM(B.HSJE) PDJE
+                                                      FROM DAT_PD_DOC A, DAT_PD_COM B
+                                                     WHERE A.SEQNO = B.SEQNO
+                                                       AND A.PDTYPE = '3' AND A.FLAG = 'Y'
+                                                       AND A.SPRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                           TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                     GROUP BY A.DEPTID, B.GDSEQ) SB,
+                                                   (SELECT A.DEPTID, B.GDSEQ, SUM(B.YSSL) YsSL, SUM(B.HSJE) YSJE
+                                                      FROM DAT_YS_DOC A, DAT_YS_COM B
+                                                     WHERE A.SEQNO = B.SEQNO AND A.FLAG = 'Y'
+                                                       AND A.YSRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                           TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                     GROUP BY A.DEPTID, B.GDSEQ) SC,
+                                                   DOC_GOODS SD
+                                             WHERE SA.DEPTID = SB.DEPTID(+)
+                                               AND SA.GDSEQ = SB.GDSEQ(+)
+                                               AND SA.DEPTID = SC.DEPTID(+)
+                                               AND SA.GDSEQ = SC.GDSEQ(+)
+                                               AND SA.GDSEQ = SD.GDSEQ", dpkBegRQ.Text, dpkEndRQ.Text);
+            if (!string.IsNullOrEmpty(lstDEPTID.SelectedValue))
+            {
+
+                strSql += " AND SA.DeptID='" + lstDEPTID.SelectedValue + "'";
+            }
+
+            //ExcelHelper.ExportByWeb(DbHelperOra.Query(strSql).Tables[0], "科室" + currentMonth + "月预算执行情况分析表", string.Format("科室预算执行情况分析表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+            ExcelHelper.ExportByWeb(DbHelperOra.Query(strSql).Tables[0], "科室" + dpkBegRQ.Text + "至" + dpkEndRQ.Text + "期间预算执行情况分析表", string.Format("科室预算执行情况分析表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+
+
+        }
+
+        protected override void billSearch()
+        {
+            string currentMonth = DateTime.Now.ToString("MM");
+            //if (string.IsNullOrEmpty(dpkMonth.Text))
+            //{
+            //    Alert.Show("请选择查询月份！");
+            //    return;
+            //}
+            //else
+            //{
+            //    currentMonth = dpkMonth.Text;
+            //}
+            if (dpkBegRQ.SelectedDate == null || dpkEndRQ.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkBegRQ.SelectedDate > dpkEndRQ.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            //string startTime = string.Empty;
+            //string endTime = string.Empty;
+            //string ACCOUNTDAY = Doc.DbGetSysPara("ACCOUNTDAY");
+            //if (ACCOUNTDAY == "31")
+            //{
+            //    startTime = Convert.ToDateTime( currentMonth + "-01").ToString("yyyy-MM-dd");
+            //    endTime = Convert.ToDateTime(currentMonth + "-01").AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd");
+
+            //}
+            //else
+            //{
+            //    startTime = Convert.ToDateTime(currentMonth + "-" + ACCOUNTDAY).AddMonths(-1).ToString("yyyy-MM-dd");
+            //    endTime = Convert.ToDateTime(currentMonth + "-" + ACCOUNTDAY).AddDays(-1).ToString("yyyy-MM-dd");
+            //}
+
+            string strSql = string.Format(@"SELECT f_GetDEPTNAME(SA.DEPTID) as DEPTNAME,
+                                                   SA.DEPTID,
+                                                   SD.GDSEQ,
+                                                   SD.GdNAME,
+                                                   SD.HSJJ,
+                                                   SD.GDSPEC,
+                                                   F_GETUNITNAME(SD.Unit) Unit,
+                                                   F_GETPRODUCERNAME(SD.Producer) PRODUCTER,
+                                                   NVL(SB.PDSL, 0) PDSL,
+                                                   NVL(SB.PDJE, 0) PDJE,
+                                                   NVL(SC.YSSL, 0) YSSL,
+                                                   NVL(SC.YSJE, 0) YSJE,
+                                                   NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) SPDSL,
+                                                   NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '1'), 0) SPDJE,
+                                                   F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}') STOCKSL,
+                                                   NVL((NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) -
+                                                       NVL(SB.PDSL, 0) + F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}')),
+                                                       0) SJSL,
+                                                   NVL((NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '1'), 0) -
+                                                       NVL(SB.PDSL, 0) + F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}')),
+                                                       0)  SJJE,
+                                                   SD.HISCODE HISCODE,
+                                                   UPPER (SD.ZJM) ZJM
+                                              FROM (SELECT DISTINCT DEPTID, GDSEQ
+                                                      FROM (SELECT DEPTID, GDSEQ
+                                                              FROM DAT_GOODSJXC A
+                                                             WHERE RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                               AND EXISTS (SELECT 1
+                                                                      FROM SYS_DEPT
+                                                                     WHERE TYPE = '3'
+                                                                       AND CODE = A.DEPTID)
+                                                            UNION
+                                                            SELECT A.DEPTID, B.GDSEQ
+                                                              FROM DAT_PD_DOC A, DAT_PD_COM B
+                                                             WHERE A.SEQNO = B.SEQNO
+                                                               AND A.PDTYPE = '3' AND A.FLAG = 'Y'
+                                                               AND A.SPRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                            UNION
+                                                            SELECT A.DEPTID, B.GDSEQ
+                                                              FROM DAT_YS_DOC A, DAT_YS_COM B
+                                                             WHERE A.SEQNO = B.SEQNO AND A.FLAG = 'S' AND B.YSSL > 0
+                                                               AND A.YSRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                                   TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                           )) SA,
+                                                   (SELECT A.DEPTID, B.GDSEQ, SUM(B.PDSL) PDSL, SUM(B.HSJE) PDJE
+                                                      FROM DAT_PD_DOC A, DAT_PD_COM B
+                                                     WHERE A.SEQNO = B.SEQNO
+                                                       AND A.PDTYPE = '3' AND A.FLAG = 'Y'
+                                                       AND A.SPRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                           TO_DATE('{1}', 'YYYY-MM-DD')
+                                                     GROUP BY A.DEPTID, B.GDSEQ) SB,
+                                                   (SELECT A.DEPTID, B.GDSEQ, SUM(B.YSSL) YsSL, SUM(B.HSJE) YSJE
+                                                      FROM DAT_YS_DOC A, DAT_YS_COM B
+                                                     WHERE A.SEQNO = B.SEQNO AND A.FLAG = 'S' AND B.YSSL > 0
+                                                       AND A.YSRQ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND
+                                                           TO_DATE('{1}', 'YYYY-MM-DD') 
+                                                     GROUP BY A.DEPTID, B.GDSEQ) SC,
+                                                   DOC_GOODS SD
+                                             WHERE SA.DEPTID = SB.DEPTID(+)
+                                               AND SA.GDSEQ = SB.GDSEQ(+)
+                                               AND SA.DEPTID = SC.DEPTID(+)
+                                               AND SA.GDSEQ = SC.GDSEQ(+)
+                                               AND SA.GDSEQ = SD.GDSEQ AND (SC.YSSL!=0 OR NVL((NVL(F_GETXHSL(SA.DEPTID, SA.GDSEQ, '{0}', '{1}', '0'), 0) -
+                                                       NVL(SB.PDSL, 0) + F_GETKC(SA.DEPTID,SD.GDSEQ,'{1}')),
+                                                       0)!=0 )", dpkBegRQ.Text, dpkEndRQ.Text);
+            if (!string.IsNullOrEmpty(lstDEPTID.SelectedValue))
+            {
+                strSql += " AND SA.DeptID='" + lstDEPTID.SelectedValue + "'";
+            }
+            if (!PubFunc.StrIsEmpty(trbSearch.Text))
+            {
+                strSql += " AND (SD.GDSEQ like '%" + trbSearch.Text + "%' or SD.GdNAME like '%" + trbSearch.Text + "%' or HISCODE like '%" + trbSearch.Text + "%' or ZJM like '%" + trbSearch.Text.ToUpper() + "%')";
+            }
+            int total = 0;
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+            OutputSummaryData1(dt);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+        #endregion
+
+
+        protected void DropDownList1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            billSearch();
+        }
+        private void OutputSummaryData1(DataTable source)
+        {
+            decimal HSJJTotal = 0, HSJETotal = 0, PDSLTotal = 0, STOCKSLTotal = 0, YSSLTotal = 0, SJSLTotal = 0, YSJETotal = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HSJJTotal += Convert.ToInt32(row["SPDSL"]);
+                HSJETotal += Convert.ToDecimal(row["SJJE"]);
+                PDSLTotal += Convert.ToInt32(row["PDSL"]);
+                STOCKSLTotal += Convert.ToDecimal(row["STOCKSL"]);
+                YSSLTotal += Convert.ToInt32(row["YSSL"]);
+                SJSLTotal += Convert.ToDecimal(row["SJSL"]);
+                YSJETotal += Convert.ToInt32(row["YSJE"]);
+
+            }
+            JObject summary = new JObject();
+            summary.Add("COUNTTITLE", "本业合计");
+            summary.Add("SPDSL", HSJJTotal.ToString("F2"));
+            summary.Add("PDSL", PDSLTotal.ToString("F2"));
+            summary.Add("STOCKSL", STOCKSLTotal.ToString("F2"));
+            summary.Add("YSSL", YSSLTotal.ToString("F2"));
+            summary.Add("SJSL", SJSLTotal.ToString("F2"));
+            summary.Add("YSJE", YSJETotal.ToString("F2"));
+            summary.Add("SJJE", HSJETotal.ToString("F2"));
+            GridList.SummaryData = summary;
+        }
+    }
+}

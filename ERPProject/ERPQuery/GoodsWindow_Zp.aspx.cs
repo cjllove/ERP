@@ -1,0 +1,218 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class GoodsWindow_Zp : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                if (Request.QueryString["cx"] != null && Request.QueryString["cx"].ToString() != "")
+                {
+                    hfdSearch.Text = Request.QueryString["cx"].ToString();
+                }
+                if (Request.QueryString["bm"] != null && Request.QueryString["bm"].ToString() != "")
+                {
+                    hfdDept.Text = Request.QueryString["bm"].ToString();
+                }
+                if (Request.QueryString["su"] != null && Request.QueryString["su"].ToString() != "")
+                {
+                    hfdSupplier.Text = Request.QueryString["su"].ToString();
+                }
+                if (Request.QueryString["goodsType"] != null && Request.QueryString["goodsType"].ToString() != "")
+                {
+                    hfdGoodsType.Text = Request.QueryString["goodsType"].ToString();
+                }
+
+                DataSearch();
+                btnClose.OnClientClick = ActiveWindow.GetHideReference();
+
+                BillBase.Grid_Goods = GridGoods;
+                trbSearch.Focus();
+            }
+        }
+        private String GetSql()
+        {
+            string sql = "";
+            if (DbHelperOra.Exists("SELECT 1 FROM SYS_PARA WHERE CODE = 'ShowName' AND VALUE = 'HIS'"))
+            {
+                //使用his名称、规格,SP.GDNAME,SP.GDSPEC
+                sql = @"SELECT  SP.GDSEQ,SP.GDID,SP.BARCODE,SP.ZJM,SP.YCODE,SP.NAMEJC,SP.NAMEEN,SP.GDMODE,SP.STRUCT,SP.BZHL,SP.UNIT,SP.FLAG,SP.CATID,SP.JX,SP.YX,SP.PIZNO,SP.BAR1,SP.BAR2,SP.BAR3,SP.DEPTID,SP.SUPPLIER,SP.LOGINLABEL,SP.PRODUCER,SP.ZPBH,SP.PPID,SP.CDID,SP.JXTAX,SP.XXTAX,SP.BHSJJ,0 HSJJ,SP.LSJ,SP.YBJ,SP.HSID,SP.HSJ,SP.JHZQ,SP.ZDKC,
+                                    SP.HLKC,SP.ZGKC,SP.SPZT,SP.DAYXS,SP.MANAGER,SP.INPER,SP.INRQ,SP.BEGRQ,SP.ENDRQ,SP.UPTRQ,SP.UPTUSER,SP.MEMO,DISABLEORG,SP.ISLOT,SP.ISJB,SP.ISFZ,SP.ISGZ,SP.ISIN,SP.ISJG,SP.ISDM,SP.ISCF,SP.ISYNZJ,SP.ISFLAG1,
+                                    NVL(SP.STR3,SP.GDSPEC) GDSPEC,SP.UNIT_DABZ,SP.UNIT_ZHONGBZ,SP.BARCODE_DABZ,SP.NUM_DABZ,SP.NUM_ZHONGBZ,SP.HISCODE,NVL(SP.HISNAME,SP.GDNAME) GDNAME,SP.CATID0,
+                                    F_GETUNITNAME(UNIT) UNITNAME,F_GETPRODUCERNAME(SP.PRODUCER) PRODUCERNAME,F_GETSUPNAME(SUPPLIER) SUPPLIERNAME, 
+                                   F_GETUNITNAME(UNIT_DABZ) UNIT_DABZ_NAME,
+                                   F_GETUNITNAME(UNIT_ZHONGBZ) UNIT_ZHONGBZ_NAME,NVL(PZ.HJCODE1,PZ.DEPTID) HWID,
+                                   DECODE(SP.UNIT_ORDER,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT) UNIT_ORDER,
+								   DECODE(SP.UNIT_SELL,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT) UNIT_SELL,
+								   F_GETUNITNAME(DECODE(SP.UNIT_SELL,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT)) UNIT_SELL_NAME,
+								   F_GETUNITNAME(DECODE(SP.UNIT_ORDER,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT)) UNIT_ORDER_NAME,
+                                   DECODE(SP.UNIT_ORDER,'D',SP.NUM_DABZ,'Z',SP.NUM_ZHONGBZ,SP.BZHL) BZHL_ORDER,
+								   DECODE(SP.UNIT_SELL,'D',SP.NUM_DABZ,'Z',SP.NUM_ZHONGBZ,SP.BZHL) BZHL_SELL,SP.STR0
+                             FROM  DOC_GOODS SP,DOC_GOODSCFG PZ WHERE ISDELETE='N' AND SP.FLAG='Y' AND SP.GDSEQ=PZ.GDSEQ ";
+            }
+            else
+            {
+                sql = @"SELECT  SP.GDSEQ,SP.GDID,SP.BARCODE,SP.ZJM,SP.YCODE,SP.NAMEJC,SP.NAMEEN,SP.GDMODE,SP.STRUCT,SP.BZHL,SP.UNIT,SP.FLAG,SP.CATID,SP.JX,SP.YX,SP.PIZNO,SP.BAR1,SP.BAR2,SP.BAR3,SP.DEPTID,SP.SUPPLIER,SP.LOGINLABEL,SP.PRODUCER,SP.ZPBH,SP.PPID,SP.CDID,SP.JXTAX,SP.XXTAX,SP.BHSJJ,0 HSJJ,SP.LSJ,SP.YBJ,SP.HSID,SP.HSJ,SP.JHZQ,SP.ZDKC,
+                                    SP.HLKC,SP.ZGKC,SP.SPZT,SP.DAYXS,SP.MANAGER,SP.INPER,SP.INRQ,SP.BEGRQ,SP.ENDRQ,SP.UPTRQ,SP.UPTUSER,SP.MEMO,DISABLEORG,SP.ISLOT,SP.ISJB,SP.ISFZ,SP.ISGZ,SP.ISIN,SP.ISJG,SP.ISDM,SP.ISCF,SP.ISYNZJ,SP.ISFLAG1,
+                                    SP.GDSPEC,SP.UNIT_DABZ,SP.UNIT_ZHONGBZ,SP.BARCODE_DABZ,SP.NUM_DABZ,SP.NUM_ZHONGBZ,SP.HISCODE,SP.GDNAME,SP.CATID0,
+                                    F_GETUNITNAME(UNIT) UNITNAME,F_GETPRODUCERNAME(SP.PRODUCER) PRODUCERNAME,F_GETSUPNAME(SUPPLIER) SUPPLIERNAME, 
+                                   F_GETUNITNAME(UNIT_DABZ) UNIT_DABZ_NAME,
+                                   F_GETUNITNAME(UNIT_ZHONGBZ) UNIT_ZHONGBZ_NAME,NVL(PZ.HJCODE1,PZ.DEPTID) HWID,
+                                   DECODE(SP.UNIT_ORDER,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT) UNIT_ORDER,
+								   DECODE(SP.UNIT_SELL,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT) UNIT_SELL,
+								   F_GETUNITNAME(DECODE(SP.UNIT_SELL,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT)) UNIT_SELL_NAME,
+								   F_GETUNITNAME(DECODE(SP.UNIT_ORDER,'D',SP.UNIT_DABZ,'Z',SP.UNIT_ZHONGBZ,SP.UNIT)) UNIT_ORDER_NAME,
+                                   DECODE(SP.UNIT_ORDER,'D',SP.NUM_DABZ,'Z',SP.NUM_ZHONGBZ,SP.BZHL) BZHL_ORDER,
+								   DECODE(SP.UNIT_SELL,'D',SP.NUM_DABZ,'Z',SP.NUM_ZHONGBZ,SP.BZHL) BZHL_SELL,SP.STR0
+                             FROM  DOC_GOODS SP,DOC_GOODSCFG PZ WHERE ISDELETE='N' AND SP.FLAG='Y' AND SP.GDSEQ=PZ.GDSEQ ";
+            }
+            StringBuilder strSql = new StringBuilder(sql);
+            if (!string.IsNullOrWhiteSpace(hfdSearch.Text))
+            {
+                strSql.AppendFormat(" AND (SP.GDSEQ LIKE '%{0}%' OR SP.GDNAME LIKE '%{0}%' OR SP.ZJM LIKE '%{0}%' OR SP.BARCODE LIKE '%{0}%' OR SP.HISCODE LIKE '%{0}%' OR SP.HISNAME LIKE '%{0}%' OR SP.STR4 LIKE '%{0}%')", hfdSearch.Text.ToUpper());
+            }
+            if (!string.IsNullOrWhiteSpace(hfdDept.Text))
+            {
+                if (hfdDept.Text.IndexOf('_') > 0)
+                {
+                    //strSql.AppendFormat(" AND PZ.DEPTID IN ('{0}') AND PZ.ISCFG='1'", hfdDept.Text.Replace("_", "','"));
+                    strSql.AppendFormat(" AND PZ.DEPTID IN ('{0}') AND PZ.GDSEQ IN (SELECT DISTINCT GDSEQ FROM DOC_GOODSCFG WHERE DEPTID = '{1}') AND PZ. ISCFG IN ('1','Y')", hfdDept.Text.Substring(0, hfdDept.Text.IndexOf('_')), hfdDept.Text.Substring(hfdDept.Text.IndexOf('_') + 1, hfdDept.Text.Length - 1 - hfdDept.Text.IndexOf('_')));
+                }
+                else
+                {
+                    strSql.AppendFormat(" AND PZ.DEPTID='{0}' AND PZ. ISCFG IN ('1','Y')", hfdDept.Text);
+                }
+            }
+            //非库存品库房不订货
+            if (DbHelperOra.Exists(string.Format("SELECT 1 FROM SYS_DEPT WHERE TYPE = '1' AND CODE = '{0}'", hfdDept.Text)))
+            {
+                strSql.AppendFormat(" AND SP.ISFLAG3 = 'N'");
+            }
+            if (!string.IsNullOrWhiteSpace(hfdSupplier.Text) && hfdSupplier.Text != "00002")
+            {
+                strSql.AppendFormat(" AND SP.GDSEQ IN ( SELECT GDSEQ FROM DOC_GOODSSUP WHERE SUPID = '{0}')", hfdSupplier.Text);
+            }
+            //非代管的过滤
+            if (!string.IsNullOrWhiteSpace(hfdGoodsType.Text) && hfdGoodsType.Text == "SUPIDN")
+            {
+                strSql.AppendFormat(" AND SP.GDSEQ NOT IN (SELECT DISTINCT (GDSEQ) FROM DOC_GOODSSUP WHERE TYPE = '1')");
+            }
+            //增加赠品的检查
+            strSql.AppendFormat(string.Format(" AND SP.GDSEQ IN (SELECT GDSEQ FROM (SELECT SUM(SSSL) SL,GDSEQ FROM VIEW_ZP WHERE TYPE <>'XS' AND DEPTOUT = '{0}' GROUP BY GDSEQ) WHERE SL > 0)", hfdDept.Text.Substring(0, hfdDept.Text.IndexOf('_'))));
+            strSql.AppendFormat(" ORDER BY SP.{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            return strSql.ToString();
+        }
+        private void DataSearch()
+        {
+            int total = 0;
+            //获取显示名称标记
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            string GoodsInfo = GetRowValue(GridGoods.Rows[e.RowIndex]);
+            FineUIPro.PageContext.RegisterStartupScript(FineUIPro.ActiveWindow.GetWriteBackValueReference(GoodsInfo) + FineUIPro.ActiveWindow.GetHidePostBackReference());
+        }
+
+        private string GetRowValue(GridRow row)
+        {
+            string strValue = "";
+            for (int i = 0; i < GridGoods.Columns.Count; i++)
+            {
+                strValue += row.Values[i].ToString() == "" ? "★♀" : row.Values[i].ToString() + "♀";
+            }
+            return strValue.TrimEnd('♀');
+        }
+
+        protected void btnClosePostBack_Click(object sender, EventArgs e)
+        {
+            string GoodsInfo = "";
+            int[] row = GridGoods.SelectedRowIndexArray;
+            foreach (int index in row)
+            {
+                GoodsInfo += GetRowValue(GridGoods.Rows[index]) + "♂";
+            }
+            FineUIPro.PageContext.RegisterStartupScript(FineUIPro.ActiveWindow.GetWriteBackValueReference(GoodsInfo.TrimEnd(';')) + FineUIPro.ActiveWindow.GetHidePostBackReference());
+        }
+        protected void btnPostBack_Click(object sender, EventArgs e)
+        {
+            //string GoodsInfo = "";
+            //int[] row = GridGoods.SelectedRowIndexArray;
+            //foreach (int index in row)
+            //{
+            //    GoodsInfo += GetRowValue(GridGoods.Rows[index]) + "♂";
+            //}
+            //FineUIPro.PageContext.RegisterStartupScript(FineUIPro.ActiveWindow.GetWriteBackValueReference(GoodsInfo.TrimEnd(';')));
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            hfdSearch.Text = Doc.filterSql(trbSearch.Text);
+            DataSearch();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+            DataSearch();
+        }
+        #region 联想
+        public DataTable GetGoods(int pageNum, int pageSize, NameValueCollection nvc, ref int total, ref string errMsg)
+        {
+            hfdSearch.Text = trbSearch.Text;
+            return GetDataTable(pageNum, pageSize, GetSql(), ref total);
+        }
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            if (e.EventArgument.IndexOf("trbSearch_change_") >= 0)
+            {
+                SetGoods();
+            }
+            if (e.EventArgument.IndexOf("Grid2_bind_") >= 0)
+            {
+                SetGoods();
+            }
+        }
+        protected void Grid2_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            Grid2.PageIndex = e.NewPageIndex;
+            SetGoods();
+        }
+        protected void SetGoods()
+        {
+            int total = 0;
+            string msg = "";
+            NameValueCollection nvc = new NameValueCollection();
+            DataTable dtData = GetGoods(Grid2.PageIndex, Grid2.PageSize, nvc, ref total, ref msg);
+            Grid2.RecordCount = total;
+            Grid2.DataSource = dtData;
+            Grid2.DataBind();
+        }
+        #endregion
+
+
+    }
+}

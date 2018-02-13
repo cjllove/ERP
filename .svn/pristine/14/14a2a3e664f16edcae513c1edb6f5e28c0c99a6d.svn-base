@@ -1,0 +1,622 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.Collections.Specialized;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using System.Configuration;
+using Oracle.ManagedDataAccess.Client;
+using XTBase.Utilities;
+
+namespace SPDProject.SpdXM
+{
+    public partial class HisInterfaceReport : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+                DataInt();
+            }
+        }
+
+        private Boolean isDg()
+        {
+            if (Request.QueryString["dg"] == null)
+            {
+                return false;
+            }
+            else if (Request.QueryString["dg"].ToString() == "1")
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private void BindDDL()
+        {
+            // 绑定到下拉列表（启用模拟树功能）
+            PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPTDEF");
+            PubFunc.DdlDataGet(lstDEPTID, "DDL_SYS_DEPTDEF");
+            PubFunc.DdlDataGet(winDEPTID, "DDL_SYS_DEPTDEF");
+            PubFunc.DdlDataGet(logDEPTID, "DDL_SYS_DEPTDEF");
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID);  //ddlDEPTID
+        }
+        private void DataInt()
+        {
+            //lstCZTIME1.SelectedDate = Convert.ToDateTime("2016/05/17 17:00:00");
+            //lstCZTIME1.SelectedDate = DateTime.Now.AddMinutes(-3);
+            tbxJSTIME1.Text = Convert.ToDateTime("2016/05/17 17:00:00").ToString();
+            tbxJSTIME2.Text = Convert.ToString(DateTime.Now.AddMinutes(-3));
+            logRQSJ1.SelectedDate = DateTime.Now.AddDays(-1);
+            logRQSJ2.SelectedDate = DateTime.Now;
+            chkISEXCLUED.Checked = true;
+        }
+
+        private string GetSearchSql()
+        {
+            string strSql = @"SELECT A.ISSEND, DECODE(A.ISSEND,'Y','成功','S','忽略','失败') ISSEND_CN,c.code deptid, '['||c.code||']'||f_getdeptname(c.code) DEPTIDNAME ,NVL(B.GDSEQ,A.STR5) GDSEQ,B.GDNAME,B.GDSPEC,
+                            F_GETUNITNAME(B.UNIT) UNITNAME,A.STR6,B.HSJJ,f_getproducername(B.PRODUCER) PRODUCERNAME,
+                            (SELECT SUM(KCSL) FROM DAT_GOODSSTOCK WHERE DEPTID = '0085' AND GDSEQ = A.STR5) SPD_KCSL,A.CZTIME,A.SEQNO,A.ROWNO,A.JSTIME,decode(B.ISGZ,'Y','是','否') ISGZ_CN
+                            FROM INF_DAT_HIS A,DOC_GOODS B , sys_dept c
+                            WHERE A.STR5 = B.GDSEQ(+) and a.str2 = c.bycode AND A.ISSEND <> 'E'";
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " and C.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text)) strWhere += " and (b.gdseq like '%" + tbxGOODS.Text.ToUpper() + "%' or b.zjm like '%" + tbxGOODS.Text.ToUpper() + "%' or b.gdname like '%" + tbxGOODS.Text.ToUpper() + "%')";
+            if (!string.IsNullOrWhiteSpace(ddlISGZ.SelectedValue))
+            {
+                strWhere += " AND B.ISGZ = '" + ddlISGZ.SelectedValue + "'";
+            }
+
+
+
+            if (!string.IsNullOrWhiteSpace(ddlISSEND.SelectedValue))
+            {
+                strWhere += " AND A.ISSEND = '" + ddlISSEND.SelectedValue + "'";
+            }
+            else
+            {
+                if (chkISEXCLUED.Checked)
+                {
+                    strWhere += " AND A.ISSEND <> 'S'";
+                }
+            }
+
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY {0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            return strSql;
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            OutputSummaryData(dtData);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (GridGoods.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            //if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            //{
+            //    Alert.Show("请输入条件【申领日期】！");
+            //    return;
+            //}
+            //else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            //{
+            //    Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            string strSql = @"SELECT DECODE(A.ISSEND,'Y','成功','S','忽略','失败') 执行情况,
+                                    '['||c.code||']'||f_getdeptname(c.code) 科室 ,
+NVL(B.GDSEQ,A.STR5) 商品编码,
+B.GDNAME 商品名称,
+B.GDSPEC 商品规格,
+F_GETUNITNAME(B.UNIT) 商品单位,
+f_getproducername(B.PRODUCER) 生产厂家,
+B.HSJJ 含税进价,
+A.STR6 HIS使用数,
+(SELECT SUM(KCSL) FROM DAT_GOODSSTOCK WHERE DEPTID = '0085' AND GDSEQ = A.STR5) SPD库存数,
+decode(B.ISGZ,'Y','是','否') 是否高值,
+A.CZTIME 操作时间
+--A.SEQNO,
+--A.ROWNO,
+--A.JSTIME
+
+                            FROM INF_DAT_HIS A,DOC_GOODS B , sys_dept c
+                            WHERE A.STR5 = B.GDSEQ(+) and a.str2 = c.bycode AND A.ISSEND <> 'E'";
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " and C.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text)) strWhere += " and (b.gdseq like '%" + tbxGOODS.Text.ToUpper() + "%' or b.zjm like '%" + tbxGOODS.Text.ToUpper() + "%' or b.gdname like '%" + tbxGOODS.Text.ToUpper() + "%')";
+            if (!string.IsNullOrWhiteSpace(ddlISGZ.SelectedValue))
+            {
+                strWhere += " AND B.ISGZ = '" + ddlISGZ.SelectedValue + "'";
+            }
+
+
+
+            if (!string.IsNullOrWhiteSpace(ddlISSEND.SelectedValue))
+            {
+                strWhere += " AND A.ISSEND = '" + ddlISSEND.SelectedValue + "'";
+            }
+            else
+            {
+                if (chkISEXCLUED.Checked)
+                {
+                    strWhere += " AND A.ISSEND <> 'S'";
+                }
+            }
+
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY {0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+
+            ExcelHelper.ExportByWeb(DbHelperOra.Query(strSql).Tables[0], "接口执行明细", string.Format("接口执行明细_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal  HISTotal = 0, SPDTotal= 0;
+            foreach (DataRow row in source.Rows)
+            {
+                HISTotal += Convert.ToDecimal(row["STR6"]);
+                //SPDTotal += Convert.ToDecimal(row["SPD_KCSL"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "全部合计");
+            summary.Add("STR6", HISTotal.ToString());
+            //summary.Add("SPD_KCSL", SPDTotal.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                FineUIPro.BoundField flagcol = GridGoods.FindColumn("ISSEND_CN") as FineUIPro.BoundField;
+                if (row["ISSEND_CN"].ToString() == "失败")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+                else if (row["ISSEND_CN"].ToString() == "忽略")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+            }
+        }
+
+        private string GetSearchSql2()
+        {
+            string strSql2 = @"SELECT A.FLAG,
+                               A.DEPTID,
+                               f_getdeptname(A.DEPTID) DEPTIDNAME,
+                               A.GDSEQ,
+                               B.GDNAME,
+                               B.GDSPEC,
+                               f_getunitname(B.UNIT) UNITNAME,
+                               f_getproducername(B.PRODUCER) PRODUCERNAME,
+                               B.HSJJ,
+                               A.UPTIME,
+                               A.MEMO,
+                               f_getusername(A.LRY) LRY_CN
+                          FROM INF_GOODS_NODO A, DOC_GOODS B
+                         WHERE A.GDSEQ = B.GDSEQ(+) ";
+            string strWhere = " ";
+            if (!string.IsNullOrWhiteSpace(lstDEPTID.SelectedValue))
+            {
+                strWhere += " AND A.DEPTID = '" + lstDEPTID.SelectedValue + "'";
+            }
+            if (!string.IsNullOrWhiteSpace(lstGDSEQ.Text))
+            {
+                strWhere += " AND A.GDSEQ = '" + lstGDSEQ.Text + "'";
+            }
+
+            if (strWhere != " ") strSql2 = strSql2 + strWhere;
+            strSql2 += string.Format(" ORDER BY {0} {1}", GridStop.SortField, GridStop.SortDirection);
+            return strSql2;
+        }
+
+        private void DataSearch2()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridStop.PageIndex, GridStop.PageSize, GetSearchSql2(), ref total);
+            //OutputSummaryData(dtData);
+            GridStop.RecordCount = total;
+            GridStop.DataSource = PubFunc.DbGetPage(GridStop.PageIndex, GridStop.PageSize, GetSearchSql2(), ref total);
+
+            GridStop.DataBind();
+        }
+
+        protected void btnAdd_Click(object sender, EventArgs e)
+        {
+            WindowAddGoods.Hidden = false;
+            PubFunc.FormDataClear(Form3);
+        }
+
+        protected void GridStop_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridStop.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void GridStop_Sort(object sender, GridSortEventArgs e)
+        {
+            GridStop.SortDirection = e.SortDirection;
+            GridStop.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+        protected void btnSearch2_Click(object sender, EventArgs e)
+        {
+            DataSearch2();
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(Form2);
+        }
+
+        protected void btnDelRow_Click(object sender, EventArgs e)
+        {
+            if (GridStop.SelectedRowID == null)
+            {
+                Alert.Show("当前未选中单元行，无法进行操作!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            int rowIndex = GridStop.SelectedRowIndex;
+            string strDeptId = GridStop.Rows[rowIndex].Values[1].ToString();
+            string strGdseq = GridStop.Rows[rowIndex].Values[3].ToString();
+
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            cmdList.Add(new CommandInfo(string.Format(@"DELETE FROM INF_GOODS_NODO WHERE DEPTID = '{0}' AND GDSEQ = '{1}'", strDeptId, strGdseq), null));//
+            cmdList.Add(new CommandInfo(string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'N',CZTIME = sysdate WHERE STR5 = '{0}' AND ISSEND = 'E'", strGdseq), null));// 将状态为 E 的商品，重新变更为 N
+
+            if (DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("商品【" + strGdseq + "】已从科室【" + strDeptId + "】删除。", "消息提示", MessageBoxIcon.Warning);
+                DataSearch2();
+            }
+            else
+            {
+                Alert.Show("当前未选中单元行，无法进行操作!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
+        protected void GridGoods_RowCommand(object sender, GridCommandEventArgs e)
+        {
+            object[] keys = GridGoods.DataKeys[e.RowIndex];
+            string strGDSEQ = keys[0].ToString();
+            string strSEQNO = keys[1].ToString();
+            string strROWNO = keys[2].ToString();
+            string strISSEND = keys[3].ToString();
+
+            if (e.CommandName == "Action1")
+            {
+                if (!string.IsNullOrWhiteSpace(strISSEND) && strISSEND == "N")
+                {
+                    string strSql = string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'S', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'N' AND STR5 = '{2}'", strSEQNO, strROWNO, strGDSEQ); //状态 S 为单条信息忽略
+                    if (DbHelperOra.ExecuteSql(strSql) > 0)
+                    {
+                        Alert.Show("忽略成功！", "消息提示", MessageBoxIcon.Warning);
+                        DataSearch();
+                    }
+                    else
+                    {
+                        Alert.Show("忽略失败！", "消息提示", MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    Alert.Show("只能忽略【执行情况】为【失败】的商品", "消息提示", MessageBoxIcon.Warning);
+                }
+            }
+            else if (e.CommandName == "Action2")
+            {
+                if (!string.IsNullOrWhiteSpace(strISSEND) && strISSEND == "S")
+                {
+                    string strSql = string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'S', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'S' AND STR5 = '{2}'", strSEQNO, strROWNO, strGDSEQ); //状态 S 为单条信息忽略
+                    if (DbHelperOra.ExecuteSql(strSql) > 0)
+                    {
+                        Alert.Show("恢复成功！", "消息提示", MessageBoxIcon.Warning);
+                        DataSearch();
+                    }
+                    else
+                    {
+                        Alert.Show("恢复失败！", "消息提示", MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    Alert.Show("只能恢复【执行情况】为【忽略】的商品", "消息提示", MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        protected void chkISEXCLUED_CheckedChanged(object sender, CheckedEventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void btnAddGoods_Click(object sender, EventArgs e)
+        {
+            string strMEMO = "";
+            if (!string.IsNullOrWhiteSpace(winMEMO.Text))
+            {
+                strMEMO = winMEMO.Text;
+            }
+
+            if (PubFunc.FormDataCheck(Form3).Length > 1) return;
+            //校验当前科室，是否已经添加了该商品的过滤
+            string strGDDEPT = "SELECT 1 FROM INF_GOODS_NODO WHERE GDSEQ = '" + winGDSEQ.Text + "' AND DEPTID = '" + winDEPTID.SelectedValue + "'";
+            if (DbHelperOra.Exists(strGDDEPT))
+            {
+                Alert.Show("过滤商品【" + winGDSEQ.Text.Trim() + "】已添加，请勿重复添加！", "消息提醒", MessageBoxIcon.Warning);
+                return;
+            }
+
+
+            //
+            string strGD = "SELECT 1 FROM DOC_GOODSCFG WHERE GDSEQ = '" + winGDSEQ.Text + "' AND DEPTID = '" + winDEPTID.SelectedValue + "'";
+            if (!DbHelperOra.Exists(strGD))
+            {
+                //Alert.Show("过滤商品【" + winGDSEQ.Text.Trim() + "】为HIS商品，SPD不存在", "消息提醒", MessageBoxIcon.Warning);
+                strMEMO = "该商品SPD不存在;" + winMEMO.ToString();
+            }
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            cmdList.Add(new CommandInfo(string.Format(@"INSERT INTO INF_GOODS_NODO (DEPTID,GDSEQ,MEMO,LRY) VALUES ('{0}','{1}','{2}','{3}')", winDEPTID.SelectedValue, winGDSEQ.Text.Trim(), strMEMO, UserAction.UserID), null));//
+            cmdList.Add(new CommandInfo(string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'E',CZTIME = sysdate WHERE STR5 = '{0}' AND ISSEND = 'N'", winGDSEQ.Text.Trim()), null));//状态 E 为 该商品直接过滤
+
+            if (DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                Alert.Show("过滤商品【" + winGDSEQ.Text.Trim() + "】插入成功", "消息提醒", MessageBoxIcon.Warning);
+                DataSearch2();
+            }
+            else
+            {
+                Alert.Show("过滤商品【" + winGDSEQ.Text.Trim() + "】插入失败", "消息提醒", MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
+        protected void btnAction_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                DbHelperOra.RunProcedure("P_Inf_HISConsumption");
+                Alert.Show("接口自动执行成功", "消息提示", MessageBoxIcon.Information);
+                WindowAddGoods.Hidden = true;
+                OperLog("使用信息管理", "P_Inf_HISConsumption接口自动执行成功");
+            }
+            catch (Exception err)
+            {
+                throw err;
+            }
+        }
+
+        protected void DataSearch3()
+        {
+            if (logRQSJ1.SelectedDate == null || logRQSJ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【执行日期】！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            else if (logRQSJ1.SelectedDate > logRQSJ2.SelectedDate)
+            {
+                Alert.Show("【开始日期】大于【结束日期】，请重新输入！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+            //string strSql = @" SELECT SEQNO,RQSJ,f_getusername(USERID),STATION,FUNCID,MEMO,DECODE(TYPE,'LOG','日志','错误') TYPE_CN
+            //               FROM SYS_OPERLOG
+            //               WHERE FUNCID = '使用信息管理' ";
+            string strSql = @" SELECT SEQNO,EXECRQ,F_GETUSERNAME(STR1),MEMO,DECODE(ERRORTYPE,'LOG','日志','错误') TYPE_CN
+                           FROM DAT_INFDATA_LOG
+                           WHERE MEMO LIKE '【6201-使用信息管理】%' ";
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(logGDSEQ.Text)) strWhere += " and MEMO like '%" + logGDSEQ.Text + "%'";
+            if (!PubFunc.StrIsEmpty(logDEPTID.SelectedValue)) strWhere += " and MEMO like '%" + logDEPTID.SelectedValue + "%'";
+            if (!PubFunc.StrIsEmpty(ddlISLOG.SelectedValue)) strWhere += " and TYPE = '" + ddlISLOG.SelectedValue + "'";
+
+            strWhere += string.Format(" AND EXECRQ>=TO_DATE('{0}','YYYY-MM-DD HH:mi:ss')", logRQSJ1.Text);
+            strWhere += string.Format(" AND EXECRQ <TO_DATE('{0}','YYYY-MM-DD HH:mi:ss') + 1", logRQSJ2.Text);
+
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY {0} {1}", GridLog.SortField, GridLog.SortDirection);
+
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridLog.PageIndex, GridLog.PageSize, strSql, ref total);
+            //OutputSummaryData(dtData);
+            GridLog.RecordCount = total;
+            GridLog.DataSource = dtData;
+            GridLog.DataBind();
+        }
+        protected void GridLog_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridLog.PageIndex = e.NewPageIndex;
+            DataSearch3();
+        }
+
+        protected void GridLog_Sort(object sender, GridSortEventArgs e)
+        {
+            GridLog.SortDirection = e.SortDirection;
+            GridLog.SortField = e.SortField;
+
+            DataSearch3();
+        }
+
+        protected void btnSearLog_Click(object sender, EventArgs e)
+        {
+            DataSearch3();
+        }
+
+        protected void winGDSEQ_TriggerClick(object sender, EventArgs e)
+        {
+
+            string strGDSEQ = winGDSEQ.Text;
+
+            string strHIS = string.Format(@"SELECT 1 FROM INF_DAT_HIS WHERE STR5 = '{0}'", strGDSEQ);
+
+            if (string.IsNullOrWhiteSpace(winDEPTID.SelectedValue))
+            {
+                Alert.Show("请先选择科室，在添加商品", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+
+
+            //先校验在HIS里存不存在
+            if (DbHelperOra.Exists(strHIS))
+            {
+                string strGD = string.Format(@"SELECT 
+                                            '['||A.GDSEQ||']'||A.GDNAME||' - '||A.GDSPEC||' - '||f_getunitname(A.UNIT)||' - '||f_getproducername(A.PRODUCER) HIS_SPD
+                                            FROM DOC_GOODS A, DOC_GOODSCFG B
+                                            WHERE A.GDSEQ = B.GDSEQ AND B.GDSEQ = '{0}' AND B.DEPTID = '{1}'", strGDSEQ, winDEPTID.SelectedValue);
+                object objHIS_SPD = DbHelperOra.GetSingle(strGD);
+                if (!string.IsNullOrWhiteSpace((objHIS_SPD ?? "").ToString()))
+                {
+                    winHISSPD.Text = objHIS_SPD.ToString();
+                }
+                else
+                {
+                    winHISSPD.Text = "当前商品不存在或未配置到该科室";
+                }
+
+            }
+            else
+            {
+                winHISSPD.Text = "当前商品在HIS中不存在";
+            }
+
+
+        }
+
+        protected void btnNeglect_Click(object sender, EventArgs e)
+        {
+            int[] selectsAll = GridGoods.SelectedRowIndexArray;
+            if (selectsAll.Count() < 1)
+            {
+                Alert.Show("请选择需要忽略的商品信息！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            String strSEQNO = "", strISSEND = "", strROWNO = "", strGDSEQ = "", msg = "", erromsg = "";
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            foreach (int selects in selectsAll)
+            {
+                strSEQNO = GridGoods.DataKeys[selects][1].ToString();
+                strISSEND = GridGoods.DataKeys[selects][3].ToString();
+                strROWNO = GridGoods.DataKeys[selects][2].ToString();
+                strGDSEQ = GridGoods.DataKeys[selects][0].ToString();
+
+                if (!string.IsNullOrWhiteSpace(strISSEND) && strISSEND == "N")
+                {
+                    //string strSql = string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'S', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'N' AND GDSEQ = '{2}'", strSEQNO, strROWNO, strGDSEQ); //状态 S 为单条信息忽略
+                    cmdList.Add(new CommandInfo(String.Format(string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'S', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'N' AND STR5 = '{2}'", strSEQNO, strROWNO, strGDSEQ)), null));
+                    msg += "单号【" + strSEQNO + "】行号【" + strROWNO + "】商品【" + strGDSEQ + "】,";
+                }
+                else
+                {
+                    erromsg += "单号【" + strSEQNO + "】行号【" + strROWNO + "】商品【" + strGDSEQ + "】,";
+                    //Alert.Show("只能忽略【执行情况】为【失败】的商品", "消息提示", MessageBoxIcon.Warning);
+                }
+            }
+            if (cmdList.Count > 0)
+            {
+                if (DbHelperOra.ExecuteSqlTran(cmdList))
+                {
+                    Alert.Show(msg + "忽略成功！", "消息提示", MessageBoxIcon.Warning);
+                    DataSearch();
+                }
+            }
+            if (erromsg.Length > 0)
+            {
+                Alert.Show(erromsg + "忽略失败，只能忽略【执行情况】为【失败】的商品！", "提示信息", MessageBoxIcon.Warning);
+            }
+
+        }
+
+        protected void btnRecovery_Click(object sender, EventArgs e)
+        {
+            int[] selectsAll = GridGoods.SelectedRowIndexArray;
+            if (selectsAll.Count() < 1)
+            {
+                Alert.Show("请选择需要恢复的商品信息！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            String strSEQNO = "", strISSEND = "", strROWNO = "", strGDSEQ = "", msg = "", erromsg = "";
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            foreach (int selects in selectsAll)
+            {
+                strSEQNO = GridGoods.DataKeys[selects][1].ToString();
+                strISSEND = GridGoods.DataKeys[selects][3].ToString();
+                strROWNO = GridGoods.DataKeys[selects][2].ToString();
+                strGDSEQ = GridGoods.DataKeys[selects][0].ToString();
+
+                if (!string.IsNullOrWhiteSpace(strISSEND) && strISSEND == "S")
+                {
+                    //string strSql = string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'S', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'N' AND GDSEQ = '{2}'", strSEQNO, strROWNO, strGDSEQ); //状态 S 为单条信息忽略
+                    cmdList.Add(new CommandInfo(String.Format(string.Format(@"UPDATE INF_DAT_HIS SET ISSEND = 'N', CZTIME = SYSDATE WHERE SEQNO = '{0}' AND ROWNO = '{1}' AND ISSEND = 'S' AND STR5 = '{2}'", strSEQNO, strROWNO, strGDSEQ)), null));
+                    msg += "单号【" + strSEQNO + "】行号【" + strROWNO + "】商品【" + strGDSEQ + "】,";
+                }
+                else
+                {
+                    erromsg += "单号【" + strSEQNO + "】行号【" + strROWNO + "】商品【" + strGDSEQ + "】,";
+                    //Alert.Show("只能忽略【执行情况】为【失败】的商品", "消息提示", MessageBoxIcon.Warning);
+                }
+            }
+            if (cmdList.Count > 0)
+            {
+                if (DbHelperOra.ExecuteSqlTran(cmdList))
+                {
+                    Alert.Show(msg + "恢复成功！", "消息提示", MessageBoxIcon.Warning);
+                    DataSearch();
+                }
+            }
+            if (erromsg.Length > 0)
+            {
+                Alert.Show(erromsg + "恢复失败，只能忽略【执行情况】为【忽略】的商品！", "提示信息", MessageBoxIcon.Warning);
+            }
+        }
+    }
+}

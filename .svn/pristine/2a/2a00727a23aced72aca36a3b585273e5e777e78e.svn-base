@@ -1,0 +1,153 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.WH_SLYY
+{
+    public partial class DeptCostBA : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+
+        private void BindDDL()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, ddlDEPTID);
+            //   DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTOUT);
+            PubFunc.DdlDataSql(ddlDEPTOUT, "SELECT '90003'CODE ,'器械材料库'NAME FROM DUAL");
+            dpkRQ1.SelectedDate = DateTime.Now.AddDays(-30);
+            dpkRQ2.SelectedDate = DateTime.Now;
+        }
+
+        private string GetQuerySql()
+        {
+                  StringBuilder sbSql = new StringBuilder();
+                  sbSql.AppendFormat(@"SELECT DEPTID,DEPTNAME, NVL(SUM(DZYHJE), 0) DZYHJE,
+                                               NVL(SUM(GZHCJE), 0) GZHCJE,
+                                               (NVL(SUM(TOTALJE), 0) - NVL(SUM(DZYHJE), 0) - NVL(SUM(GZHCJE), 0)) WSCLJE,
+                                               NVL(SUM(TOTALJE), 0) TOTALJE
+                                          FROM (SELECT DEPTID,DEPTNAME, CASE
+                                                         WHEN CATID LIKE ('212302%') THEN
+                                                          HSJE
+                                                       END DZYHJE,                                                     
+                                                       CASE
+                                                         WHEN CATID LIKE('212303%') THEN
+                                                          HSJE
+                                                       END GZHCJE,
+                                                       CASE
+                                                         WHEN CATID LIKE ('%') THEN
+                                                          HSJE
+                                                       END TOTALJE
+                                                  FROM (SELECT DGJ.HSJE, DGJ.SUPID,SD.CODE DEPTID,SD.NAME DEPTNAME, DGJ.CATID
+                                                          FROM DAT_GOODSJXC DGJ, DOC_GOODS DG,SYS_DEPT SD
+                                                         WHERE DGJ.GDSEQ = DG.GDSEQ(+)
+                                                           AND DGJ.DEPTID=SD.CODE(+)
+                                                           AND SD.FLAG= 'Y'
+                                                           AND SD.TYPE='3'
+                                                           AND DGJ.BILLTYPE IN('CKD','DSH','XST')
+                                                           AND TRUNC(DGJ.RQSJ,'dd') BETWEEN TRUNC(TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS'),'dd') AND TRUNC(TO_DATE('{1}','YYYY-MM-DD HH24:MI:SS'),'dd')
+                                                           AND DGJ.DEPTID LIKE NVL('{2}','%') ))
+                                         ", dpkRQ1.Text, dpkRQ2.Text, ddlDEPTID.SelectedValue);
+
+          
+            sbSql.Append(@"GROUP BY DEPTID,DEPTNAME ORDER BY DEPTNAME");
+
+            return sbSql.ToString();
+        }
+
+        private void OutputSummaryData(DataTable source)
+        {
+            decimal sum_dzyhje = 0,  sum_hyclje = 0, sum_kqclje = 0,  sum_totalje = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                sum_dzyhje += Convert.ToDecimal(row["DZYHJE"]);
+                sum_hyclje += Convert.ToDecimal(row["GZHCJE"]);
+                sum_kqclje += Convert.ToDecimal(row["WSCLJE"]);
+                sum_totalje += Convert.ToDecimal(row["TOTALJE"]);
+               
+            }
+            JObject summary = new JObject();
+            summary.Add("SUPNAME", "汇总合计");
+            summary.Add("DZYHJE", sum_dzyhje.ToString("F2"));
+            summary.Add("GZHCJE", sum_hyclje.ToString("F2"));
+            summary.Add("WSCLJE", sum_kqclje.ToString("F2"));
+            summary.Add("TOTALJE", sum_totalje.ToString("F2"));
+            GridSupKC.SummaryData = summary;
+        }
+
+        protected void btnQuery_Click(object sender, EventArgs e)
+        {
+            if (dpkRQ1.SelectedDate == null || dpkRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkRQ1.SelectedDate > dpkRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+           
+            DataTable dtData = DbHelperOra.Query(GetQuerySql()).Tables[0]; 
+           OutputSummaryData(dtData);
+            GridSupKC.DataSource = dtData;
+            GridSupKC.DataBind();
+        }
+
+        protected void GridSupKC_RowDataBound(object sender, FineUIPro.GridRowEventArgs e)
+        {
+
+        }
+
+        protected void GridSupKC_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (dpkRQ1.SelectedDate == null || dpkRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【查询期间】！");
+                return;
+            }
+            else if (dpkRQ1.SelectedDate > dpkRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            DataTable dtData = DbHelperOra.Query(GetQuerySql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridSupKC.Columns.Count - 1];
+            for (int index = 1; index < GridSupKC.Columns.Count; index++)
+            {
+                GridColumn column = GridSupKC.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "科室材料成本核算统计", string.Format("科室材料成本核算统计_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+    }
+}

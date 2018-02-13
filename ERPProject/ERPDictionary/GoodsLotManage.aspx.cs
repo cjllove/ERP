@@ -1,0 +1,156 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPDictionary
+{
+    public partial class GoodsLotManage : BillBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataSearch();
+            }
+        }
+        public void DataSearch()
+        {
+            int total = 0;
+            string sql = "SELECT PH.*,F_GETHISINFO(SP.GDSEQ,'GDNAME') GDNAME FROM DOC_GOODSPH PH,DOC_GOODS SP WHERE PH.GDSEQ=SP.GDSEQ AND (sp.gdname LIKE '%{0}%' OR sp.GDSEQ LIKE '%{0}%' OR PH.PH LIKE '%{0}%') ORDER BY PH.YXQZ";
+            GridLot.DataSource = PubFunc.DbGetPage(GridLot.PageIndex, GridLot.PageSize, string.Format(sql, trbSearch.Text), ref total);
+            GridLot.RecordCount = total;
+            GridLot.DataBind();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void bntClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormLot);
+        }
+
+        protected void btnDel_Click(object sender, EventArgs e)
+        {
+            //int[] selectArray = GridLot.SelectedRowIndexArray;
+            //if (selectArray.Length > 0)
+            //{
+            //    List<CommandInfo> cmdList = new List<CommandInfo>();
+            //    for (int i = 0; i < selectArray.Length; i++)
+            //    {
+            //        cmdList.Add(new CommandInfo("delete DOC_GOODSPH where PHID='" + GridLot.Rows[selectArray[i]].Values[0].ToString() + "' and GDSEQ='" + GridLot.Rows[selectArray[i]].Values[1].ToString() + "'", null));
+            //    }
+            //    DbHelperOra.ExecuteSqlTran(cmdList);
+            //    LoadData();
+            //}
+            if (GridLot.SelectedRowIndexArray.Length < 1)
+            { return; }
+            //if (GridLot.SelectedCell == null) return;
+            //int rowIndex = GridLot.SelectedRowIndex;
+            int rowIndex = GridLot.SelectedRowIndexArray[0];
+            if (DbHelperOra.Exists("select 1 from DAT_GOODSSTOCK where GDSEQ='" + GridLot.DataKeys[rowIndex][1] + "' and KCSL > 0 and PHID = '" + GridLot.DataKeys[rowIndex][0] + "'"))
+            {
+                Alert.Show("商品" + GridLot.DataKeys[rowIndex][1] + "该批次仍有库存,不允许删除!");
+                return;
+            }
+            PageContext.RegisterStartupScript(GridLot.GetDeleteRowReference(rowIndex));
+            DbHelperOra.ExecuteSql("Delete from DOC_GOODSPH t WHERE T.GDSEQ ='" + GridLot.DataKeys[rowIndex][1] + "'  and T.PHID = '" + GridLot.DataKeys[rowIndex][0] + "'");
+        }
+
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.FormDataCheck(FormLot).Length > 1) return;
+            hfdGDSEQ.Text = tbxGDNAME.Text;
+            if (PubFunc.StrIsEmpty(hfdGDSEQ.Text))
+            {
+                Alert.Show(string.Format("您输入的商品【{0}】在商品资料中不存在，请重新输入！", tbxGDNAME.Text), "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (dpkYXQZ.SelectedDate == null || dpkRQ_SC.SelectedDate == null)
+            {
+                Alert.Show("输入的效期或生产日期错误,请检查!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            DateTime time_sc = Convert.ToDateTime(dpkRQ_SC.Text);
+            DateTime time_yx = Convert.ToDateTime(dpkYXQZ.Text);
+            DateTime time_now = new DateTime();
+            time_now = DateTime.Now;
+            if (DateTime.Compare(time_sc, time_now) > 0)
+            {
+                Alert.Show("生产日期不能大于当前日期!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (DateTime.Compare(time_now, time_yx) > 0)
+            {
+                Alert.Show("有效日期不能小于当前日期!", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (!DbHelperOra.Exists(string.Format("select 1 from DOC_GOODS where GDSEQ='{0}' OR GDNAME ='{0}' ", hfdGDSEQ.Text.Trim())))
+            {
+                Alert.Show(string.Format("您输入的商品【{0}】在商品资料中不存在，请重新输入！", "消息提示", tbxGDNAME.Text), MessageBoxIcon.Warning);
+                return;
+            }
+            //验证批号是否已经存在
+            if (DbHelperOra.Exists(string.Format("select 1 from DAT_GOODSSTOCK where GDSEQ=(select gdseq from doc_goods where  GDSEQ='{0}' OR GDNAME ='{0}') and PHID = '{1}'", hfdGDSEQ.Text.Trim(), tbsPH.Text)))
+            {
+                Alert.Show("您输入的商品批号已存在,请检查!");
+                return;
+            }
+            MyTable myLot = new MyTable("DOC_GOODSPH");
+            myLot.ColRow = PubFunc.FormDataHT(FormLot);
+            myLot.ColRow.Add("PHID", tbsPH.Text);
+            myLot.ColRow.Remove("GDNAME");
+            myLot.InsertExec();
+
+            Alert.Show("批号信息保存成功！");
+            DataSearch();
+        }
+
+        protected void GridLot_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridLot.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void btExp_Click(object sender, EventArgs e)
+        {
+            if (GridLot.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string strSearch = "";
+            string strOrder = " ORDER BY PH.YXQZ";
+            string sql = @"SELECT 
+                          PH.GDSEQ 商品编码,
+                          F_GETHISINFO(SP.GDSEQ, 'GDNAME') 商品名称,
+                          PH.PH 批号,
+                          PH.YXQZ 效期,
+                          PH.PZWH 注册证号,
+                          PH.RQ_SC 生产日期,
+                          PH.HWTM 货物条码  
+                          FROM DOC_GOODSPH PH, DOC_GOODS SP
+                         WHERE PH.GDSEQ = SP.GDSEQ";
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                strSearch = string.Format(" AND (sp.gdname LIKE '%{0}%' OR sp.GDSEQ LIKE '%{0}%' OR  PH.PH LIKE '%{0}%')", trbSearch.Text);
+            }
+            sql += strSearch;
+            sql += strOrder;
+
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "商品批号维护导出", "商品批号维护导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+
+        }
+    }
+}

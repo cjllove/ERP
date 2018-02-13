@@ -1,0 +1,97 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="ConstantAgainPrint.aspx.cs" Inherits="ERPProject.ERPApply.ConstantAgainPrint" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>定数重打管理</title>
+    <script src="../res/js/CreateControl.js" type="text/javascript"></script>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1"
+            runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar1" runat="server">
+                    <Items>
+                        <f:ToolbarText ID="ToolbarText" runat="server" Text="操作信息：查询和重打未回收的定数条码！"></f:ToolbarText>
+                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                        <f:Button ID="btnExp" runat="server" Icon="PageExcel" EnableAjax="false" EnableDefaultState="false"
+                            OnClick="btnExp_Click" EnablePostBack="true" Text="导出" ConfirmText="是否确认导出信息?" DisableControlBeforePostBack="false" />
+                        <f:Button ID="btnPrint" Icon="Printer" Text="打 印" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnPrint_Click" />
+                        <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" EnableDefaultState="false" DisableControlBeforePostBack="true" runat="server" ValidateForms="FormUser" OnClick="btSearch_Click" />
+
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px 0px 10px"
+                    ShowHeader="False" LabelWidth="75px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TextBox ID="tbxGDSEQ" runat="server" Label="商品信息" MaxLength="20" EmptyText="请输入商品编码或名称" />
+                                <f:DropDownList ID="ddlDEPTINT" runat="server" Label="使用科室" EnableEdit="true" ForceSelection="true" />
+                                <f:TextBox ID="tbxBILL" runat="server" Label="出库单号" MaxLength="15" />
+                                <f:DatePicker ID="dpkout1" runat="server" Label="出库日期" Required="true"></f:DatePicker>
+                                <f:DatePicker ID="dpkout2" runat="server" Label="至" LabelWidth="22px" Required="true" CompareControl="dpkout1" CompareOperator="GreaterThanEqual" CompareMessage="结束日期应大于开始日期!"></f:DatePicker>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridGoods" AnchorValue="100% -30" ShowBorder="false" ShowHeader="false" EnableCheckBoxSelect="true" EnableMultiSelect="true" EnableRowSelectEvent="true" EnableTextSelection="true"
+                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" KeepCurrentSelection="true" EnableColumnLines="true"
+                    PageSize="50" DataKeyNames="BARCODE" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                        <f:BoundField Width="100px" DataField="DEPTIN" HeaderText="使用科室" />
+                        <f:BoundField Width="120px" DataField="OUTBILLNO" HeaderText="出库单号" TextAlign="Center" />
+                        <f:BoundField Width="110px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                        <f:BoundField Width="170px" DataField="gdname" HeaderText="商品名称" />
+                        <f:BoundField Width="150px" DataField="gdspec" HeaderText="商品规格" />
+                        <f:BoundField Width="60px" DataField="unitname" HeaderText="单位" TextAlign="Center" />
+                        <f:BoundField Width="160px" DataField="producername" HeaderText="生产厂家" />
+                        <f:BoundField Width="180px" DataField="BARCODE" HeaderText="定数条码" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="DEPTOUT" HeaderText="出库库房" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="DSHL" HeaderText="定数含量" TextAlign="Center" />
+                        <f:BoundField Hidden="true" DataField="SL" HeaderText="数量" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="OUTRQ" HeaderText="出库日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="bcdConstant" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxCartNo" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxDept" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxGDNAME" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxGDSPEC" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxQuantity" runat="server"></f:HiddenField>
+        <f:HiddenField ID="mbxProducer" runat="server"></f:HiddenField>
+        <f:HiddenField ID="echo" runat="server"></f:HiddenField>
+    </form>
+    <script type="text/javascript">
+        function btnPrint_onclick() {
+            var No = F('<%= echo.ClientID%>').getValue();
+            if (No == "") {
+                F.alert("请选择需要重新打印的定数条码！");
+                return;
+            }
+            var Report = ReportViewer.Report;
+            ReportViewer.ReportURL = "/grf/lable_echo.grf?2016008051800";
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetDSData_echo&osid=" + No;
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }
+    </script>
+</body>
+</html>

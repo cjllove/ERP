@@ -1,0 +1,81 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="StorageAcnFx.aspx.cs" Inherits="SPDProject.SpdQuery.StorageAcnFx" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>商品调拨查询</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="False" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Items>
+                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px"
+                    Layout="Anchor" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:ToolbarText ID="ToolbarText1" runat="server" Text="备注：商品调拨查询界面！"></f:ToolbarText>
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <f:Button ID="btnAudit" Icon="ArrowRotateClockwise" Text="清空条件" EnableDefaultState="false" OnClick="btClear_Click" EnablePostBack="true" runat="server" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btnExp" runat="server" CssStyle="margin-left: 10px;" Icon="DatabaseGo" EnableAjax="false" DisableControlBeforePostBack="true"
+                                    OnClick="btExport_Click" EnablePostBack="true" Text="导出" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" EnableDefaultState="false" OnClick="btSearch_Click" runat="server" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="10px 0px 10px 10px"
+                            ShowHeader="False" LabelWidth="80px" runat="server">
+                            <Rows>
+                                <f:FormRow ColumnWidths="25% 25% 25% 25%">
+                                    <Items>
+                                        <f:TextBox ID="tbxBILL" runat="server" Label="调拨单号" />
+                                         <f:TextBox ID="txbGDSEQ" runat="server" Label="商品" EmptyText="可输入商品名称、编码及助记码" />
+                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="申请库房"></f:DropDownList>
+                                        <f:DropDownList ID="ddlDEPTOUT" runat="server" Label="出库库房" LabelWidth="80px"></f:DropDownList>
+                                        
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="50% 50%">
+                                    <Items>
+                                        <f:DatePicker ID="dpkDATE1" runat="server" Label="日期" Required="true" ShowRedStar="true"></f:DatePicker>
+                                        <f:DatePicker ID="dpkDATE2" runat="server" Label="　至" LabelSeparator="" Required="true" ShowRedStar="true" LabelWidth="80px"></f:DatePicker>
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+                
+                <f:Grid ID="GridGoods" AnchorValue="100% -120" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;"
+                     AutoScroll="true" runat="server" DataKeyNames="GDSEQ" EnableColumnLines="true" OnRowDataBound="GridList_RowDataBound"
+                    EnableHeaderMenu="true" SortField="SEQNO"  OnSort="GridGoods_Sort" SortDirection="ASC" AllowSorting="true" 
+                    PageSize="100" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridCom_PageIndexChange">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                        <f:BoundField Width="120px" DataField="BILLNO" ColumnID="BILLNO" HeaderText="调拨单号" SortField="BILLNO"></f:BoundField>
+                        <f:BoundField Width="90px" DataField="FLAGNAME" ColumnID="FLAGNAME" HeaderText="商品状态" SortField="FLAGNAME" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" SortField="GDSEQ" />
+                        <f:BoundField Width="180px" DataField="GDNAME" HeaderText="商品名称" TextAlign="Center" SortField="GDNAME" />
+                        <f:BoundField Width="110px" DataField="GDSPEC" HeaderText="规格·容量" TextAlign="Center" SortField="GDSPEC" />
+                        <f:BoundField Width="50px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" SortField="UNITNAME" />
+                        <f:BoundField Width="180px" DataField="PRODUCERNAME" HeaderText="生产厂家" SortField="PRODUCERNAME" />
+                        <f:BoundField Width="110px" DataField="DEPTIDNAME" HeaderText="申请库房" TextAlign="Center" SortField="DEPTIDNAME" />
+                        <f:BoundField Width="110px" DataField="DEPTOUTNAME" HeaderText="出库库房" TextAlign="Center" SortField="DEPTOUTNAME" />
+                        <f:BoundField Width="90px" DataField="DHSL" HeaderText="申请数" TextAlign="Center" SortField="DHSL" />
+                        <f:BoundField Width="90px" DataField="DHS" HeaderText="调拨数" TextAlign="Center" SortField="DHS" />
+                        <f:BoundField Width="80px" DataField="HSJJ" HeaderText="含税进价" TextAlign="Right"  SortField="HSJJ" />
+                        <f:BoundField Width="90px" DataField="HSJE" HeaderText="含税金额" TextAlign="Right"  SortField="HSJE" />
+                        <%--DataFormatString="{0:F2}--%>
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+</body>
+</html>

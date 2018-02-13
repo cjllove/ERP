@@ -1,0 +1,240 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPDictionary
+{
+    public partial class ToDoSetup : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                DataQuery();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet("DDL_SYS_ROLE", lstROLELIST); 
+            PubFunc.DdlDataGet("DDL_FUNCTION", lstFUNCID);
+            lstROLELIST.Items.RemoveAt(0);
+            lstROLELIST.SelectedValue = "01";
+            hfdIsNew.Text = "Y";
+        }
+
+        private void DataQuery()
+        {
+            //string sql = "select * from DAT_DO_TYPE ";
+            String sql = @"select DOTYPE,
+                                       DONAME,
+                                       FLAG,
+                                       DECODE(A.FLAG, 'Y', '已审核', 'N', '审核未通过','未维护') FLAGNAME,
+                                       EXECTYPE,
+                                       DECODE(A.EXECTYPE, '0', '点击即完结', '1', '单据审核','未维护') TODOTYPE,
+                                       ROLELIST,
+                                       f_getroleid(ROLELIST) ROLELISTNAME,
+                                       ISRANGE,
+                                       (case A.ISRANGE
+                                         when 'Y' then
+                                          '是'
+                                         when 'N' then
+                                          '否'
+                                         else
+                                          '维护信息'
+                                       end) ISRANGENAME,
+                                       A.FUNCID,
+                                       C.FUNCNAME,
+                                       PARA,
+                                       MEMO
+                          from DAT_DO_TYPE A,  SYS_FUNCTION C
+                         where  A.FUNCID = C.FUNCID(+)";
+            int total = 0;
+            if (!PubFunc.StrIsEmpty(tgbSearch.Text))
+            {
+                sql += string.Format(" AND (DOTYPE like '%{0}%' or DONAME like '%{0}%')", tgbSearch.Text);
+            }
+            sql += " order by to_number(substr(DOTYPE, 4)) asc";
+            DataTable dt = PubFunc.DbGetPage(GridToDoType.PageIndex, GridToDoType.PageSize, sql, ref total);
+
+            #region 不存在的角色添加删除线
+            foreach (DataRow dr in dt.Rows) {
+                string result = "";
+
+                string roleCol = dr["ROLELISTNAME"].ToString();
+                string[] roleColArray = roleCol.Split(',');
+                foreach (string roleText in roleColArray) {
+                    int temp = 0;
+                    if (int.TryParse(roleText, out temp))
+                    {
+                        result += "<s>" + roleText + "</s>,";
+                    }
+                    else {
+                        result +=  roleText + ",";
+                    }
+                }
+                result = result.TrimEnd(',');
+                if (!result.Equals(roleCol)) {
+                    dr["ROLELISTNAME"] = result;
+                }
+            }
+            #endregion
+
+            GridToDoType.DataSource = dt;
+            GridToDoType.RecordCount = total;
+            GridToDoType.DataBind();
+        }
+
+        protected void GridToDoType_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            hfdIsNew.Text = "N";
+            tbxDOTYPE.Enabled = false;
+            string seq = GridToDoType.Rows[e.RowIndex].Values[0].ToString();
+            DataTable dt = DbHelperOra.Query("select * from DAT_DO_TYPE where dotype='" + seq + "'").Tables[0];
+           PubFunc.FormDataSet(FormDoType, dt.Rows[0]);
+        }
+
+        protected void GridToDoType_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridToDoType.PageIndex = e.NewPageIndex;
+            DataQuery();
+        }
+
+        protected void tgbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataQuery();
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            hfdIsNew.Text = "Y";
+            tbxDOTYPE.Enabled = true;
+            tbxDOTYPE.Text = "";
+            tbxDONAME.Text = "";
+            ddlEXECTYPE.SelectedValue = "0";
+            lstROLELIST.SelectedValue = "01";
+            rblISRANGE.SelectedValue = "N";
+            ddlFLAG.SelectedValue = "N";
+            lstFUNCID.SelectedIndex = 0; 
+            tbxPARA.Text = "";
+            tbxMEMO.Text = "";
+        }
+
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (GridToDoType.SelectedRowIndexArray.Length > 0)
+            {
+                string ID = "";
+                for (int i = 0; i < GridToDoType.SelectedRowIndexArray.Length; i++)
+                {
+                    ID += GridToDoType.Rows[GridToDoType.SelectedRowIndexArray[i]].Values[1].ToString() + ",";
+                }
+                DbHelperOra.ExecuteSql("delete from DAT_DO_TYPE where DOTYPE in ('" + ID.TrimEnd(',').Replace(",", "','") + "')");
+                DataQuery();
+            }
+            else
+            {
+                Alert.Show("请选择要删除的信息！", MessageBoxIcon.Warning);
+            }
+        }
+
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+
+            if (tbxDOTYPE.Text.Trim() == "" || tbxDOTYPE.Text.Trim() == null)
+            {
+                Alert.Show("待办事宜编码不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (tbxDONAME.Text.Trim() == "" || tbxDONAME.Text.Trim() == null)
+            {
+                Alert.Show("待办事宜名称不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (PubFunc.StrIsEmpty(lstFUNCID.SelectedValue))
+            {
+                Alert.Show("调用功能不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string strROLELIST = "";
+            if (lstROLELIST.SelectedValueArray.Length > 0)
+            {
+                string ROLELISTType = "";
+                foreach (string item in lstROLELIST.SelectedValueArray)
+                {
+                    if (!PubFunc.StrIsEmpty(item))
+                        ROLELISTType += item + ",";
+                }
+                if (!PubFunc.StrIsEmpty(ROLELISTType))
+                    strROLELIST += ROLELISTType.Trim(',');
+            }
+            else
+            {
+                Alert.Show("角色列表不能为空！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (hfdIsNew.Text == "Y")
+            {
+                if (DbHelperOra.ExecuteSql("INSERT INTO DAT_DO_TYPE (DOTYPE ,DONAME , FLAG, EXECTYPE ,ROLELIST ,ISRANGE ,FUNCID ,PARA ,MEMO) VALUES ('" + tbxDOTYPE.Text + "','" + tbxDONAME.Text + "','" + ddlFLAG.SelectedValue + "','" + ddlEXECTYPE.SelectedValue + "','" + strROLELIST + "','" + rblISRANGE.SelectedValue + "','" + lstFUNCID.SelectedValue + "','" + tbxPARA.Text + "','" + tbxMEMO.Text + "')") > 0)
+                {
+                    Alert.Show("保存成功", "消息提示", MessageBoxIcon.Warning);
+                }
+
+            }
+            else
+            {
+                string sql = "update  DAT_DO_TYPE  set DONAME='" + tbxDONAME.Text + "' , FLAG='" + ddlFLAG.SelectedValue + "', EXECTYPE='" + ddlEXECTYPE.SelectedValue + "' ,ROLELIST ='" + strROLELIST + "' ,ISRANGE ='" + rblISRANGE.SelectedValue + "',FUNCID='" + lstFUNCID.SelectedValue + "' ,PARA= '" + tbxPARA.Text + "' ,MEMO='" + tbxMEMO.Text + "' where DOTYPE = '" + tbxDOTYPE.Text + "'";
+                if (DbHelperOra.ExecuteSql(sql) > 0)
+                {
+                    Alert.Show("更新成功", "消息提示", MessageBoxIcon.Warning);
+                }
+            }
+            DataQuery();
+            //MyTable mtType = new MyTable("DAT_DO_TYPE");
+            //if (PubFunc.FormDataCheck(FormDoType).Length > 1)
+            //{
+            //    return; //存在为空的非空列则返回！
+            //}
+
+            //mtType.ColRow = PubFunc.FormDataHT(FormDoType);
+            //mtType.ColRow.Remove("ISNEW");
+            //if (lstROLELIST.SelectedItem != null)
+            //{
+            //    List<string> values = new List<string>();
+            //    foreach (FineUIPro.ListItem item in lstROLELIST.SelectedItemArray)
+            //    {
+            //        if (!string.IsNullOrWhiteSpace(item.Value))
+            //            values.Add(item.Value);
+            //    }
+            //    mtType.ColRow["ROLELIST"] = String.Join("，", values.ToArray());
+            //}
+            //else
+            //{
+            //    Alert.Show("请选择角色信息", "消息提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+
+            ////mtType.ColRow.Add("SUPCAT", "03");
+
+            //if (hfdIsNew.Text == "Y")
+            //{
+            //    mtType.InsertExec();
+            //    Alert.Show("数据保存成功！");
+            //}
+            //else
+            //{
+            //    mtType.UpdateExec("");
+            //    Alert.Show("数据更新成功！");
+            //}
+        }
+    }
+}

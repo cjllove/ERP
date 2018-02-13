@@ -1,0 +1,160 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="StorageSummary.aspx.cs" Inherits="SPDProject.SpdXM.SD_HZZYY.StorageSummary" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="../../res/js/jquery.ymh.js" type="text/javascript"></script>
+    <script src="../../res/js/CreateControl.js" type="text/javascript"></script>
+    <script src="../../res/js/GRInstall.js" type="text/javascript"></script>
+    <title>入库单汇总查询 - 菏泽</title>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1"
+            runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar1" runat="server">
+                    <Items>
+                        <f:ToolbarText ID="ToolbarText" runat="server" Text="操作信息：按商品 <b>入库</b> 情况汇总！"></f:ToolbarText>
+                        <f:RadioButton runat="server" ID="rbtnRKD" Text="入库单" GroupName="MyRadioGroup" Checked="true" OnCheckedChanged="rbtnRKD_CheckedChanged" AutoPostBack="true"></f:RadioButton>
+                        <f:RadioButton runat="server" ID="rbtnCKD" Text="出库单" GroupName="MyRadioGroup" OnCheckedChanged="rbtnCKD_CheckedChanged" AutoPostBack="true"></f:RadioButton>
+                        <f:ToolbarSeparator runat="server" />
+                        <f:DropDownList ID="docSUPID" runat="server" Label="库存类别" EnableEdit="true" ForceSelection="true" LabelWidth="75px" Width="180px" >
+                            <f:ListItem Text="--请选择--" Value="" />
+                            <f:ListItem Text="SPD库存" Value="N" />
+                            <f:ListItem Text="初始库存" Value="Y" />
+                        </f:DropDownList>
+                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                        <f:Button ID="btnClear" Icon="Erase" Text="清 空" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnClear_Click" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnPrint" Icon="Printer" Text="打 印" EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="btnPrint_Click" /><%--OnClientClick="btnPrint_onclick()"--%>
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnExp" Icon="DatabaseGo" Text="导 出" runat="server" EnableAjax="false" ValidateForms="FormUser" OnClick="btnExp_Click" EnablePostBack="true" DisableControlBeforePostBack="false" EnableDefaultState="false"></f:Button>
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" runat="server" ValidateForms="FormUser" OnClick="btSearch_Click" DisableControlBeforePostBack="true" EnableDefaultState="false" />
+                        <f:ToolbarSeparator runat="server" />
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormUser" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px 0px 10px"
+                    ShowHeader="False" LabelWidth="80px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TriggerBox ID="tgbGDSEQ" runat="server" ShowTrigger="true" Label="商品编码" MaxLength="20" EmptyText="可输入商品编码、名称或助记码" OnTriggerClick="tgbGDSEQ_TriggerClick"></f:TriggerBox>
+                                <%--<f:DatePicker ID="dpkout1" runat="server" Label="单据日期" ShowRedStar="true" Required="true"></f:DatePicker>
+                                <f:DatePicker ID="dpkout2" runat="server" Label="　　至" ShowRedStar="true" Required="true"></f:DatePicker>--%>
+                                <f:DropDownList ID="docDEPTID" runat="server" Label="入库库房" EnableEdit="true" ForceSelection="true"></f:DropDownList>
+                                <f:TriggerBox ID="tgbDate1" Required="true" ShowRedStar="True" Label="单据日期" TriggerIcon="Date" runat="server"></f:TriggerBox>
+                                <f:TriggerBox ID="tgbDate2" Required="true" ShowRedStar="True" Label="至" TriggerIcon="Date" runat="server"></f:TriggerBox>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+
+                <f:Grid ID="GridGoods" AnchorValue="100% -30" ShowBorder="false" ShowHeader="false" EnableRowDoubleClickEvent="false"
+                    AllowSorting="true" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableColumnLines="true" EnableTextSelection="true"
+                    PageSize="100" DataKeyNames="GDSEQ" IsDatabasePaging="true" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange"
+                    SortField="GDSEQ" SortDirection="ASC" OnSort="GridGoods_Sort" EnableSummary="true" SummaryPosition="Bottom">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                        <f:BoundField Width="100px" DataField="GDSEQ" SortField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                        <f:BoundField Width="180px" DataField="GDNAME" SortField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="GDSPEC" SortField="GDSPEC" HeaderText="商品规格" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="UNITNAME" SortField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="DEPTID" SortField="DEPTID" HeaderText="科室" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="HSJJ" SortField="HSJJ" HeaderText="含税进价" TextAlign="Right" />
+                        <f:BoundField Width="70px" DataField="SL" SortField="SL" ColumnID="SL" HeaderText="数量" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="JE" SortField="JE" ColumnID="JE" HeaderText="金额" TextAlign="Right" />
+                        <f:BoundField Width="90px" DataField="PH" SortField="PH" HeaderText="批号" TextAlign="Center" />
+                        <f:BoundField Width="90px" DataField="RQ_SC" SortField="RQ_SC" HeaderText="生产日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                        <f:BoundField Width="90px" DataField="YXQZ" SortField="YXQZ" HeaderText="有效期至" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                        <f:BoundField Width="120px" DataField="SUPID" SortField="SUPID" HeaderText="库存类别" TextAlign="Center" Hidden="true"/>
+                        <f:BoundField Width="120px" DataField="SUPNAME" SortField="SUPNAME" HeaderText="库存类别" TextAlign="Center"  />
+                        <f:BoundField Width="150px" DataField="PRODUCERNAME" SortField="PRODUCERNAME" HeaderText="生产厂家" TextAlign="Center" />
+                        <f:BoundField Width="150px" DataField="HISCODE" SortField="HISCODE" HeaderText="HIS编码" TextAlign="Center" />
+                        <f:BoundField Width="60px" DataField="HWID" SortField="HWID" HeaderText="货位ID" TextAlign="Center" />
+                         <f:BoundField Width="90px" DataField="RQSJ" SortField="RQSJ" HeaderText="操作日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+    <f:HiddenField ID="hfdValue" runat="server" />
+    <f:HiddenField ID="hfdISRK" runat="server"></f:HiddenField>
+    <f:Window ID="Window1" Title="单据信息" Hidden="true" EnableIFrame="true" runat="server"
+        EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Width="820px" Height="480px">
+    </f:Window>
+</body>
+<script src="../../res/my97/WdatePicker.js" type="text/javascript"></script>
+<script type="text/javascript">
+    <%--function btnPrint_onclick() {
+        var GDSEQ = F('<%= tgbGDSEQ.ClientID%>').getValue();
+        var DEPTID = F('<%= docDEPTID.ClientID%>').getValue();
+        var SHRQ1 = F('<%= tgbDate1.ClientID%>').getValue();
+        var SHRQ2 = F('<%= tgbDate2.ClientID%>').getValue();
+        var GOODSNO = F('<%= GridGoods.Rows.Count%>');
+        var Report = ReportViewer.Report;
+        ReportViewer.ReportURL = "grf/StorageSummaryPrint.grf?timestamp=" + new Date().getTime();
+        var dataurl = "/captcha/PrintReport.aspx?Method=StorageSummaryPrint&id=" + GDSEQ + "&ks=" + DEPTID + "&rq1='" + encodeURI(SHRQ1) + "'&rq2='" + encodeURI(SHRQ2) + "'";
+        ReportViewer.Report.LoadDataFromURL(dataurl);
+        ReportViewer.Start();
+        ReportViewer.Report.PrintPreview(true);
+        ReportViewer.Stop();
+    }--%>
+    function PrintLable() {
+        var GDSEQ = F('<%= tgbGDSEQ.ClientID%>').getValue();
+        var DEPTID = F('<%= docDEPTID.ClientID%>').getValue();
+        var SUPID = F('<%= docSUPID.ClientID%>').getValue();
+        var SHRQ1 = F('<%= tgbDate1.ClientID%>').getValue();
+        var SHRQ2 = F('<%= tgbDate2.ClientID%>').getValue();
+        var GOODSNO = F('<%= GridGoods.Rows.Count%>');
+        var ISRK = F('<%= hfdISRK.ClientID%>').getValue();
+        var Report = ReportViewer.Report;
+        ReportViewer.ReportURL = "grf/StorageSummaryPrint.grf?timestamp=" + new Date().getTime();
+        var dataurl = "/captcha/PrintReport.aspx?Method=StorageSummaryPrint&id=" + GDSEQ + "&ks=" + DEPTID + "&cklb=" + SUPID + "&rq1='" + encodeURI(SHRQ1) + "'&rq2='" + encodeURI(SHRQ2) + "'&isrk="+ISRK;
+        ReportViewer.Report.LoadDataFromURL(dataurl);
+        ReportViewer.Start();
+        ReportViewer.Report.PrintPreview(true);
+        ReportViewer.Stop();
+    }
+    var tgbDate1ClientID = '<%= tgbDate1.ClientID %>';
+    var tgbDate2ClientID = '<%= tgbDate2.ClientID %>';
+    F.ready(function () {
+        var tgbDate1 = F(tgbDate1ClientID);
+        var tgbDate2 = F(tgbDate2ClientID);
+
+        tgbDate1.onTriggerClick = function () {
+            WdatePicker({
+                el: tgbDate1ClientID + '-inputEl',
+                dateFmt: 'yyyy-MM-dd HH:mm:ss',
+                onpicked: function () {
+                    // 确认选择后，执行触发器输入框的客户端验证
+                    tgbDate1.validate();
+                }
+            });
+        };
+
+        tgbDate2.onTriggerClick = function () {
+            WdatePicker({
+                el: tgbDate2ClientID + '-inputEl',
+                dateFmt: 'yyyy-MM-dd HH:mm:ss',
+                onpicked: function () {
+                    // 确认选择后，执行触发器输入框的客户端验证
+                    tgbDate2.validate();
+                }
+            });
+        };
+    });
+</script>
+</html>

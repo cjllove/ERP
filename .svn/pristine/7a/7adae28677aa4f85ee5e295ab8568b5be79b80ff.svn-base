@@ -1,0 +1,440 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.WH_SLYY
+{
+    public partial class StorageInvoicing : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkBEGRQ.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkENDRQ.SelectedDate = DateTime.Now;
+            dpkRQ1.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkRQ2.SelectedDate = DateTime.Now;
+            //RQXZ.Text = DateTime.Today.ToString("yyyy-MM");
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTID, ddlDEPTIDGD);
+            //CleanItemForDDL("--请选择--", ddlDEPTID);
+            //ddlDEPTID.SelectedIndex = 0;
+            string strSql = @"select * from 
+                                    (SELECT '' CODE,'--请选择--' NAME,0 TreeLevel,0 islast FROM dual
+                                    union all
+                                    select code,
+                                           '【' || code || '】' || name name,
+                                           class TreeLevel,
+                                           decode(islast, 'Y', 1, 0) islast
+                                      from sys_category
+                                     ORDER BY code)
+                                     ORDER BY DECODE(CODE,'',99,0) DESC ,CODE ASC ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;
+            ddlCATID.DataBind();
+            USERID.Text = UserAction.UserID;
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            //ddlDEPTID.SelectedIndex = 0;
+            tbxGOODS.Text = "";
+            ddlCATID.SelectedIndex = 0;
+        }
+        private string GetSearchSql()
+        {
+            string qcSql = "", qmSql = "", dept = "";
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                dept = " AND DEPTID='" + ddlDEPTID.SelectedValue + "'";
+            }
+            if (dpkBEGRQ.Text == DateTime.Now.ToString("yyyy-MM-dd"))
+            {
+                qcSql = string.Format(@"SELECT GDSEQ, DEPTID, SUM(KCSL) QCKCSL, SUM(KCHSJJ * KCSL) QCKCJE
+                                  FROM DAT_GOODSSTOCK
+                                 WHERE DEPTID IN(SELECT CODE FROM SYS_DEPT WHERE TYPE IN('1', '2')) {0}
+                                 GROUP BY GDSEQ, DEPTID", dept);
+            }
+            else
+            {
+                qcSql = string.Format(@"SELECT GDSEQ, DEPTID, SUM(KCSL) QCKCSL, SUM(KCHSJJ * KCSL) QCKCJE
+                                  FROM DAT_STOCKDAY
+                                 WHERE DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1', '2'))
+                                 AND RQ = {0} {1}
+                                 GROUP BY GDSEQ, DEPTID", "to_date('"+ dpkBEGRQ.Text + "','yyyy-MM-dd') - 1", dept);
+            }
+            if (dpkENDRQ.SelectedDate >= DateTime.Parse(DateTime.Now.ToString("yyyy-MM-dd")))
+            {
+                qmSql = string.Format(@"SELECT GDSEQ, DEPTID, SUM(KCSL) QMKCSL, SUM(KCHSJJ * KCSL) QMKCJE
+                                  FROM DAT_GOODSSTOCK
+                                 WHERE DEPTID IN(SELECT CODE FROM SYS_DEPT WHERE TYPE IN('1', '2')) {0}
+                                 GROUP BY GDSEQ, DEPTID", dept);
+            }
+            else
+            {
+                qmSql = string.Format(@"SELECT GDSEQ, DEPTID, SUM(KCSL) QMKCSL, SUM(KCHSJJ * KCSL) QMKCJE
+                                  FROM DAT_STOCKDAY
+                                 WHERE DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1', '2'))
+                                 AND TO_CHAR(RQ,'YYYY-MM-DD')='{0}'  {1}
+                                 GROUP BY GDSEQ, DEPTID", dpkENDRQ.Text, dept);
+            }
+            System.Text.StringBuilder sbSql = new System.Text.StringBuilder();
+            sbSql.AppendFormat(@"SELECT JXC.DEPTID,f_getdeptname(JXC.DEPTID) DEPTNAME,G.GDSEQ, G.GDNAME, G.GDSPEC, F_GETUNITNAME(G.UNIT) UNIT,G.HSJJ,
+                                                           NVL(QC.QCKCSL, 0) QCKCSL,
+                                                           NVL(QC.QCKCJE, 0) QCKCHSJE,
+                                                           NVL(JXC.CGRK, 0) CGRK,
+                                                           NVL(JXC.KSTH, 0) KSTH,
+                                                           NVL(JXC.PYRK, 0) PYRK,
+                                                           (NVL(JXC.CGRK, 0) + NVL(JXC.PYRK, 0)) * G.HSJJ RKHSJE,
+                                                           NVL(JXC.KFCK, 0) KFCK,
+                                                           NVL(JXC.THCK, 0) THCK,
+                                                           NVL(JXC.PKCK, 0) PKCK,
+                                                           (NVL(JXC.KFCK, 0) + NVL(JXC.PKCK, 0)) * G.HSJJ CKHSJE,
+                                                           NVL(QM.QMKCSL, 0) QMKCSL,
+                                                           NVL(QM.QMKCJE, 0) QMKCHSJE
+                                          FROM ({0}) QC,
+                                               (SELECT GDSEQ, DEPTID,
+                                                       SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'RKD', SL, 0), 0)) CGRK,
+                                                       SUM(DECODE(A.KCADD,
+                                                                  '1',
+                                                                  DECODE(A.BILLTYPE,
+                                                                         'LTD',
+                                                                         SL,
+                                                                         'XST',
+                                                                         SL,
+                                                                         'DST',
+                                                                         SL,
+                                                                         'DBD',
+                                                                         SL,
+                                                                         0),
+                                                                  0)) KSTH,
+                                                       SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'SYD', SL, 0), 0)) PYRK,
+                                                       - (SUM(DECODE(A.KCADD,
+                                                                    '-1',
+                                                                    DECODE(A.BILLTYPE,
+                                                                           'LCD',
+                                                                           SL,
+                                                                           'CKD',
+                                                                           SL,
+                                                                           'DSC',
+                                                                           SL,
+                                                                           'DBD',
+                                                                           SL,
+                                                                           0),
+                                                                    0))) KFCK,
+                                                       - (SUM(DECODE(A.KCADD,
+                                                                    '-1',
+                                                                    DECODE(A.BILLTYPE, 'THD', SL, 0),
+                                                                    0))) THCK,
+                                                       - (SUM(DECODE(A.KCADD,
+                                                                    '-1',
+                                                                    DECODE(A.BILLTYPE, 'SYD', SL, 0),
+                                                                    0))) PKCK
+                                                  FROM DAT_GOODSJXC A
+                                                 WHERE A.RQSJ > (TO_DATE('{3}', 'YYYY-MM-DD'))
+                                                   AND A.RQSJ <= (TO_DATE('{4}', 'YYYY-MM-DD')) + 1
+                                                   AND A.DEPTID IN
+                                                       (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1', '2')) {2}
+                                                 GROUP BY GDSEQ, DEPTID) JXC,
+                                               ({1}) QM,
+                                               DOC_GOODS G
+                                         WHERE G.GDSEQ = QC.GDSEQ(+)
+                                           AND G.GDSEQ = JXC.GDSEQ(+)
+                                           AND G.GDSEQ = QM.GDSEQ ", qcSql, qmSql, dept, dpkBEGRQ.Text, dpkENDRQ.Text);
+
+            if (!PubFunc.StrIsEmpty(ddlCATID.SelectedValue))
+            {
+                sbSql.Append(" AND G.CATID = '" + ddlCATID.SelectedValue + "'");
+            }
+
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                sbSql.Append(" AND JXC.DEPTID = '" + ddlDEPTID.SelectedValue + "'");
+            }
+
+            if (!PubFunc.StrIsEmpty(tbxGOODS.Text))
+            {
+                sbSql.AppendFormat(" AND (G.GDSEQ LIKE '%{0}%' OR UPPER(G.ZJM) LIKE UPPER('%{0}%') OR G.GDNAME LIKE '%{0}%')", tbxGOODS.Text);
+            }
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.ISGZ = '{0}'", ddlISGZ.SelectedValue);
+            }
+
+            sbSql.AppendFormat(" AND JXC.DEPTID IN( SELECT CODE FROM SYS_DEPT WHERE F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            sbSql.Append(" ORDER BY G.GDSEQ");
+            if (!string.IsNullOrWhiteSpace(ddlDEPTID.SelectedValue))
+            {
+                return sbSql.ToString();
+            }
+            else
+            {
+                string sql = @"SELECT GDSEQ,DEPTID,DEPTNAME,
+                                                   GDNAME,
+                                                   GDSPEC,
+                                                   UNIT,
+                                                   HSJJ,
+                                                   SUM(QCKCSL) QCKCSL,
+                                                   SUM(QCKCHSJE) QCKCHSJE,
+                                                   SUM(CGRK) CGRK,
+                                                   SUM(KSTH) KSTH,
+                                                   SUM(PYRK) PYRK,
+                                                   SUM(RKHSJE) RKHSJE,
+                                                   SUM(KFCK) KFCK,
+                                                   SUM(THCK) THCK,
+                                                   SUM(PKCK) PKCK,
+                                                   SUM(CKHSJE) CKHSJE,
+                                                   SUM(QMKCSL) QMKCSL,
+                                                   SUM(QMKCHSJE) QMKCHSJE
+                                              FROM(" + sbSql.ToString() + @")
+                                             GROUP BY DEPTID,DEPTNAME,GDSEQ, GDNAME, GDSPEC, UNIT,HSJJ";
+                return sql;
+            }
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        private void DataSearch()
+        {
+
+            //if (RQXZ.Text.Trim() == "" || RQXZ.Text.Length != 7)
+            //{
+            //    Alert.Show("请选择有效时间！");
+            //    return;
+            //}
+
+            //DateTime time = DateTime.Parse(RQXZ.Text + "-01");
+            int total = 0;
+            DataTable dtData = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, GetSearchSql(), ref total);
+            GridList.RecordCount = total;
+            GridList.DataSource = dtData;
+            GridList.DataBind();
+            OutputSummaryData(dtData);
+        }
+        protected void GridList_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        public static void CleanItemForDDL(string CleanName, FineUIPro.DropDownList dropDownList)
+        {
+            //用于取消下拉表中不需要的选项
+            int GetItem = 0;
+            foreach (FineUIPro.ListItem item in dropDownList.Items)
+            {
+                if (item.Text == CleanName)
+                {
+                    dropDownList.Items.RemoveAt(GetItem);
+                    break;
+                }
+                else
+                {
+                    if (item.Value == CleanName)
+                    {
+                        dropDownList.Items.RemoveAt(GetItem);
+                        break;
+                    }
+                }
+                GetItem++;
+            }
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            //if (RQXZ.Text.Trim() == "" || RQXZ.Text.Length != 7)
+            //{
+            //    Alert.Show("请选择有效时间！");
+            //    return;
+            //}
+            //string time = RQXZ.Text;
+            //string year = time.Substring(0, 4);
+            //int yearnum = Convert.ToInt32(year);
+            //string month = time.Substring(5, 2);
+            //int monthnum = Convert.ToInt32(month);
+            //if (yearnum < 2000 || yearnum > 9999 || monthnum < 1 || monthnum > 12)
+            //{
+            //    Alert.Show("请选择有效时间！");
+            //    return;
+            //}
+            //DateTime dtSj = DateTime.Parse(RQXZ.Text + "-01");
+            //DataTable dt = DbHelperOra.Query(GetSearchSql(dtSj.AddDays(-1).ToString("yyyyMMdd"), dtSj.AddMonths(1).AddDays(-1).ToString("yyyyMMdd"))).Tables[0];
+
+            //if (dt == null || dt.Rows.Count == 0)
+            //{
+            //    Alert.Show("暂时没有符合要求的数据，无法导出", "消息提示", MessageBoxIcon.Warning);
+            //    return;
+            //}
+            //ExcelHelper.ExportByWeb(dt, "库房商品数量进销存明细报表", string.Format("库房商品数量进销存明细报表_{0}.xls", DateTime.Now.ToString("yyyyMMdd")));
+            //btnExport.Enabled = true;
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+        private void OutputSummaryData(DataTable source)
+        {
+            //int QCKCSLSUM = 0;
+            //int CGRKSUM = 0;
+            //int KSTHSUM = 0;
+            //int PYRKSUM = 0;
+            //int QTRKSUM = 0;
+            //int KFCKSUM = 0;
+            //int THCKSUM = 0;
+            //int PKCKSUM = 0;
+            //int QTCKSUM = 0;
+            //int QMKCSLSUM = 0;
+            int QCKCHSJESUM = 0;
+            int RKHSJESUM = 0;
+            int CKHSJESUM = 0;
+            int QMKCHSJESUM = 0;
+            foreach (DataRow row in source.Rows)
+            {
+                //QCKCSLSUM += Convert.ToInt32(row["QCKCSL"]);
+                //CGRKSUM += Convert.ToInt32(row["CGRK"]);
+                //KSTHSUM += Convert.ToInt32(row["KSTH"]);
+                //PYRKSUM += Convert.ToInt32(row["PYRK"]);
+                ////QTRKSUM += Convert.ToInt32(row["QTRK"]);
+                //KFCKSUM += Convert.ToInt32(row["KFCK"]);
+                //THCKSUM += Convert.ToInt32(row["THCK"]);
+                //PKCKSUM += Convert.ToInt32(row["PKCK"]);
+                ////QTCKSUM += Convert.ToInt32(row["QTCK"]);
+                //QMKCSLSUM += Convert.ToInt32(row["QMKCSL"]);
+                QCKCHSJESUM += Convert.ToInt32(row["QCKCHSJE"]);
+                RKHSJESUM += Convert.ToInt32(row["RKHSJE"]);
+                CKHSJESUM += Convert.ToInt32(row["CKHSJE"]);
+                QMKCHSJESUM += Convert.ToInt32(row["QMKCHSJE"]);
+            }
+            JObject summary = new JObject();
+            summary.Add("GDSEQ", "汇总：");
+            //summary.Add("QCKCSL", QCKCSLSUM.ToString());
+            //summary.Add("CGRK", CGRKSUM.ToString());
+            //summary.Add("KSTH", KSTHSUM.ToString());
+            //summary.Add("PYRK", PYRKSUM.ToString());
+            ////summary.Add("QTRK", QTRKSUM.ToString());
+            //summary.Add("KFCK", KFCKSUM.ToString());
+            //summary.Add("THCK", THCKSUM.ToString());
+            //summary.Add("PKCK", PKCKSUM.ToString());
+            ////summary.Add("QTCK", QTCKSUM.ToString());
+            //summary.Add("QMKCSL", QMKCSLSUM.ToString());
+            summary.Add("QCKCHSJE", QCKCHSJESUM.ToString());
+            summary.Add("RKHSJE", RKHSJESUM.ToString());
+            summary.Add("CKHSJE", CKHSJESUM.ToString());
+            summary.Add("QMKCHSJE", QMKCHSJESUM.ToString());
+
+            GridList.SummaryData = summary;
+
+        }
+
+        protected void docSearch_TriggerClick(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+
+        }
+
+        protected void GridList_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            string strGDSEQ = GridList.Rows[e.RowIndex].DataKeys[0].ToString();
+            string strDEPTID = GridList.Rows[e.RowIndex].DataKeys[1].ToString();
+            docSearch.Text = strGDSEQ;
+            dpkRQ1.SelectedDate = dpkBEGRQ.SelectedDate;
+            dpkRQ2.SelectedDate = dpkENDRQ.SelectedDate;
+            ddlDEPTIDGD.SelectedValue = strDEPTID;
+            dbOpen(docSearch.Text, ddlDEPTIDGD.SelectedValue, string.Format("{0:yyyyMMdd}", dpkRQ1.SelectedDate), string.Format("{0:yyyyMMdd}", dpkRQ2.SelectedDate));
+        }
+        private void dbOpen(string gdseq,string deptid, string rq1, string rq2)
+        {
+            string strSql = string.Format(@"select * from (
+select a.deptid,a.gdseq,a.rqsj,a.billtype,
+DECODE(a.billtype,
+'RKD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】采购数量【'||a.sl||'】',
+'YKD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】入库数量【'||a.sl||'】',
+'LTD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】退货数量【'||a.sl||'】',
+'XST', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，销售退数量【'||a.sl||'】',
+'SYD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，商品损益数量【'||a.sl||'】',
+'DBD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，商品调拨入库数量【'||a.sl||'】'
+) SEQNOMEMO ,b.rulename typename, a.sl, a.BILLNO ,f_getusername(a.opergh) czr
+                                       FROM DAT_GOODSJXC A, SYS_GLOBRULE B 
+                                       WHERE A.BILLTYPE = SUBSTR(RULEID,6)
+                                            and a.kcadd = '1'
+                                            
+                     
+UNION ALL
+                     
+select a.deptid,a.gdseq,a.rqsj,a.billtype,
+DECODE(a.billtype,
+'YKD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】出库至科室，出库数量【'||a.sl||'】',
+'LCD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】出库至科室，出库数量【'||a.sl||'】',
+'CKD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，库房【'|| f_getdeptname(a.deptid) ||'】直接出库，出库数量【'||a.sl||'】',
+'XSD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，销售数量【'||a.sl||'】',
+'XSG', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，高值商品使用数量【'||a.sl||'】',
+'DSC', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，定数出库数量【'||a.sl||'】',
+'DSH', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，定数回收量【'||a.sl||'】',
+'THD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，商品退货数量【'||a.sl||'】',
+'SYD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，商品损益数量【'||a.sl||'】',
+'DBD', to_char(a.rqsj, 'yyyy-MM-dd')||'，【'||b.rulename||'】，商品调拨出库数量【'||a.sl||'】'
+) SEQNOMEMO ,b.rulename typename, a.sl, a.BILLNO ,f_getusername(a.opergh) czr
+                                       FROM DAT_GOODSJXC A, SYS_GLOBRULE B 
+                                       WHERE A.BILLTYPE = SUBSTR(RULEID,6)
+                                            and a.kcadd = '-1'
+                                              
+									   
+) where deptid in (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('1', '2')) 
+AND DEPTID = '{3}'
+AND GDSEQ = '{0}' 
+                                             AND RQSJ > (TO_DATE('{1}', 'YYYYMMDD'))
+                                             AND RQSJ <= (TO_DATE('{2}', 'YYYYMMDD'))
+                                       ", gdseq, rq1, rq2, deptid);
+
+            string strWhere = "";
+            if (!PubFunc.StrIsEmpty(docBILLTYPE.SelectedValue))
+            {
+                strWhere += string.Format(" AND billtype = '{0}'", docBILLTYPE.SelectedValue);
+            }
+            strWhere += " ORDER BY RQSJ DESC";
+
+            strSql += strWhere;
+
+            int total = 0;
+            GridGoods.DataSource = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, strSql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+            TabStrip1.ActiveTabIndex = 1;
+        }
+
+        protected void btnSearchGD_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.FormDataCheck(Form2).Length > 1) return;
+            dbOpen(docSearch.Text, ddlDEPTIDGD.SelectedValue, string.Format("{0:yyyyMMdd}", dpkRQ1.SelectedDate), string.Format("{0:yyyyMMdd}", dpkRQ2.SelectedDate));
+        }
+    }
+}

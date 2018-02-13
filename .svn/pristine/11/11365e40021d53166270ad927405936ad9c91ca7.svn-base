@@ -1,0 +1,66 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Doc_RK_ComWindow.aspx.cs" Inherits="SPDProject.SpdQuery.Doc_RK_ComWindow" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="True" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar2" runat="server" Position="Bottom" ToolbarAlign="Right">
+                    <Items>
+                        <f:Button ID="btnClose" Text="关 闭" EnableDefaultState="false" Icon="SystemClose" runat="server">
+                        </f:Button>
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="FormSearch" ShowBorder="false" AutoScroll="false" BodyPadding="5px 30px 0px 30px"
+                    ShowHeader="False" LabelWidth="70px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TriggerBox ID="trbSearch" runat="server" Label="商品信息" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick" EmptyText="可输入商品编码或商品名称查询" />
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridGoods" AnchorValue="100% -30" ShowBorder="true" ShowHeader="false" EnableSummary="true" SummaryPosition="Bottom" OnRowDataBound="GridGoods_RowDataBound"
+                    AllowSorting="false" AutoScroll="true" runat="server" DataKeyNames="GDSEQ" PageSize="30" AllowPaging="true" OnPageIndexChange="GridGoods_PageIndexChange">
+                    <Columns>
+                        <f:RowNumberField runat="server" />
+                        <f:BoundField Width="130px" DataField="SEQNO" HeaderText="单据号" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="150px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                        <f:BoundField Width="150px" DataField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="BZSL" ColumnID="BZSL" HeaderText="申领数" TextAlign="Right" />
+                        <f:BoundField Width="70px" DataField="JXTAX" HeaderText="税率" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="HSJJ" ColumnID="HSJJ" HeaderText="含税进价" TextAlign="Right" DataFormatString="{0:F}" />
+                        <f:BoundField Width="70px" DataField="HSJE" ColumnID="HSJE" HeaderText="含税金额" TextAlign="Right" DataFormatString="{0:F}" />
+                        <f:BoundField Width="110px" DataField="BARCODE" HeaderText="商品条码" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="70px" DataField="UNITNAME" ColumnID="UNITNAME" HeaderText="包装单位" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="GDSPEC" ColumnID="GDSPEC" HeaderText="商品规格" TextAlign="Center" />
+                        <f:BoundField Width="70px" DataField="ZPBH" HeaderText="制品编号" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="170px" DataField="PRODUCERNAME" HeaderText="生产厂家" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="100px" DataField="HWID" HeaderText="货位" TextAlign="Center" Hidden="true" />
+                        <f:BoundField Width="100px" DataField="PZWH" HeaderText="注册证号" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="RQ_SC" HeaderText="生产日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                        <f:BoundField Width="100px" DataField="MEMO" HeaderText="备注" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="SUPID" HeaderText="供应商" Hidden="true" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="hfdDept" runat="server" />
+        <f:HiddenField ID="hfdSupplier" runat="server" />
+        <f:HiddenField ID="hfdSearch" runat="server" />
+        <f:HiddenField ID="highlightRows" runat="server"></f:HiddenField>
+        <f:HiddenField ID="type" runat="server"></f:HiddenField>
+    </form>
+</body>
+</html>

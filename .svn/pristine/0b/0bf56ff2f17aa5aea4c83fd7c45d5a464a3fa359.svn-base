@@ -1,0 +1,224 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="StorageInvoicing.aspx.cs" Inherits="SPDProject.SpdXM.WH_SLYY.StorageInvoicing" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>一级库进销存明细</title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right"
+            EnableTabCloseMenu="false" ActiveTabIndex="0" runat="server">
+            <Tabs>
+                <f:Tab Title="库存进销明细" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="PanelBody" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox"
+                            ShowHeader="false">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar1" runat="server">
+                                    <Items>
+                                        <f:ToolbarText ID="ToolbarText" runat="server" Text="操作信息：一级库存进销存明细"></f:ToolbarText>
+                                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                        <f:Button ID="btnAudit" Icon="ArrowRotateClockwise" Text="清 空" Hidden="true" EnablePostBack="true" runat="server" OnClick="btClear_Click" />
+                                        <f:ToolbarSeparator runat="server" />
+                                        <f:Button ID="btnExport" Icon="PageExcel" Text="导 出" ConfirmText="是否导出当前商品库存信息?" DisableControlBeforePostBack="false" Enabled="true"
+                                            EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" OnClick="btExport_Click" Hidden="true" />
+                                        <f:Button ID="BtnPrintKC" Icon="Printer" Hidden="true" Text="打印库存" EnablePostBack="false" runat="server" OnClientClick="btnPrint_BillKC()" />
+                                        <f:ToolbarSeparator runat="server" />
+                                        <f:Button ID="btSearch" Icon="Magnifier" Text="查 询" OnClick="btSearch_Click" runat="server" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Items>
+                                <f:Form ID="FormQuery" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                    ShowHeader="False" LabelWidth="80px" runat="server">
+                                    <Rows>
+                                        <f:FormRow ColumnWidths="25% 25% 50%">
+                                            <Items>
+                                                <f:DatePicker ID="dpkBEGRQ" runat="server" Label="查询日期" ShowRedStar="true" Required="true"></f:DatePicker>
+                                                <f:DatePicker ID="dpkENDRQ" runat="server" Label="　　至" ShowRedStar="true" Required="true"></f:DatePicker>
+                                                <f:TriggerBox ID="tbxGOODS" runat="server" Label="查询商品" EmptyText="可输入编码、名称或助记码" TriggerIcon="Search" OnTriggerClick="btSearch_Click"></f:TriggerBox>
+                                            </Items>
+                                        </f:FormRow>
+                                        <f:FormRow ColumnWidths="25% 25% 50%">
+                                            <Items>
+                                                <f:DropDownList ID="ddlCATID" runat="server" Label="商品分类" EnableEdit="true" ForceSelection="true" />
+                                                <f:DropDownList ID="ddlISGZ" runat="server" Label="是否高值" EnableEdit="true" ForceSelection="true">
+                                                    <f:ListItem Text="--请选择--" Value="" />
+                                                    <f:ListItem Text="是" Value="Y" />
+                                                    <f:ListItem Text="否" Value="N" />
+                                                </f:DropDownList>
+                                                <f:DropDownList ID="ddlDEPTID" runat="server" Label="查询部门" EnableEdit="true" ForceSelection="true" />
+                                            </Items>
+                                        </f:FormRow>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:HiddenField ID="USERID" runat="server" />
+                                            </Items>
+                                        </f:FormRow>
+                                    </Rows>
+                                </f:Form>
+                                <f:Grid ID="GridList" BoxFlex="1" ShowBorder="false" ShowHeader="false" AllowSorting="false" AutoScroll="false" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                                    DataKeyNames="GDSEQ,DEPTID" EnableColumnLines="true" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridList_RowDoubleClick"
+                                    IsDatabasePaging="true" AllowPaging="true" PageSize="100" OnPageIndexChange="GridList_PageIndexChange" EnableSummary="true" SummaryPosition="Bottom">
+                                    <Columns>
+                                        <f:RowNumberField Width="30px" />
+                                        <f:BoundField DataField="DEPTID" SortField="DEPTID" ColumnID="DEPTID" Width="115px" HeaderText="库房" Hidden="true" />
+                                        <f:BoundField DataField="DEPTNAME" SortField="DEPTNAME" ColumnID="DEPTNAME" Width="115px" HeaderText="库房" />
+                                        <f:BoundField DataField="GDSEQ" SortField="GDSEQ" ColumnID="GDSEQ" Width="115px" HeaderText="商品编码" />
+                                        <f:BoundField DataField="GDNAME" SortField="GDNAME" Width="180px" HeaderText="商品名称" />
+                                        <f:BoundField DataField="GDSPEC" SortField="GDSPEC" Width="100px" HeaderText="规格" />
+                                        <f:BoundField DataField="UNIT" SortField="UNIT" Width="60px" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField DataField="HSJJ" SortField="HSJJ" Width="60px" HeaderText="含税进价" TextAlign="Center" />
+                                        <f:GroupField HeaderText="期初" TextAlign="Center">
+                                            <Columns>
+                                                <f:BoundField DataField="QCKCSL" ColumnID="QCKCSL" SortField="QCKCSL" Width="80px" HeaderText="库存数量" TextAlign="center" />
+                                                <f:BoundField DataField="QCKCHSJE" ColumnID="QCKCHSJE" SortField="QCKCHSJE" Width="80px" HeaderText="库存金额" TextAlign="center" />
+                                            </Columns>
+                                        </f:GroupField>
+                                        <f:GroupField HeaderText="入库" TextAlign="Center">
+                                            <Columns>
+                                                <f:BoundField Width="100px" DataField="CGRK" ColumnID="CGRK" SortField="CGRK" HeaderText="外购入库"
+                                                    TextAlign="Center" />
+                                                <f:BoundField Width="100px" DataField="KSTH" ColumnID="KSTH" SortField="KSTH" HeaderText="科室退货"
+                                                    TextAlign="Center" />
+                                                <f:BoundField Width="100px" DataField="PYRK" ColumnID="PYRK" SortField="PYRK" HeaderText="盘盈入库"
+                                                    TextAlign="Center" />
+                                                <%--<f:BoundField Width="100px" DataField="QTRK" ColumnID="QTRK" SortField="QTRK" HeaderText="其他入库"
+                                                    TextAlign="Center" />--%>
+                                                <f:BoundField Width="100px" DataField="RKHSJE" ColumnID="RKHSJE" SortField="RKHSJE" HeaderText="入库金额"
+                                                    TextAlign="Center" />
+                                            </Columns>
+                                        </f:GroupField>
+                                        <f:GroupField HeaderText="出库" TextAlign="Center">
+                                            <Columns>
+
+                                                <f:BoundField Width="100px" DataField="KFCK" ColumnID="KFCK" SortField="KFCK" HeaderText="科室出库"
+                                                    TextAlign="Center" />
+                                                <f:BoundField Width="100px" DataField="THCK" ColumnID="THCK" SortField="THCK" HeaderText="退货出库"
+                                                    TextAlign="Center" />
+                                                <f:BoundField Width="100px" DataField="PKCK" ColumnID="PKCK" SortField="PKCK" HeaderText="盘亏出库"
+                                                    TextAlign="Center" />
+                                                <%--<f:BoundField Width="100px" DataField="QTCK" ColumnID="QTCK" SortField="QTCK" HeaderText="其他出库"
+                                                    TextAlign="Center" />--%>
+                                                <f:BoundField Width="100px" DataField="CKHSJE" ColumnID="CKHSJE" SortField="CKHSJE" HeaderText="出库金额"
+                                                    TextAlign="Center" />
+                                            </Columns>
+                                        </f:GroupField>
+                                        <f:GroupField HeaderText="结余" TextAlign="Center">
+                                            <Columns>
+                                                <f:BoundField DataField="QMKCSL" ColumnID="QMKCSL" SortField="QMKCSL" Width="90px" HeaderText="结余库存数量" TextAlign="center" />
+                                                <f:BoundField DataField="QMKCHSJE" ColumnID="QMKCHSJE" SortField="QMKCHSJE" Width="120px" HeaderText="结余库存金额" TextAlign="center" />
+                                            </Columns>
+                                        </f:GroupField>
+
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="单品账目摘要" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel2" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:DropDownList ID="ddlDEPTIDGD" runat="server" Label="当前库房" ShowRedStar="true" Required="true" LabelWidth="80px" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="Button1" Icon="ArrowRotateClockwise" Text="清 空" Hidden="true" EnablePostBack="true" runat="server" OnClick="btClear_Click" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="Button2" Icon="PageExcel" Text="导 出" ConfirmText="是否导出当前商品库存信息?" DisableControlBeforePostBack="false" Enabled="true"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" OnClick="btExport_Click" Hidden="true" />
+                                                <f:Button ID="Button3" Icon="Printer" Text="打印库存" Hidden="true" EnablePostBack="false" runat="server" OnClientClick="btnPrint_BillKC()" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnSearchGD" Icon="Magnifier" Text="查 询" OnClick="btnSearchGD_Click" runat="server" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="25% 25% 25% 25%">
+                                                    <Items>
+                                                        <f:TriggerBox ID="docSearch" runat="server" Label="查询商品" ShowRedStar="true" Required="true" EmptyText="可输入编码、名称或助记码" TriggerIcon="Search" OnTriggerClick="docSearch_TriggerClick"></f:TriggerBox>
+                                                        <f:DropDownList ID="docBILLTYPE" runat="server" Label="单据类型" EnableEdit="true" ForceSelection="true">
+                                                            <f:ListItem Text="--请选择--" Value="" />
+                                                            <f:ListItem Text="入库单" Value="RKD" />
+                                                            <f:ListItem Text="出库单" Value="CKD" />
+                                                            <f:ListItem Text="盘点单" Value="PDD" />
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkRQ1" runat="server" Label="查询日期" ShowRedStar="true" Required="true"></f:DatePicker>
+                                                        <f:DatePicker ID="dpkRQ2" runat="server" Label="　　至" ShowRedStar="true" Required="true"></f:DatePicker>
+
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridGoods" AnchorValue="100% -75" ShowBorder="false" ShowHeader="false"
+                                    AllowSorting="false" AutoScroll="false" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                                    DataKeyNames="GDSEQ,XQ" EnableColumnLines="true" EnableTextSelection="true" SortField="RQSJ" SortDirection="DESC"
+                                    IsDatabasePaging="true" AllowPaging="true" PageSize="100" OnPageIndexChange="GridGoods_PageIndexChange" EnableSummary="true" SummaryPosition="Bottom">
+                                    <Columns>
+                                        <f:RowNumberField Width="30px" />
+                                        <f:BoundField Width="90px" DataField="RQSJ" SortField="RQSJ" HeaderText="日期" Hidden="true" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                        <f:BoundField DataField="BILLTYPE" ColumnID="BILLTYPE" Width="115px" HeaderText="单据类型" Hidden="true" />
+                                        <f:BoundField DataField="TYPENAME" ColumnID="TYPENAME" Width="115px" HeaderText="单据类型" Hidden="true" />
+                                        <f:BoundField DataField="SL" ColumnID="SL" Width="115px" HeaderText="数量" Hidden="true" />
+                                        <f:BoundField DataField="SEQNOMEMO" ColumnID="SEQNOMEMO" Width="320px" HeaderText="单据描述" ExpandUnusedSpace="true" />
+                                        <f:BoundField DataField="BILLNO" ColumnID="BILLNO" Width="115px" HeaderText="单据号" />
+                                        <f:BoundField DataField="CZR" ColumnID="CZR" Width="115px" HeaderText="操作人" />
+
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+    </form>
+    <script src="../res/my97/WdatePicker.js"></script>
+    <script type="text/javascript">
+        
+
+        <%--        function btnPrint_BillKC() {
+
+            var GrfKSKF = F('<%= ddlDEPTID.ClientID%>').getValue();
+            var GrfGOODS = F('<%= tbxGOODS.ClientID%>').getValue();
+            var GrfCATID = F('<%= ddlCATID.ClientID%>').getValue();
+            var GrfUSER = F('<%= USERID.ClientID%>').getValue();
+            var Grftime = F('<%= RQXZ.ClientID%>').getValue();
+            if (IsDate(Grftime) == false) {
+                alert("日期格式不正确！");
+                return;
+            }
+
+            var Report = ReportViewer.Report;
+            ReportViewer.ReportURL = "/grf/TJYKD_AL_kfspsljxcmxb.grf";
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetGoodsKCSPJXCMXB&RQXZ=" + Grftime + "&KSKF=" + GrfKSKF + "&GOODS=" + GrfGOODS + "&CATID=" + GrfCATID + "&USER=" + GrfUSER;
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            var print = getCookie("WEGOSPD_TJYKD_AL_kfspsljxcmxb_SPKCXX");
+            if (print != null && print != "") {
+                setCookie("WEGOSPD_TJYKD_AL_kfspsljxcmxb_SPKCXX", print);
+                ReportViewer.Report.Printer.PrinterName = print;
+            }
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }--%>
+
+    </script>
+</body>
+</html>

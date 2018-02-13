@@ -1,0 +1,39 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPDictionary
+{
+    public partial class Departments : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlGoodsType, "DDL_GOODS_TYPE");
+
+            DataTable dtDept = DbHelperOra.Query("select CODE,NAME from  SYS_DEPT WHERE FLAG='Y' and ISDELETE='N'").Tables[0];
+            if (dtDept.Rows.Count > 0)
+            {
+                GridDept.DataSource = dtDept;
+                GridDept.DataBind();
+            }
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}

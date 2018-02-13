@@ -1,0 +1,528 @@
+﻿using XTBase;
+using XTBase.Business;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.XJ_CJRM.ASHX
+{
+    public partial class PrintReport : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            string method = Request["Method"].ToString();
+            if (!string.IsNullOrWhiteSpace(method))
+            {
+                MethodInfo methodInfo = this.GetType().GetMethod(method);
+                methodInfo.Invoke(this, null);
+            }
+        }
+        public void GetStorageData()
+        {
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            string flag = Request["flag"] == null ? "ph" : Request["flag"].ToString();
+            string title = "医疗物资质量验收入库单";
+            if (flag.ToLower() == "pj")
+            {
+                title = "设备维修（配件）入库单";
+            }
+            string sql = @"SELECT A.SEQNO,  F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                              A.DHRQ, B.ROWNO, B.GDSEQ, B.GDNAME, C.LEADER,
+                                              B.BARCODE, B.GDSPEC, B.PZWH, B.PH, B.YXQZ, B.SSSL BZSL,
+                                              F_GETUNITNAME(B.UNIT) UNITNAME, B.HSJJ, B.HSJE, B.HWID,
+                                              --F_GETUSERNAME(A.LRY) LRYNAME,
+                                              SUM(NVL(B.HSJJ * B.SSSL, 0)) OVER(PARTITION BY A.SEQNO) SUMHJJE,
+                                              C.SUPNAME,C.TEL TELEPHONE,
+                                              F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                              F_GETPARA('USERNAME') || '{1}' DT
+                                    FROM DAT_RK_DOC A, DAT_RK_COM B,DOC_SUPPLIER C
+                                   WHERE A.SEQNO = B.SEQNO AND A.PSSID=C.SUPID
+                                     AND A.SEQNO IN ('{0}') AND C.ISSUPPLIER='Y'
+                                   ORDER BY B.SEQNO, B.ROWNO";
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid.Replace(",", "','"), title), false);
+        }
+        public void GetYSRKSJDData()
+        {
+            string user = Request["user"] == null ? "" : Request["user"].ToString();
+            string begrq = Request["beg"] == null ? "" : Request["beg"].ToString();
+            string endrq = Request["end"] == null ? "" : Request["end"].ToString();
+            string flag = Request["fg"] == null ? "" : Request["fg"].ToString();
+            string gys = Request["gys"] == null ? "" : Request["gys"].ToString();
+            string seqno = Request["seqno"] == null ? "" : Request["seqno"].ToString();
+            string supid = "";
+            if (!string.IsNullOrWhiteSpace(gys))
+            {
+                supid = " AND A.PSSID ='" + gys + "'";
+            }
+            string sql = @"SELECT F_GETSUPNAME(A.PSSID) PSSNAME,
+                                           (SELECT MIN(SHRQ)
+                                              FROM DAT_RK_DOC  B
+                                             WHERE A.SHRQ BETWEEN TO_DATE('{1}', 'YYYY-MM-DD') AND
+                                                   TO_DATE('{2}', 'YYYY-MM-DD') + 1 AND B.SEQNO IN ('{5}')) BEGRQ,
+                                           (SELECT MAX(SHRQ)
+                                              FROM DAT_RK_DOC B
+                                             WHERE A.SHRQ BETWEEN TO_DATE('{1}', 'YYYY-MM-DD') AND
+                                                   TO_DATE('{2}', 'YYYY-MM-DD') + 1 AND B.SEQNO IN ('{5}') ) ENDRQ,
+                                           F_GETUSERNAME('{0}') JHY,
+                                           GDSEQ,
+                                           GDNAME,
+                                           GDSPEC,
+                                           PZWH,
+                                           YXQZ,PH,
+                                           SSSL,
+                                           F_GETUNITNAME(B.UNIT) UNIT,
+                                           F_GETPRODUCERNAME(B.PRODUCER) PRODUCER,
+                                           HWID,
+                                           F_GETPARA('USERNAME') || '医疗物资质量验收入库上架表' HISTROY
+                                      FROM DAT_RK_DOC A, DAT_RK_COM B
+                                     WHERE A.SEQNO = B.SEQNO AND A.SEQNO IN ('{5}')
+                                       AND A.SHRQ BETWEEN TO_DATE('{1}', 'YYYY-MM-DD') AND
+                                               TO_DATE('{2}', 'YYYY-MM-DD') + 1
+                                       AND A.FLAG LIKE '%{3}%' {4}
+                                     ORDER BY B.SEQNO, B.ROWNO";
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, user, begrq, endrq, flag, supid, seqno), false);
+        }
+        public void GetStockOutData()
+        {
+            //定数条码
+            string deptid = Request["deptid"] == null ? "" : Request["deptid"].ToString();
+            string gdseq = Request["gdseq"] == null ? "" : Request["gdseq"].ToString();
+            string begrq = Request["b"] == null ? "" : Request["b"].ToString();
+            string endrq = Request["e"] == null ? "" : Request["e"].ToString();
+            string dhlx = Request["dh"] == null ? "" : Request["dh"].ToString();
+            string sql = @"SELECT SD.NAME DEPTNAME,B.GDSEQ,B.GDNAME,B.GDSPEC,F_GETUNITNAME(B.UNIT) UNIT,B.HSJJ,SUM(B.XSSL) SL,
+                                             SUM(B.HSJE) JE,G.HISCODE,F_GETPARA('SUPPER')||'科室出库单汇总' DT
+                                       FROM DAT_CK_DOC A, DAT_CK_COM B, SYS_DEPT SD, DOC_GOODS G
+                                      WHERE A.SEQNO = B.SEQNO AND B.GDSEQ = G.GDSEQ AND A.DEPTID = SD.CODE  AND A.FLAG='Y' ";
+
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(deptid)) strWhere += " and A.DEPTID='" + deptid + "'";
+            if (!PubFunc.StrIsEmpty(gdseq)) strWhere += " and (G.GDSEQ like '%" + gdseq + "%' or g.zjm like '%" + gdseq + "%' or g.gdname like '%" + gdseq + "%')";
+            if (string.IsNullOrWhiteSpace(begrq))
+            {
+                begrq = DateTime.Now.ToString("yyyy-MM-dd");
+            }
+            if (string.IsNullOrWhiteSpace(endrq))
+            {
+                endrq = DateTime.Now.ToString("yyyy-MM-dd");
+            }
+
+            strWhere += string.Format(" and A.XSRQ>=TO_DATE('{0}','YYYY-MM-DD') and A.XSRQ < TO_DATE('{1}','YYYY-MM-DD')+1 ", begrq, endrq);
+            if (!string.IsNullOrWhiteSpace(dhlx))
+            {
+                strWhere += string.Format(" and g.catid0='{0}' ", dhlx);
+            }
+
+            sql = sql + strWhere;
+
+            sql += " GROUP BY SD.NAME, B.GDSEQ, B.GDNAME, B.GDSPEC, B.UNIT, B.HSJJ, G.HISCODE ORDER BY B.GDNAME";
+            OracleReportData.GenNodeXmlData(this, sql, false);
+        }
+        public void GetStockOutData1()
+        {
+            //定数条码
+            string gdseq = Request["gdseq"] == null ? "" : Request["gdseq"].ToString();
+            string begrq = Request["b"] == null ? "" : Request["b"].ToString();
+            string endrq = Request["e"] == null ? "" : Request["e"].ToString();
+            string dhxl = Request["d"] == null ? "" : Request["d"].ToString();
+            //string sql = @" SELECT B.GDSEQ,
+            //                                       B.GDNAME,
+            //                                       B.GDSPEC,
+            //                                       F_GETUNITNAME(B.UNIT) UNIT,
+            //                                       C.NAME CATTYPE,
+            //                                       B.HSJJ,B.HISCODE,
+            //                                       DECODE(B.ISCF,'Y','是','否') ISSF,
+            //                                       F_GETPRODUCERNAME(B.PRODUCER) PRODUCER,
+            //                                       F_GETPARA('B.SUPPER')||'科室出库单汇总' DT
+            //                                       (-SUM(DECODE(A.BILLTYPE,'XST',DECODE(A.KCADD,'1',A.SL,0),A.SL))) SL,
+            //                                       (-SUM(DECODE(A.BILLTYPE,'XST',DECODE(A.KCADD,'1',A.SL,0),A.SL) * A.HSJJ)) JE
+            //                                  FROM DAT_GOODSJXC A, DOC_GOODS B, SYS_CATEGORY C
+            //                                 WHERE A.GDSEQ = B.GDSEQ
+            //                                   AND B.CATID = C.CODE
+            //                                   AND A.BILLTYPE IN ('DSH','XSD','XSG','XST')
+            //                                   AND A.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND TO_DATE('{1}', 'YYYY-MM-DD') + 1
+            //                                   AND B.CATID0='{2}'
+            //                                   AND A.DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('3', '4'))";
+
+            //string strWhere = " ";
+            //if (!PubFunc.StrIsEmpty(gdseq)) strWhere += " and (G.GDSEQ like '%" + gdseq + "%' or g.zjm like '%" + gdseq + "%' or g.gdname like '%" + gdseq + "%')";
+            //if (string.IsNullOrWhiteSpace(begrq))
+            //{
+            //    begrq = DateTime.Now.ToString("yyyy-MM-dd");
+            //}
+            //if (string.IsNullOrWhiteSpace(endrq))
+            //{
+            //    endrq = DateTime.Now.ToString("yyyy-MM-dd");
+            //}
+            //strWhere += string.Format(" and A.XSRQ>=TO_DATE('{0}','YYYY-MM-DD') and A.XSRQ < TO_DATE('{1}','YYYY-MM-DD')+1 ", begrq, endrq);
+
+            //sql = sql + strWhere;
+
+            //sql += " GROUP BY B.GDSEQ, B.GDNAME, B.GDSPEC, B.UNIT, B.HSJJ, G.HISCODE ORDER BY B.GDNAME";
+
+            StringBuilder sbSql = new StringBuilder();
+            sbSql.AppendFormat(@"SELECT B.GDSEQ,
+                                                   B.GDNAME,
+                                                   B.GDSPEC,
+                                                   F_GETUNITNAME(B.UNIT) UNIT,
+                                                   C.NAME CATTYPE,
+                                                   B.HSJJ,B.HISCODE,
+                                                   DECODE(B.ISCF,'Y','是','否') ISSF,
+                                                   F_GETPRODUCERNAME(B.PRODUCER) PRODUCER,
+                                                   F_GETPARA('B.SUPPER')||'科室出库单汇总' DT,
+                                                   (-SUM(DECODE(A.BILLTYPE,'XST',DECODE(A.KCADD,'1',A.SL,0),A.SL))) SL,
+                                                   (-SUM(DECODE(A.BILLTYPE,'XST',DECODE(A.KCADD,'1',A.SL,0),A.SL) * A.HSJJ)) JE
+                                              FROM DAT_GOODSJXC A, DOC_GOODS B, SYS_CATEGORY C
+                                             WHERE A.GDSEQ = B.GDSEQ
+                                               AND B.CATID = C.CODE
+                                               AND A.BILLTYPE IN ('DSH','XSD','XSG','XST')
+                                               AND A.RQSJ BETWEEN TO_DATE('{0}', 'YYYY-MM-DD') AND TO_DATE('{1}', 'YYYY-MM-DD') + 1
+                                               AND B.CATID0='{2}'
+                                               AND A.DEPTID IN (SELECT CODE FROM SYS_DEPT WHERE TYPE IN ('3', '4')) ", begrq, endrq, dhxl);
+
+            if (!PubFunc.StrIsEmpty(gdseq))
+            {
+                sbSql.AppendFormat(" AND (A.GDSEQ='%{0}%' OR B.GDNAME LIKE '%{0}%'  OR B.GDSPEC LIKE '%{0}%' OR UPPER(B.ZJM) LIKE UPPER('%{0}%'))", gdseq);
+            }
+            sbSql.Append(@"   GROUP BY B.GDSEQ,
+                                                        B.GDNAME,
+                                                        B.GDSPEC,B.ISCF,
+                                                        B.UNIT,
+                                                        B.HSJJ,B.HISCODE,
+                                                        C.NAME,
+                                                        B.PRODUCER
+                                             ORDER BY B.GDNAME,B.GDSPEC");
+            OracleReportData.GenNodeXmlData(this, sbSql.ToString(), false);
+        }
+        public void GetStockOutData2()
+        {
+            string begrq = Request["b"] == null ? "" : Request["b"].ToString();
+            string endrq = Request["e"] == null ? "" : Request["e"].ToString();
+
+            string sql = @"SELECT T.CODE DEPTID,
+                                                   T.NAME DEPTNAME,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0101', '{0}', '{1}') HC0101,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0102', '{0}', '{1}') HC0102,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0103', '{0}', '{1}') HC0103,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0104', '{0}', '{1}') HC0104,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0105', '{0}', '{1}') HC0105,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0106', '{0}', '{1}') HC0106,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0107', '{0}', '{1}') HC0107,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0108', '{0}', '{1}') HC0108,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0109', '{0}', '{1}') HC0109,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0110', '{0}', '{1}') HC0110,
+                                                   F_GETCATIDSUM(T.CODE, 'HC0111', '{0}', '{1}') HC0111,
+                                                   (NVL(F_GETCATIDSUM(T.CODE, 'HC0101','{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0102', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0103', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0105', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0106', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0107', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0108', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0109', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0110', '{0}', '{1}'), 0) +
+                                                   NVL(F_GETCATIDSUM(T.CODE, 'HC0111', '{0}', '{1}'), 0)) TOTALJE,
+                                                   '{2}'||'医疗物资科室领用汇总' DT
+                                              FROM SYS_DEPT T
+                                             WHERE T.TYPE IN ('3', '4') 
+                                            order by T.CODE";
+
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, begrq, endrq, string.Format("{0:yyyy年MM月}", endrq)), false);
+        }
+        public void GetData_Fcksld()
+        {
+            string isgz = Request["isgz"] == null ? "N" : Request["isgz"].ToString().ToUpper();
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            string title = "随货同行单（非定数直出）";
+            if (isgz == "Y")
+            {
+                title = "随货同行单（高值）";
+            }
+            string sql = @"SELECT A.SEQNO,F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.XSRQ,B.GDSEQ,B.GDNAME,B.UNIT,B.GDSPEC,B.BZHL,HSJJ,F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME
+                    ,B.ROWNO,TO_CHAR(A.XSRQ,'YYYY-MM-DD') DJRQ,TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi:ss') PRINTDATE,F_GETUNITNAME(B.UNIT) UNITNAME,HSJE,F_GETUSERNAME(A.LRY) ZDY,B.HSJJ||'元/'||F_GETUNITNAME(B.UNIT) V_HSJJ
+                    ,B.PH,B.YXQZ,B.XSSL,B.BZSL,F_GETPARA('USERNAME')||'{1}' DT,B.HWID
+                    ,(SELECT SUM(HSJE) FROM DAT_CK_COM WHERE SEQNO = '{0}') SUMHJJE,
+       (SELECT DECODE(ISJF,'Y','是','否') FROM DOC_GOODSCFG WHERE GDSEQ = B.GDSEQ AND DEPTID = A.DEPTID) ISJF
+                    FROM DAT_CK_DOC A,DAT_CK_COM B WHERE A.SEQNO = B.SEQNO AND A.SEQNO = '{0}'";
+
+            if (isgz != "Y")
+            {
+                object objMode = DbHelperOra.GetSingle("SELECT F_GETJSMODE(DEPTID) FROM DAT_CK_DOC WHERE SEQNO = '" + osid + "'");
+                if (objMode != null && objMode.ToString() == "Y")
+                {
+                    title = "医疗物资销售单（非定数直出）";
+                    sql = @"SELECT A.SEQNO,
+                                           F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,
+                                           F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                           A.XSRQ,
+                                           B.GDSEQ,
+                                           B.GDNAME,
+                                           B.UNIT,
+                                           B.GDSPEC,
+                                           B.BZHL,
+                                           B.HSJJ,
+                                           F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                           B.ROWNO,
+                                           TO_CHAR(A.XSRQ, 'YYYY-MM-DD') DJRQ,
+                                           TO_CHAR(SYSDATE, 'YYYY-MM-DD') PRINTDATE,
+                                           F_GETUNITNAME(B.UNIT) UNITNAME,
+                                           B.HSJE,
+                                           F_GETUSERNAME(A.LRY) ZDY,
+                                           B.HSJJ || '元/' || F_GETUNITNAME(B.UNIT) V_HSJJ,
+                                           C.PH,
+                                           C.YXQZ,
+                                           ABS(C.SL) XSSL,
+                                           ABS(C.SL) / B.BZHL BZSL,
+                                           F_GETPARA('SUPPER') || '{1}' DT,
+                                           B.HWID,
+                                           B.STR2,
+                                           (select CODE_HIS from sys_dept where code = A.DEPTID) KJCODE,
+                                           SUM(B.HSJJ * B.XSSL) OVER(PARTITION BY C.SUPID) SUMHJJE
+                                      FROM DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC C
+                                     WHERE A.SEQNO = B.SEQNO
+                                       AND B.SEQNO = C.BILLNO
+                                       AND B.ROWNO = C.ROWNO
+                                       AND A.SEQNO IN (SELECT STR2 FROM DAT_CK_DOC WHERE SEQNO = '{0}')
+                                     ORDER BY B.SEQNO, B.ROWNO";
+                }
+            }
+            else
+            {
+                sql = @"SELECT A.SEQNO,
+                                           F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,
+                                           F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                           A.XSRQ,
+                                           B.GDSEQ,
+                                           B.GDNAME,
+                                           B.UNIT,
+                                           B.GDSPEC,
+                                           B.BZHL,
+                                           HSJJ,
+                                           F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                           ROWNUM ROWNO,
+                                           TO_CHAR(A.XSRQ, 'YYYY-MM-DD') DJRQ,
+                                           TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:mi:ss') PRINTDATE,
+                                           F_GETUNITNAME(B.UNIT) UNITNAME,
+                                           HSJE,
+                                           F_GETUSERNAME(A.LRY) ZDY,
+                                           B.HSJJ || '元/' || F_GETUNITNAME(B.UNIT) V_HSJJ,
+                                           B.PH,
+                                           B.YXQZ,
+                                           B.XSSL,
+                                           B.BZSL,
+                                           F_GETPARA('USERNAME') || '{1}' DT,
+                                           B.HWID,
+                                           (SELECT SUM(HSJE) FROM DAT_CK_COM WHERE SEQNO = '{0}') SUMHJJE,
+                                           (SELECT DECODE(ISJF, 'Y', '是', '否')
+                                              FROM DOC_GOODSCFG
+                                             WHERE GDSEQ = B.GDSEQ
+                                               AND DEPTID = A.DEPTID) ISJF
+                                      FROM DAT_CK_DOC A,
+                                           (SELECT C.SEQNO,
+                                                   C.GDSEQ,
+                                                   C.GDNAME,
+                                                   C.UNIT,
+                                                   C.GDSPEC,
+                                                   C.BZHL,
+                                                   C.HSJJ,
+                                                   C.PRODUCER,
+                                                   SUM(C.HSJE) HSJE,
+                                                   C.PH,
+                                                   C.YXQZ,
+                                                   SUM(C.XSSL) XSSL,
+                                                   SUM(C.BZSL) BZSL,
+                                                   C.HWID
+                                              FROM DAT_CK_COM C
+                                             WHERE C.SEQNO = '{0}'
+                                             GROUP BY C.SEQNO,
+                                                      C.GDSEQ,
+                                                      C.GDNAME,
+                                                      C.UNIT,
+                                                      C.GDSPEC,
+                                                      C.BZHL,
+                                                      C.HSJJ,
+                                                      C.PRODUCER,
+                                                      C.PH,
+                                                      C.YXQZ,
+                                                      C.HWID) B
+                                     WHERE A.SEQNO = B.SEQNO
+                                       AND A.SEQNO = '{0}'";
+            }
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid, title), false);
+        }
+        public void GetXSData()
+        {
+            //销售单
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            string flag = Request["flag"] == null ? "ph" : Request["flag"].ToString();
+            string title = "科室使用出库单（非定数）";
+            if (flag == "pj")
+            {
+                title = "设备维修（配件）出库单";
+            }
+            string sql = @"select A.SEQNO,
+                                               A.DEPTID,
+                                               F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                               A.LRY,
+                                               F_GETUSERNAME(A.LRY) LRYNAME,
+                                               B.ROWNO,
+                                               B.GDSEQ,
+                                               B.GDNAME,
+                                               B.GDSPEC,
+                                               B.PRODUCER,
+                                               F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                               B.UNIT,
+                                               F_GETUNITNAME(B.UNIT) UNITNAME,
+                                               B.BZSL,
+                                               B.BZHL,
+                                               B.HSJJ,
+                                               B.HSJE,
+                                               B.PH,
+                                               B.RQ_SC,
+                                               B.ZPBH,
+                                               '合格' QUALITY,
+                                               F_GETPARA('USERNAME') || '{1}' DT,
+                                               B.yxqz,
+                                               B.PZWH,
+                                               F_GETPARA('SUPPER') cusname,
+                                               TO_CHAR(A.XSRQ, 'YYYY-MM-DD') XSRQ,
+                                               TO_CHAR(SYSDATE, 'YYYY-MM-DD') PRINTDATE,
+                                               f_getsupname(G.SUPID) SUPNAME,
+                                               B.STR1,
+                                               '合格' QUALITY,
+                                               F_GETPRINTINF(B.GDSEQ,'HSJJ',B.HSJJ) || '元/' || F_GETUNITNAME(B.UNIT) V_HSJJ,
+                                               (SELECT PH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PHCK,
+                                               (SELECT PZWH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PZWHCK,
+                                               F_GETHISTYPE(B.GDSEQ) LB,
+                                               B.NUM1,
+                                               (SELECT SUM(HSJE) FROM DAT_XS_COM WHERE SEQNO = '{0}') sumhjje
+                                          from DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC G
+                                         WHERE A.SEQNO = B.SEQNO
+                                           AND B.ROWNO = G.ROWNO
+                                           and B.SEQNO = G.BILLNO
+                                           and a.SEQNO = '{0}'";
+
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid, title), false);
+        }
+        public void GetXSDataBill()
+        {
+            //销售单
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            //string sql = @"select A.SEQNO,A.DEPTID,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.LRY,F_GETUSERNAME(A.LRY) LRYNAME, ROWNO,GDNAME,GDSPEC,PRODUCER,F_GETPRODUCERNAME(PRODUCER) PRODUCERNAME
+            //    ,UNIT,F_GETUNITNAME(UNIT) UNITNAME,BZSL,BZHL,HSJJ,HSJE,PH,RQ_SC,ZPBH,'合格' QUALITY,F_GETPARA('USERNAME')||'医用耗材入库单' DT,yxqz,PZWH,F_GETPARA('SUPPER') cusname
+            //    ,TO_CHAR(XSRQ,'YYYY-MM-DD') XSRQ,TO_CHAR(SYSDATE,'YYYY-MM-DD') PRINTDATE,B.STR1,'合格' QUALITY,HSJJ||'元/'||F_GETUNITNAME(UNIT) V_HSJJ,
+            //    (SELECT PH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PHCK,(SELECT PZWH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PZWHCK,F_GETHISTYPE(B.GDSEQ) LB,B.NUM1
+            //    ,(SELECT SUM(HSJE) FROM DAT_XS_COM WHERE SEQNO = '{0}') sumhjje
+            //    from DAT_XS_DOC A,DAT_XS_COM B WHERE A.SEQNO=B.SEQNO and a.SEQNO = '{0}'";
+            string sql = @"SELECT A.BILLNO,
+                                               F_GETDEPTNAME(A.DEPTOUT) DEPTOUTNAME,
+                                               F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                               A.XSRQ,
+                                               B.GDSEQ,
+                                               D.BAR3 EASCODE,
+                                               B.GDNAME,
+                                               B.GDSPEC,
+                                               ABS(C.SL) XSSL,
+                                               C.HSJJ,
+                                               C.SUPID SUPPLIER,
+                                               F_GETSUPNAME(C.SUPID) SUPNAME,
+                                               F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                               B.ROWNO,
+                                               B.STR1 BARCODE,
+                                               F_GETUNITNAME(B.UNIT) UNITNAME,
+                                               ABS(C.HSJE) HSJE,
+                                               F_GETUSERNAME(A.LRY) ZDY,
+                                               F_GETPARA('SUPPER') || '科室使用出库单（定数）' DT,
+                                               C.PH,
+                                               C.YXQZ,
+                                               ABS(SUM(C.HSJJ * C.SL) OVER(PARTITION BY C.SUPID)) SUMHJJE
+                                          FROM DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC C, DOC_GOODS D
+                                         WHERE A.SEQNO = B.SEQNO
+                                           AND B.SEQNO = C.BILLNO
+                                           AND B.ROWNO = C.ROWNO
+                                           AND B.GDSEQ = C.GDSEQ
+                                           AND C.GDSEQ = D.GDSEQ
+                                           AND A.FLAG = 'Y'
+                                           AND A.SEQNO IN ('{0}')
+                                         ORDER BY B.SEQNO DESC,C.SUPID, B.ROWNO";
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid), false);
+        }
+        public void GetGZXSDataBill()
+        {
+            //销售单
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+
+            string sql = @"SELECT A.BILLNO,A.STR9 NOTEID,
+                                               F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                               A.XSRQ,
+                                               C.SUPID SUPPLIER,
+                                               B.GDSEQ,
+                                               B.GDNAME,
+                                               B.GDSPEC,
+                                               B.XSSL,
+                                               B.HSJJ,
+                                               A.CUSTID PATIENT,
+                                               A.STR6 PATIENTID,
+                                               F_GETSUPNAME(C.SUPID) SUPNAME,
+                                               F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                               B.ROWNO,
+                                               B.ONECODE,
+                                               B.HSJE,
+                                               B.PH,
+                                               B.YXQZ,
+                                               TO_CHAR(A.SHRQ, 'YYYY-MM-DD') DJRQ,
+                                               SYSDATE PRINTDATE,
+                                               F_GETUNITNAME(B.UNIT) UNITNAME,
+                                               F_GETUSERNAME(A.LRY) ZDY,
+                                               F_GETPARA('SUPPER') || '科室使用出库单（高值）' DT,
+                                               SUM(C.HSJJ*ABS(C.SL)) OVER(PARTITION BY A.SEQNO) SUBSUM
+                                          FROM DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC C
+                                         WHERE A.SEQNO = B.SEQNO
+                                           AND B.SEQNO = C.BILLNO
+                                           AND B.ROWNO = C.ROWNO
+                                           AND A.SEQNO = '{0}'
+                                         ORDER BY C.SUPID,A.SEQNO, B.ROWNO";
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid), false);
+        }
+        public void GetStorageDataAll()
+        {
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+
+            string sql = @"SELECT A.BILLNO,A.STR9 NOTEID,
+                                               F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                                               A.XSRQ,
+                                               C.SUPID SUPPLIER,
+                                               B.GDSEQ,
+                                               B.GDNAME,
+                                               B.GDSPEC,
+                                               B.XSSL,
+                                               B.HSJJ,
+                                               A.CUSTID PATIENT,
+                                               A.STR6 PATIENTID,
+                                               F_GETSUPNAME(C.SUPID) SUPNAME,
+                                               F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                                               B.ROWNO,
+                                               B.ONECODE,
+                                               B.HSJE,
+                                               B.PH,
+                                               B.YXQZ,
+                                               TO_CHAR(A.SHRQ, 'YYYY-MM-DD') DJRQ,
+                                               SYSDATE PRINTDATE,
+                                               F_GETUNITNAME(B.UNIT) UNITNAME,
+                                               F_GETUSERNAME(A.LRY) ZDY,
+                                               F_GETPARA('SUPPER') || '医疗物资销售单（高值）' DT,
+                                               SUM(C.HSJJ*ABS(C.SL)) OVER(PARTITION BY A.SEQNO) SUBSUM
+                                          FROM DAT_XS_DOC A, DAT_XS_COM B, DAT_GOODSJXC C
+                                         WHERE A.SEQNO = B.SEQNO
+                                           AND B.SEQNO = C.BILLNO
+                                           AND B.ROWNO = C.ROWNO
+                                           AND A.SEQNO IN ('{0}')
+                                         ORDER BY A.SEQNO, B.ROWNO,C.SUPID";
+            OracleReportData.GenNodeXmlData(this, string.Format(sql, osid), false);
+        }
+    }
+}

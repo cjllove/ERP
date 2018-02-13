@@ -1,0 +1,128 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class SuppliersDaybook : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now;
+            dpkDATE2.SelectedDate = DateTime.Now;
+
+            PubFunc.DdlDataGet(ddlDEPTID, "DDL_SYS_DEPT");
+            PubFunc.DdlDataGet(ddlSUPID, "DDL_DOC_SUPPLIERNULL");
+        }
+
+        private void DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(dpkDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(dpkDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("输入日期不正确,请检查！");
+                return;
+            }
+            if (dpkDATE1.SelectedDate > dpkDATE2.SelectedDate)
+            {
+                Alert.Show("开始日期不能大于结束日期！");
+                return;
+            }
+
+            int total = 0;
+            string strSql = @"SELECT 
+	                        SUPID,
+	                        F_GETPRODUCERNAME(SUPID) supname,
+	                        F_GETDEPTNAME(DEPTID) DEPTNAME ,
+	                        DECODE(KCADD,1,'增库存','减库存') KCADD,
+	                        round(sum(SL),4)      SL ,
+	                        round(sum(LSJE),4)    LSJE,
+	                        round(sum(HSJE),4)    HSJE,
+	                        round(sum(BHSJE),4)  BHSJE 
+                        FROM DAT_GOODSJXC where 1=1 ";
+            string strWhere = "";
+            strWhere += " AND RQSJ>=TO_DATE('" + dpkDATE1.Text + "','YYYY/MM/DD') AND  RQSJ< TO_DATE('" + dpkDATE2.Text + "','YYYY/MM/DD') +1 ";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " and DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            if (!PubFunc.StrIsEmpty(ddlSUPID.SelectedValue)) strWhere += " and SUPID = '" + ddlSUPID.SelectedValue + "'";
+
+            strWhere += " group by SUPID,KCADD,DEPTID ";
+            strWhere += " ORDER BY DEPTID,SUPID,KCADD";
+            if (strWhere.Trim().Length > 0) { strSql = strSql + strWhere; }
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, strSql, ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+            OutputSummaryData(strSql);
+        }
+        private void OutputSummaryData(string strSql)
+        {
+            DataTable source = DbHelperOra.Query(strSql).Tables[0];
+
+            float donateTotal = 0.0f;
+            float feeTotal = 0.0f;
+            float HSJETotal = 0.0f;
+            float BHSJETotal = 0.0f;
+            foreach (DataRow row in source.Rows)
+            {
+                donateTotal += Convert.ToInt32(row["LSJE"]);
+                feeTotal += Convert.ToInt32(row["SL"]);
+                HSJETotal += Convert.ToInt32(row["HSJE"]);
+                BHSJETotal += Convert.ToInt32(row["BHSJE"]);
+            }
+
+            JObject summary = new JObject();
+            //summary.Add("major", "全部合计");
+            summary.Add("SL", feeTotal.ToString("F2"));
+            summary.Add("LSJE", donateTotal.ToString("F2"));
+            summary.Add("HSJE", HSJETotal.ToString("F2"));
+            summary.Add("BHSJE", BHSJETotal.ToString("F2"));
+
+            GridGoods.SummaryData = summary;
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            dpkDATE1.SelectedDate = DateTime.Now;
+            dpkDATE2.SelectedDate = DateTime.Now;
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (GridGoods == null)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            Response.ClearContent();
+            Response.AddHeader("content-disposition", "attachment; filename=供应商进销存汇总报表.xls");
+            Response.ContentType = "application/excel";
+            Response.ContentEncoding = System.Text.Encoding.UTF8;
+            Response.Write(PubFunc.GridToHtml(GridGoods));
+            Response.End();
+            btnExp.Enabled = true;
+        }
+    }
+}

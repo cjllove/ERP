@@ -1,0 +1,68 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using XTBase;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class ErrorLog : PageBase
+    {
+        private static DataTable dtData;
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                BindDDL();
+            }
+        }
+
+        private void BindDDL()
+        {
+            PubFunc.DdlDataGet(lstAccount, "DDL_USER");
+
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected void GridLog_Sort(object sender, FineUIPro.GridSortEventArgs e)
+        {
+            DataView view1 = dtData.DefaultView;
+            view1.Sort = String.Format("{0} {1}", e.SortField, e.SortDirection);
+
+            GridLog.DataSource = view1;
+            GridLog.DataBind();
+        }
+        private void dataSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【录入日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            string strUser, strSQL = @"select USERID,MEMO,STATION,RQSJ from sys_operlog 
+                                where TYPE='ERR' AND USERID like '%{0}%' AND  RQSJ>=to_date('{1}','yyyy-mm-dd') and RQSJ< to_date('{2}','yyyy-mm-dd') + 1 
+                                 order by SEQNO desc";
+            strUser = PubFunc.StrIsEmpty(lstAccount.Text) ? "%" : lstAccount.Text;
+            GridLog.DataSource = DbHelperOra.Query(string.Format(strSQL, strUser, lstLRRQ1.Text, lstLRRQ2.Text));
+            GridLog.DataBind();
+        }
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+        protected void Window1_Close(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+    }
+}

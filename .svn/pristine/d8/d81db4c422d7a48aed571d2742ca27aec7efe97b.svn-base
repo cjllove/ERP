@@ -1,0 +1,479 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="AuthorizationCust.aspx.cs" Inherits="SPDProject.CertificateInput.AuthorizationCust" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="/res/webuploader/webuploader.css" />
+    <link rel="stylesheet" type="text/css" href="/res/webuploader/detail/style.css" />
+    <link rel="stylesheet" type="text/css" href="/res/fancybox/jquery.fancybox.css" />
+    <title></title>
+    <style type="text/css">
+        .color1 {
+            background-color: #4F94CD;
+            color: #fff;
+        }
+
+        .color2 {
+            background-color: #BFBE24;
+            color: #fff;
+        }
+
+        .color3 {
+            background-color: #AF5553;
+            color: #fff;
+        }
+
+        .color4 {
+            background-color: #FF4040;
+            color: #fff;
+        }
+    </style>
+
+
+    <style type="text/css">
+        .w1000 {
+            margin: 0 auto;
+            width: 100%;
+        }
+
+            .w1000 img {
+                width: 100%;
+                height: 600px;
+            }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" OnCustomEvent="PageManager1_CustomEvent" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right"
+            EnableTabCloseMenu="false" ActiveTabIndex="1" runat="server">
+            <Tabs>
+                <f:Tab Title="授权查询" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel3" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar1" runat="server">
+                                    <Items>
+                                        <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                        <f:Button ID="btnSumbit1" runat="server" Icon="Accept" Text="提 交" ConfirmText="是否确定要提交数据？" OnClick="btnSumbit1_Click"></f:Button>
+                                        <f:Button ID="btnRollBack1" runat="server" Icon="Accept" Text="撤 回" ConfirmText="是否确定要撤回数据？" OnClick="btnRollBack1_Click"></f:Button>
+                                        <f:Button ID="btnDelete1" runat="server" Icon="Delete" Hidden="true" Text="删 除" ConfirmText="是否确定要删除数据？" OnClick="btnDelete1_Click"></f:Button>
+                                        <f:Button ID="btnAudit1" Icon="UserTick" Text="审 核" ConfirmText="是否确定要审核授权数据?" EnablePostBack="true" runat="server" OnClick="btnAudit1_Click" />
+                                        <f:Button ID="btnReject1" Icon="UserCross" Text="驳 回" EnablePostBack="true" runat="server" OnClick="btnReject1_Click" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Items>
+                                <f:Form ID="FormSearch" ShowBorder="false" AutoScroll="false" BodyPadding="5px 30px 0px 30px"
+                                    ShowHeader="False" LabelWidth="60px" runat="server">
+                                    <Rows>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:TextBox ID="tbxSUPNAME" EmptyText="授权方名称" LabelWidth="90px" Label="授权方名称" runat="server"></f:TextBox>
+                                                <f:Button ID="btnSearch" Icon="SystemSearch" runat="server" Text="查 询" OnClick="btnSearch_Click"></f:Button>
+                                            </Items>
+                                        </f:FormRow>
+                                    </Rows>
+                                </f:Form>
+                                <f:Grid ID="GridLIS" AnchorValue="100% -1" ShowBorder="false" ShowHeader="false" EnableMultiSelect="false"
+                                    EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridLIS_RowDoubleClick" EnableCheckBoxSelect="true"
+                                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                                    PageSize="100" DataKeyNames="GRANTID,SUPID,SQTYPE,FLAG" IsDatabasePaging="true" AllowPaging="true"
+                                    OnRowDataBound="GridLIS_RowDataBound"
+                                    OnPageIndexChange="GridLIS_PageIndexChange" EnableColumnLines="true">
+                                    <Columns>
+                                        <f:RowNumberField Width="30" TextAlign="Center" />
+                                        <f:BoundField Width="160px" DataField="GRANTID" HeaderText="授权流水号" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="FLAG" HeaderText="状态" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="160px" DataField="SUPNAME" HeaderText="授权方" TextAlign="left"></f:BoundField>
+                                        <f:BoundField Width="90px" DataField="SQLEVEL" HeaderText="授权层级" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="190px" DataField="SQREGION" HeaderText="授权区域" TextAlign="left"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="BEGINSQRQ" HeaderText="授权开始时间" DataFormatString="{0:yyyy-MM-dd}" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="ENDSQRQ" HeaderText="授权结束时间" DataFormatString="{0:yyyy-MM-dd}" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="120px" DataField="OPERTIME" HeaderText="录入时间" DataFormatString="{0:yyyy-MM-dd}" TextAlign="center"></f:BoundField>
+                                        <f:BoundField Width="120px" DataField="MEMO" HeaderText="备注" TextAlign="left" ExpandUnusedSpace="true"></f:BoundField>
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+
+                <f:Tab Title="授权管理" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel5" runat="server" ShowBorder="false" EnableCollapse="true"
+                            Layout="HBox" AutoScroll="true" ShowHeader="false" Title="面板"
+                            BoxConfigChildMargin="0 5 0 0" BodyPadding="5">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar3" runat="server">
+                                    <Items>
+                                        <f:Label runat="server" ID="flagLbl" Text="授权资料录入" CssStyle="color:white;width:100px; height:30px; background-color:#5CACEE;text-align:center;padding-top:3px;border-radius:5px;margin-left:10px" />
+                                        <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                        <f:Button ID="btnClear" Icon="Erase" Text="新 增" EnablePostBack="true" runat="server" OnClick="btnClear_Click" />
+                                        <f:Button ID="btnSave" Icon="PageSave" Text="保 存" EnablePostBack="true" runat="server" OnClick="btnSave_Click" />
+                                        <f:Button ID="btnSaveAndNew" Icon="Add" Text="新增上级授权" Enabled="false" runat="server" OnClick="btnSaveAndNew_Click"></f:Button>
+                                        <f:Button ID="btnSumbit" Icon="Accept" Text="提 交" Enabled="false" ConfirmText="是否确定要提交授权数据?" EnablePostBack="true" runat="server" OnClick="btnSumbit_Click" />
+                                        <f:Button ID="btnRollBack" Icon="Accept" Text="撤 回" Enabled="false" ConfirmText="是否确定要撤回授权数据?" EnablePostBack="true" runat="server" OnClick="btnRollBack_Click" />
+                                        <f:Button ID="btnDelete" Icon="Delete" Hidden="true" Text="删 除" ConfirmText="是否确定要删除授权数据?" EnablePostBack="true" runat="server" OnClick="btnDelete_Click"></f:Button>
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Items>
+                                <f:Panel ID="Panel1" Title="面板1" Width="670px" runat="server" AnchorValue="100%"
+                                    BodyPadding="5px" ShowBorder="true" ShowHeader="false" Layout="VBox">
+                                    <Items>
+                                        <f:Form ID="FormDoc" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                                            ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow ColumnWidths="50% 20% 30%">
+                                                    <Items>
+                                                        <f:TriggerBox ID="trgSUPID" runat="server" ShowRedStar="true" Required="true" LabelWidth="90px" Label="生产厂商" TriggerIcon="Search" AutoPostBack="true" OnTriggerClick="trgSUPID_TriggerClick"></f:TriggerBox>
+                                                        <f:CheckBox ID="chkisLR" Label="厂家直接授权" AutoPostBack="true" LabelWidth="97px" Checked="true" OnCheckedChanged="chkisLR_CheckedChanged" runat="server"></f:CheckBox>
+                                                        <f:CheckBox ID="chknoLR" Label="代理商授权" AutoPostBack="true" LabelWidth="90px" OnCheckedChanged="chknoLR_CheckedChanged" runat="server"></f:CheckBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TriggerBox ID="trgAGENT" runat="server" LabelWidth="90px" Label="上级代理商" TriggerIcon="Search" AutoPostBack="true" OnTriggerClick="trgAGENT_TriggerClick"></f:TriggerBox>
+                                                        <f:TriggerBox ID="trgSUPID1" runat="server" LabelWidth="90px" ShowRedStar="true" Required="true" Label="被授权机构" TriggerIcon="Search" AutoPostBack="true" OnTriggerClick="trgSUPID1_TriggerClick"></f:TriggerBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow ColumnWidths="50% 50%">
+                                                    <Items>
+                                                        <f:DatePicker ID="dpkBEGRQ" LabelWidth="90px" runat="server" Label="授权日期" ShowRedStar="true" />
+                                                        <f:DatePicker ID="dpkENDRQ" runat="server" LabelWidth="90px" Label="截止日期" ShowRedStar="true" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextArea runat="server" ID="tbxSQREGION" LabelWidth="90px" EmptyText="授权区域" Label="授权区域(最多250个汉字)"
+                                                            AutoGrowHeight="true" AutoGrowHeightMin="40" AutoGrowHeightMax="100">
+                                                        </f:TextArea>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="tbxDOCID" runat="server" LabelWidth="90px" Label="档案编号"></f:TextBox>
+                                                        <f:TextBox ID="tbxMEMO" runat="server" LabelWidth="50px" Label="备注"></f:TextBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                        <f:Grid ID="GridList" BoxFlex="1" ShowBorder="false" ShowHeader="false" EnableColumnLines="true" PageSize="20" IsDatabasePaging="true"
+                                            AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                                            EnableTextSelection="true" EnableCheckBoxSelect="true" OnPageIndexChange="GridList_PageIndexChange"
+                                            DataKeyNames="GDSEQ,GDNAME,GDSPEC,PRODUCER" EnableHeaderMenu="true" SortField="SEQNO" SortDirection="ASC" AllowPaging="true"
+                                            AllowSorting="true" EnableMultiSelect="true" KeepCurrentSelection="true">
+                                            <Toolbars>
+                                                <f:Toolbar runat="server">
+                                                    <Items>
+                                                        <f:TextBox runat="server" ID="tbxSearchGoods" LabelWidth="80px" Label="商品查询"></f:TextBox>
+                                                        <f:Button ID="btnSearchGoods" Icon="Magnifier" Text="查询" runat="server" OnClick="btnSearchGoods_Click"></f:Button>
+                                                    </Items>
+                                                </f:Toolbar>
+                                            </Toolbars>
+                                            <Columns>
+                                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                                <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编号" SortField="GDSEQ" TextAlign="Center" />
+                                                <f:BoundField Width="210px" DataField="GDNAME" HeaderText="商品名称" SortField="GDNAME" TextAlign="left" />
+                                                <f:BoundField Width="100px" DataField="GDSPEC" ColumnID="GDSPEC" HeaderText="规格" TextAlign="Center" />
+                                                <f:BoundField Width="200px" DataField="PRODUCER" ColumnID="PRODUCER" HeaderText="生产厂家" TextAlign="left" ExpandUnusedSpace="true" />
+                                            </Columns>
+                                        </f:Grid>
+                                    </Items>
+                                </f:Panel>
+
+                                <f:Panel ID="Panel2" Title="面板2" BoxFlex="1" Margin="0"
+                                    runat="server" BodyPadding="5px" ShowBorder="true" ShowHeader="false">
+                                    <Items>
+                                        <f:ContentPanel runat="server" ID="contentPel1" Height="700px" ShowHeader="false" ShowBorder="false" BoxFlex="1">
+                                            <div id="wrapper">
+                                                <div id="container">
+                                                    <!--头部，相册选择和格式选择-->
+                                                    <div id="uploader">
+                                                        <div class="queueList">
+                                                            <div id="dndArea" class="placeholder">
+                                                                <div id="filePicker"></div>
+                                                                <p>或将照片拖到这里，单次最多可选10张</p>
+                                                            </div>
+                                                        </div>
+                                                        <div class="statusBar" style="display: none;">
+                                                            <div class="progress">
+                                                                <span class="text">0%</span>
+                                                                <span class="percentage"></span>
+                                                            </div>
+                                                            <div class="info"></div>
+                                                            <div class="btns">
+                                                                <div id="filePicker2"></div>
+                                                                <div class="uploadBtn">开始上传</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </f:ContentPanel>
+
+                                    </Items>
+                                </f:Panel>
+                            </Items>
+                        </f:Panel>
+
+                        <f:Panel ID="Panel4" runat="server" Hidden="true" ShowBorder="false" EnableCollapse="true"
+                            Layout="HBox" AutoScroll="true" ShowHeader="false" Title="面板"
+                            BoxConfigChildMargin="0 5 0 0" BodyPadding="5">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar2" runat="server">
+                                    <Items>
+                                        <f:Label runat="server" ID="Label1" Text="授权层级关系" CssStyle="color:white;width:100px; height:30px; background-color:#5CACEE;text-align:center;padding-top:3px;border-radius:5px;margin-left:10px" />
+                                        <f:Label runat="server" ID="Label2" Text="授权层级关系" Hidden="true" CssStyle="color:white;width:100px; height:30px; background-color:#FF4040;text-align:center;padding-top:3px;border-radius:5px;margin-left:10px" />
+                                        <f:Button ID="btnNewAndAdd" Icon="Erase" Text="新增上级授权" EnablePostBack="true" runat="server" OnClick="btnNewAndAdd_Click" />
+                                        <f:Button ID="btnNew" Icon="Erase" Text="新 增" EnablePostBack="true" runat="server" OnClick="btnNew_Click" />
+                                        <f:Button ID="btnMySumbit" Icon="Accept" Text="提 交" ConfirmText="是否确定要提交授权数据?" EnablePostBack="true" runat="server" OnClick="btnMySumbit_Click" />
+                                        <f:Button ID="btnMyRollBack" Icon="Accept" Text="撤 回" Enabled="false" ConfirmText="是否确定要撤回授权数据?" EnablePostBack="true" runat="server" OnClick="btnMyRollBack_Click" />
+                                        <f:Button ID="btnMyDelete" Hidden="true" Icon="Delete" Text="删 除" ConfirmText="是否确定要删除授权数据?" EnablePostBack="true" runat="server" OnClick="btnMyDelete_Click"></f:Button>
+                                        <f:Button ID="btnMyAudit" Icon="UserTick" Text="审 核" ConfirmText="是否确定要审核授权数据?" EnablePostBack="true" runat="server" OnClick="btnMyAudit_Click" />
+                                        <f:Button ID="btnMyReject" Icon="UserCross" Text="驳 回" EnablePostBack="true" runat="server" OnClick="btnMyReject_Click" />
+                                        <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                        <f:Label runat="server" ID="lblPicNum" CssStyle="color:white;width:100px; height:30px; background-color:#4F94CD;text-align:center;padding-top:3px;border-radius:5px;margin-left:10px" />
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Items>
+                                <f:Panel ID="Panel6" Title="面板1" Width="670px" runat="server" AnchorValue="100%"
+                                    BodyPadding="0px" ShowBorder="true" ShowHeader="false" Layout="VBox">
+                                    <Items>
+                                        <f:Grid ID="GridGrant" ShowBorder="false" ShowHeader="false" Title="授权层级关系" OnRowDataBound="GridGrant_RowDataBound"
+                                            EnableColumnLines="true" EnableCollapse="true" Width="600px" Height="300px" EnableRowClickEvent="true" OnRowClick="GridGrant_RowClick"
+                                            runat="server" DataKeyNames="GRANTID,SUPTOID" ExpandAllRowExpanders="false" OnRowCommand="GridGrant_RowCommand">
+                                            <Columns>
+                                                <f:TemplateField RenderAsRowExpander="true">
+                                                    <ItemTemplate>
+                                                        <div class="expander">
+                                                            <p>
+                                                                <strong>生产厂商:</strong><%# Eval("SUPNAME") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>上级代理商:</strong><%# Eval("SUPAGENT") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>被授权机构:</strong><%# Eval("SUPTONAME") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>授权日期:</strong><%# Eval("BEGINSQRQ") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>授权截止日期:</strong><%# Eval("ENDSQRQ") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>授权区域:</strong><%# Eval("SQREGION") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>档案编号:</strong><%# Eval("DOCID") %>
+                                                            </p>
+                                                            <p>
+                                                                <strong>备注:</strong><%# Eval("MEMO") %>
+                                                            </p>
+                                                        </div>
+                                                    </ItemTemplate>
+                                                </f:TemplateField>
+                                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号"></f:RowNumberField>
+                                                <f:LinkButtonField Text="编辑" CommandName="sqedit" Width="50px" TextAlign="Center" />
+                                                <f:BoundField Width="110px" DataField="PRODUCERNAME" ColumnID="PRODUCERNAME" HeaderText="生产厂家" TextAlign="left"></f:BoundField>
+                                                <f:BoundField Width="60px" DataField="FLAG" ColumnID="FLAG" HeaderText="状态" TextAlign="left"></f:BoundField>
+                                                <f:BoundField Width="90px" DataField="SUPAGENT" ColumnID="SUPAGENT" HeaderText="代理商授权" TextAlign="center"></f:BoundField>
+                                                <f:BoundField Width="120px" DataField="SUPTONAME" ColumnID="SUPTONAME" HeaderText="被授权机构" TextAlign="left"></f:BoundField>
+                                                <f:BoundField Width="90px" DataField="BEGINSQRQ" ColumnID="BEGINSQRQ" HeaderText="开始日期" DataFormatString="{0:yyyy-MM-dd}" TextAlign="center"></f:BoundField>
+                                                <f:BoundField Width="90px" DataField="ENDSQRQ" ColumnID="ENDSQRQ" HeaderText="截止日期" DataFormatString="{0:yyyy-MM-dd}" TextAlign="center"></f:BoundField>
+                                            </Columns>
+                                        </f:Grid>
+                                        <f:Grid ID="GridGoods" BoxFlex="1" ShowBorder="false" ShowHeader="false" EnableColumnLines="true" IsDatabasePaging="true"
+                                            AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                                            EnableTextSelection="true" EnableCheckBoxSelect="true" OnPageIndexChange="GridGoods_PageIndexChange"
+                                            DataKeyNames="GDSEQ,GDNAME,GDSPEC,PRODUCER" EnableHeaderMenu="true" SortField="SEQNO" SortDirection="ASC" AllowPaging="true"
+                                            AllowSorting="true" EnableMultiSelect="true" KeepCurrentSelection="true">
+                                            <Columns>
+                                                <f:RowNumberField Width="35px" TextAlign="Center" EnablePagingNumber="true" HeaderText="序号" />
+                                                <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编号" SortField="GDSEQ" TextAlign="Center" />
+                                                <f:BoundField Width="210px" DataField="GDNAME" HeaderText="商品名称" SortField="GDNAME" TextAlign="left" />
+                                                <f:BoundField Width="100px" DataField="GDSPEC" ColumnID="GDSPEC" HeaderText="规格" TextAlign="Center" />
+                                                <f:BoundField Width="200px" DataField="PRODUCER" ColumnID="PRODUCER" HeaderText="生产厂家" TextAlign="left" ExpandUnusedSpace="true" />
+                                            </Columns>
+                                        </f:Grid>
+                                    </Items>
+                                </f:Panel>
+
+                                <f:Panel ID="Panel7" Title="展示授权书图片信息" BoxFlex="1" Margin="0"
+                                    runat="server" BodyPadding="5px" ShowBorder="true" ShowHeader="false">
+                                    <Items>
+                                        <f:Panel ID="sfmImage" runat="server" CssStyle="border-left: 1px solid #99bce8;" ColumnWidth="25%"
+                                            Height="640px" AutoScroll="true" ShowBorder="false" ShowHeader="false" BodyPadding="0px 0px 0px 0px">
+                                            <Items>
+                                                <f:Form ID="FormPic" ShowBorder="false" AutoScroll="false" Height="500px" CssStyle="padding:5px;" ShowHeader="False" LabelWidth="80px" runat="server">
+                                                    <Rows>
+                                                        <f:FormRow>
+                                                            <Items>
+                                                                <f:Label ID="imglbl" Hidden="true" runat="server"></f:Label>
+                                                                <f:Image ID="imgBMPPATH" CssClass="w1000" runat="server" ImageUrl="~/res/images/picc.jpg" />
+                                                            </Items>
+                                                        </f:FormRow>
+                                                    </Rows>
+                                                </f:Form>
+                                            </Items>
+                                            <Items>
+                                                <f:Form ID="btnForm" ShowBorder="false" AutoScroll="false" Height="60px" CssStyle="border-top:1px solid #99bce8;" ShowHeader="false" runat="server">
+                                                    <Rows>
+                                                        <f:FormRow ColumnWidth="50% 50%">
+                                                            <Items>
+                                                                <f:Button ID="btnLeft" runat="server" Text="< <上一张" Icon="Accept" CssStyle="width:90%;margin-left:10%;height:30px;margin-top:15px;padding-top:6px" BoxConfigAlign="Center" OnClick="btnLeft_Click" />
+                                                                <f:Button ID="btnRight" runat="server" Text="> >下一张" Icon="Accept" CssStyle="width:90%;margin-right:10%;height:30px;margin-top:15px;padding-top:6px" BoxConfigAlign="Center" OnClick="btnRight_Click" />
+                                                            </Items>
+                                                        </f:FormRow>
+                                                    </Rows>
+                                                </f:Form>
+                                            </Items>
+                                        </f:Panel>
+                                    </Items>
+                                </f:Panel>
+
+
+
+                            </Items>
+                        </f:Panel>
+
+                    </Items>
+
+
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+        <f:HiddenField ID="hfdValue" runat="server" Text="" />
+        <f:HiddenField ID="hfdValue1" runat="server" Text="" />
+        <f:HiddenField ID="hfdValue2" runat="server" Text="" />
+        <f:HiddenField ID="hfdValue3" runat="server" Text="" />
+        <f:HiddenField ID="hfdseqno" runat="server" Text="" />
+        <f:HiddenField ID="hfdSupid" runat="server" Text="" />
+        <f:HiddenField ID="hfdURL" runat="server" />
+        <f:HiddenField ID="hfdagent" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdbesup" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdGRANTID" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdBesupper" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdseqnoa" runat="server"></f:HiddenField>
+
+        <f:Window ID="Window1" Title="生产厂商" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="true" EnableResize="true" Target="Parent" IsModal="True"
+            Width="480px" Height="430px" OnClose="Window1_Close">
+        </f:Window>
+
+        <f:Window ID="Window2" Title="上级代理商" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="true" EnableResize="true" Target="Parent" IsModal="True"
+            Width="480px" Height="430px" OnClose="Window2_Close">
+        </f:Window>
+
+        <f:Window ID="Window3" Title="被授权机构" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="true" EnableResize="true" Target="Parent" IsModal="True"
+            Width="480px" Height="430px" OnClose="Window3_Close">
+        </f:Window>
+        <f:Window ID="Window4" Title="编辑" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="true" EnableResize="true" Target="Parent" IsModal="True"
+            Width="1200px" Height="700px">
+        </f:Window>
+        <f:Window ID="Window5" Title="驳回" Hidden="true" runat="server"
+            EnableMaximize="false" EnableResize="false" Target="Parent" IsModal="True"
+            Width="380px" Height="200px">
+            <Items>
+                <f:Panel ID="Panel8" runat="server" ShowBorder="True" Height="160px" BodyPadding="0px" Layout="Anchor"
+                    ShowHeader="false">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar4" runat="server" Position="Bottom" ToolbarAlign="Right">
+                            <Items>
+                                <f:Button ID="btnClosePostBack" Text="确 定" OnClick="btnClosePostBack_Click" Icon="SystemSave" runat="server">
+                                </f:Button>
+                                <f:Button ID="btnClose" Text="关 闭" Icon="SystemClose" runat="server" OnClick="btnClose_Click">
+                                </f:Button>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:TextArea runat="server" ID="txtREJECTMEMO" LabelWidth="90px" EmptyText="驳回原因"
+                            AutoGrowHeight="true" AutoGrowHeightMin="125" AutoGrowHeightMax="125">
+                        </f:TextArea>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Window>
+
+        <f:Window ID="Window6" Title="驳回" Hidden="true" runat="server"
+            EnableMaximize="false" EnableResize="false" Target="Parent" IsModal="True"
+            Width="380px" Height="200px">
+            <Items>
+                <f:Panel ID="Panel9" runat="server" ShowBorder="True" Height="160px" BodyPadding="0px" Layout="Anchor"
+                    ShowHeader="false">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar5" runat="server" Position="Bottom" ToolbarAlign="Right">
+                            <Items>
+                                <f:Button ID="btnClosePostBack1" Text="确 定" OnClick="btnClosePostBack1_Click" Icon="SystemSave" runat="server">
+                                </f:Button>
+                                <f:Button ID="btnClose1" Text="关 闭" Icon="SystemClose" runat="server" OnClick="btnClose1_Click">
+                                </f:Button>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:TextArea runat="server" ID="txtRejectMEMOE" LabelWidth="90px" EmptyText="驳回原因"
+                            AutoGrowHeight="true" AutoGrowHeightMin="125" AutoGrowHeightMax="125">
+                        </f:TextArea>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Window>
+
+    </form>
+
+    <script type="text/javascript" src="/res/webuploader/webuploader.nolog.min.js"></script>
+    <script type="text/javascript" src="/res/webuploader/detail/myupload.js"></script>
+    <script type="text/javascript" src="/res/fancybox/jquery.fancybox.js"></script>
+    <script>
+        function save() {
+            F('<%= hfdURL.ClientID%>').setValue(JSON.stringify(getData()));
+            F.customEvent("mysave");
+        }
+        function clearUpload() {
+            $('#uploader').myUpload("destroy");
+        }
+
+        function initUpload(id) {
+            $('#uploader').myUpload("destroy");
+            $('#uploader').myUpload({
+                server: '/captcha/LicenseUploadPictures.ashx',
+                formData: {
+                    owner: id
+                },
+                fileNumLimit: 100
+            });
+        }
+
+        function initUpload1(id) {
+            $('#uploader').myUpload("destroy");
+            $('#uploader').myUpload("rebind", {
+                server: '/captcha/LicenseUploadPictures.ashx',
+                formData: {
+                    owner: id
+                },
+                fileNumLimit: 100
+            });
+        }
+
+        function getData() {
+            return $('#uploader').myUpload("data");
+        }
+
+        function myshow()
+        {
+            alert(111111);
+        }
+    </script>
+</body>
+</html>

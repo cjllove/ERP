@@ -1,0 +1,193 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using System.IO;
+using System.Transactions;
+using System.Text.RegularExpressions;
+using XTBase;
+using FineUIPro;
+using XTBase.Utilities;
+using Oracle.ManagedDataAccess.Client;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class GoodsShelfHW : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            //使用部门下拉表
+            PubFunc.DdlDataGet("DDL_SYS_DEPT", lstDEPTID);
+            PubFunc.DdlDataGet("DDL_GOODSTYPE", docDHLX);
+
+        }
+        protected void btSave_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+            string sql = @"SELECT A.GDSEQ,
+                                           A.GDNAME,
+                                           A.ZJM,
+                                           F_GETUNITNAME(A.UNIT) UNITNAME,
+                                           A.GDSPEC,
+                                           NVL(T.HWID,G.HJCODE1) HWID,
+                                           G.ZDKC,
+                                           G.ZGKC,
+                                           F_GETSUPNAME(A.SUPPLIER) SUPPLIERNAME,
+                                           F_GETPRODUCERNAME(A.PRODUCER) PRODUCERNAME,
+                                           T.KFBH
+                                      FROM DOC_HWZD T, DOC_GOODSCFG G, DOC_GOODS A
+                                     WHERE T.HWID(+) = G.HJCODE1
+                                       AND G.GDSEQ = A.GDSEQ";
+            string strSearch = "";
+            if (lstGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND  (A.GDSEQ  LIKE '%{0}%' or UPPER(A.ZJM)  LIKE '%{0}%' or A.GDNAME  LIKE '%{0}%')", lstGDSEQ.Text.Trim().ToUpper());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedItem.Value.Length > 0)
+            {
+                strSearch += " AND G.DEPTID='" + lstDEPTID.SelectedValue + "'";
+            }
+            if (lstHW.Text.Trim().Length > 0)
+            {
+                strSearch += " AND T.HWID='" + lstHW.Text.Trim() + "'";
+            }
+            if (lstGG.Text.Trim().Length > 0)
+            {
+                strSearch += " AND A.GDSPEC='" + lstGG.Text.Trim() + "'";
+            }
+            if (docDHLX.SelectedItem != null && docDHLX.SelectedItem.Value.Length > 0)
+            {
+                strSearch += " AND A.CATID0='" + docDHLX.SelectedValue + "'";
+            }
+
+            sql += strSearch;
+            DataTable dtData = PubFunc.DbGetPage(GridShelf.PageIndex, GridShelf.PageSize, sql, ref total);
+            GridShelf.RecordCount = total;
+            GridShelf.DataSource = dtData;
+            GridShelf.DataBind();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void GridShelf_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridShelf.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+
+        private bool CheckFileExt(string fileNameExt)
+        {
+            if (String.IsNullOrEmpty(fileNameExt))
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (GridShelf.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string sql = @"SELECT A.GDSEQ 商品编号,
+                                           A.GDNAME 商品名称,
+                                           f_getunitname(A.UNIT)  单位,
+                                           A.GDSPEC 规格,
+                                           NVL(T.HWID,G.HJCODE1) 货位ID,
+                                           G.ZDKC 最低库存,
+                                           G.ZGKC 最高库存,
+                                           f_getsupname(A.SUPPLIER)  供应商,
+                                           f_getproducername(A.PRODUCER)  生产厂家,
+                                           T.KFBH 所属库房
+                                      FROM DOC_HWZD T, DOC_GOODSCFG G, DOC_GOODS A
+                                     WHERE T.HWID(+) = G.HJCODE1
+                                       AND G.GDSEQ = A.GDSEQ";
+            string strSearch = "";
+            if (lstGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND  (A.GDSEQ  LIKE '%{0}%' or UPPER(A.ZJM)  LIKE '%{0}%' or A.GDNAME  LIKE '%{0}%')", lstGDSEQ.Text.Trim().ToUpper());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedItem.Value.Length > 0)
+            {
+                strSearch += " AND T.KFBH='" + lstDEPTID.SelectedValue + "'";
+            }
+            if (lstHW.Text.Trim().Length > 0)
+            {
+                strSearch += " AND T.HWID='" + lstHW.Text.Trim() + "'";
+            }
+            if (lstGG.Text.Trim().Length > 0)
+            {
+                strSearch += " AND A.GDSPEC='" + lstGG.Text.Trim() + "'";
+            }
+            if (docDHLX.SelectedItem != null && docDHLX.SelectedItem.Value.Length > 0)
+            {
+                strSearch += " AND A.CATID0='" + docDHLX.SelectedValue + "'";
+            }
+            sql += strSearch;
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            if (dt.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            ExcelHelper.ExportByWeb(dt, "货位资料", "货位资料导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+
+
+        protected void btnPrint_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(lstDEPTID.SelectedValue))
+            {
+                Alert.Show("请先选择要打印货位的部门！", "异常提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(docDHLX.SelectedValue))
+            {
+                Alert.Show("请先选择要打印货位的订货类型！", "异常提示", MessageBoxIcon.Warning);
+                return;
+            }
+            string shelf = string.Empty;
+            string gdseq = string.Empty;
+            if (GridShelf.Rows.Count > 0 && GridShelf.SelectedRowIndexArray.Count() > 0)
+            {
+                foreach (int index in GridShelf.SelectedRowIndexArray)
+                {
+                    shelf = shelf + GridShelf.Rows[index].DataKeys[0].ToString() + ",";
+                    gdseq = gdseq + GridShelf.Rows[index].DataKeys[1].ToString() + ",";
+
+                }
+            }
+            else
+            {
+                shelf = "ALL";
+            }
+            hfdGDSEQ.Text = gdseq.TrimEnd(',');
+            hfdShelf.Text = shelf.TrimEnd(',');
+            PageContext.RegisterStartupScript("Print_Click();");
+        }
+    }
+}

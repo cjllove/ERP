@@ -1,0 +1,42 @@
+﻿using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using XTBase;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.pad
+{
+    public partial class GzConsumable : PageBase
+    {
+        public JObject MyUser;
+        public GzConsumable() {
+            MyUser = new JObject();
+        }
+        protected void Page_Load(object sender, EventArgs e)
+        {
+
+            if (!IsPostBack) {
+                MyUser = JsonConvert.DeserializeObject<JObject>(JsonConvert.SerializeObject(UserAction));
+                bindData();
+            }
+            
+        }
+        private void bindData() {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID,docDEPTID);
+            PubFunc.DdlDataGet("DDL_USER", docSHR, docLRY);
+            PubFunc.DdlDataGet(docFLAG, "DDL_BILL_STATUS");
+            docDEPTID.SelectedValue = UserAction.UserDept;
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            
+        }
+    }
+}

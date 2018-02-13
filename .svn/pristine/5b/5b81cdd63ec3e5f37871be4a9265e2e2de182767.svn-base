@@ -1,0 +1,151 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="NearValidForInquiry.aspx.cs" Inherits="SPDProject.SpdQuery.NearValidForInquiry" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>近效期查询</title>
+    <script src="../../res/js/jquery.ymh.js" type="text/javascript"></script>
+<%--    <style type="text/css" media="all">
+        .x-grid-row.highlight td {
+            background-color: lightpink;
+            background-image: none;
+        }
+        .x-grid-row.highyellowlight td {
+            background-color: yellow;
+            background-image: none;
+        }
+        .x-grid-row.highredlight td {
+            background-color: lightcoral;
+            background-image: none;
+        }
+    </style>--%>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1" runat="server" />
+        <f:Panel ID="Panel1" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="False" runat="server">
+            <Items>
+                <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                    ShowHeader="False" LabelWidth="80px" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="操作提示信息：完全显示会将已经过期的商品一同显示" runat="server" />
+                                <f:CheckBox ID="ShowMode" runat="server" Text="完全显示" LabelWidth="70px" Checked="true" ShowRedStar="true" CssStyle="margin-left:50px"></f:CheckBox>
+                                <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="" runat="server" />
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="bntClear" Icon="Erase" Text="清 除" EnablePostBack="true" runat="server" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btnExport" Icon="PageExcel" Text="导 出" DisableControlBeforePostBack="false" ConfirmText="是否确认导出此商品资料信息?" runat="server" EnableAjax="false" OnClick="btnExport_Click" EnableDefaultState="false" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询" EnablePostBack="true" runat="server" OnClick="btnBill_Click" EnableDefaultState="false"/>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TriggerBox ID="tgbGDSEQ" runat="server" Label="商品编码" TriggerIcon="Search" MaxLength="15" OnTriggerClick="lstGDSEQ_TriggerClick" EmptyText="请输入商品编码或商品名称或助记码"></f:TriggerBox>
+                                <f:DropDownList ID="lstDEPTID" runat="server" Label="科室仓库" EnableEdit="true" ForceSelection="true" />
+                                <f:DropDownList ID="ddlISGZ" runat="server" Label="是否高值">
+                                            <f:ListItem Text="--请选择--" Value="" /> 
+                                            <f:ListItem Text="是" Value="Y" /> 
+                                            <f:ListItem Text="否" Value="N" /> 
+                                        </f:DropDownList>
+                                <f:NumberBox ID="dqsj" runat="server" Label="到期时间" MinValue="0" MaxValue="36600" NoDecimal="true" ></f:NumberBox>
+                                <%--<f:DropDownList ID="lstDQSJ" runat="server" Label="到期时间" EnableEdit="true" ForceSelection="true" />--%>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridList" AnchorValue="100% -80" ShowBorder="false" ShowHeader="false"
+                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;"
+                    DataKeyNames="GDSEQ,XQ" EnableColumnLines="true" EnableTextSelection="true"
+                    IsDatabasePaging="true" AllowPaging="true" PageSize="50" OnPageIndexChange="GridList_PageIndexChange"
+                    OnRowDataBound="GridList_RowDataBound">
+                    <Columns>
+                        <f:RowNumberField Width="30px" runat="server" TextAlign="Center" EnablePagingNumber="true"/>
+                        <f:BoundField Width="100px" DataField="DEPTIDNAME" HeaderText="科室库房" TextAlign="Left" />
+                        <f:BoundField Width="110px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                        <f:BoundField Width="200px" DataField="GDNAME" HeaderText="商品名称" TextAlign="Left" />
+                        <f:BoundField Width="80px" DataField="GDSPEC" HeaderText="商品规格" TextAlign="Left" />
+                        <f:BoundField Width="120px" DataField="PHID" HeaderText="批号" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="XQ" ColumnID="XQ" HeaderText="剩余天数" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="RQSC" HeaderText="生产日期" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="YXQZ" HeaderText="有效期至" TextAlign="Center" />
+                        <f:BoundField Width="50px" DataField="UNIT" HeaderText="单位" TextAlign="Center" />
+                        <f:BoundField Width="80px" DataField="KCSL" HeaderText="数量" TextAlign="Center" />
+                        <f:BoundField Width="80px" DataField="HSJJ" HeaderText="单价" TextAlign="right" DataFormatString="{0:F4}" />
+                        <f:BoundField Width="80px" DataField="HWID" HeaderText="货位" TextAlign="Center" />
+                        <f:BoundField Width="240px" DataField="PRODUCER" HeaderText="生产商" TextAlign="Left" />
+                        <f:BoundField Width="210px" DataField="PIZNO" HeaderText="注册证号" TextAlign="Left" />
+                        <f:BoundField Width="60px" DataField="ISGZ" SortField="ISGZ" HeaderText="是否高值" Hidden="false" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+    <f:HiddenField ID="highlightRows" runat="server"></f:HiddenField>
+    <f:HiddenField ID="highyellowlight" runat="server"></f:HiddenField>
+    <f:HiddenField ID="highredlight" runat="server"></f:HiddenField>
+    <script type="text/javascript">
+        var highyellowlight = '<%= highyellowlight.ClientID %>';
+        var highredlight = '<%= highredlight.ClientID %>';
+        var gridClientID = '<%= GridList.ClientID %>';
+        function highYellowlight() {
+            // 增加延迟，等待HiddenField更新完毕
+            window.setTimeout(function () {
+                var highlightRows = F(highyellowlight);
+                var grid = F(gridClientID);
+                $(grid.el.dom).find('.x-grid-row.highyellowlight').removeClass('highyellowlight');
+                $.each(highlightRows.getValue().split(','), function (index, item) {
+                    if (item !== '') {
+                        var row = grid.getView().getNode(parseInt(item, 10));
+                        $(row).addClass('highyellowlight');
+                    }
+                });
+            }, 100);
+        }
+        function highRedlight() {
+            // 增加延迟，等待HiddenField更新完毕
+            window.setTimeout(function () {
+                var highlightRows = F(highredlight);
+                var grid = F(gridClientID);
+                $(grid.el.dom).find('.x-grid-row.highredlight').removeClass('highredlight');
+                $.each(highlightRows.getValue().split(','), function (index, item) {
+                    if (item !== '') {
+                        var row = grid.getView().getNode(parseInt(item, 10));
+                        $(row).addClass('highredlight');
+                    }
+                });
+            }, 100);
+        }
+        // 页面第一个加载完毕后执行的函数
+        F.ready(function () {
+           
+
+            //var endEdit = function () { this.un('beforeedit', endEdit); return false; }
+            //F(gridGoods).getView().on('refresh', function () { this.editingPlugin.on('beforeedit', endEdit) });
+            //var endEdit = function () {
+
+            //    this.un('beforeedit', endEdit);
+            //    return false;
+            //}
+            //F(GridList).getView().on('refresh', function () {
+            //    $('.x-editor').html('');
+            //    this.editingPlugin.on('beforeedit', endEdit);
+            //});
+
+            //F(GridList).editingPlugin.on('beforeedit', function (editingPlugin, therow) {
+            //    if (therow && therow.row) {
+            //        $('#' + GridList).find('#' + therow.row.id).find('.x-grid-cell-selected').children().eq(0).css('visibility', 'hidden');
+            //    }
+            //});
+        });
+    </script>
+
+</body>
+</html>

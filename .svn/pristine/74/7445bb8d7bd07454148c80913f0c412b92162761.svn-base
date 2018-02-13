@@ -1,0 +1,62 @@
+.f-panel.ui-draggable>.f-panel-header{
+    display:none;
+}
+
+#Window1{
+    width:788px!important;
+    height:365px!important;
+    position:absolute;
+    top:50%!important;
+    left:50%!important;
+    margin-left:-385px;
+    margin-top:-160px;
+    background-color:#fcfcfc;
+    box-shadow:none;
+    border:1px solid #e5e5e5;
+}
+.f-panel-body{
+     background-color:#fcfcfc;
+     position:relative;
+     left:0;
+}
+#Window1_SimpleForm1_tbxPassword-inputEl{
+     background: url(res/images/password.png) 10px center;
+     padding-left:40px;
+     border:1px solid #e5e5e5;
+
+}
+#Window1_SimpleForm1_tbxUserName-inputEl{
+    background: url(res/images/user.png) 10px center;    
+    padding:5px 0 5px 0;
+    padding-left:40px;
+    border:1px solid #e5e5e5;
+}
+.f-field-body{
+    height:38px;
+}
+.ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default{
+    background-color:#1ea3d8;
+    color:white;
+    border:none;
+    height:40px;
+    line-height:40px;
+    width:306px;
+    margin-top:15px;
+    position:relative;
+}
+#Window1_SimpleForm1_Label1-inputEl{
+    margin-top:0;
+    padding:0;
+    height:25px;
+}
+
+#Window1_SimpleForm1_Label4-inputEl{
+    padding:0;
+    height:20px;
+}
+.f-btn .f-btn-inner{
+    position:absolute!important;
+    top:0;
+    left:50%!important;
+    margin-left:-15px!important;
+}

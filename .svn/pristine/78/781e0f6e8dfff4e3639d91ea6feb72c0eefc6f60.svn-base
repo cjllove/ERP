@@ -1,0 +1,782 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using Oracle.ManagedDataAccess.Client;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class OrderCompareSpd : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            lstLRRQ11.SelectedDate = DateTime.Now;
+            lstLRRQ22.SelectedDate = DateTime.Now;
+        }
+
+        protected void btnClear_Click(object sender, EventArgs e)
+        {
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            txtBillNo.Text = "";
+        }
+
+        protected void btnClear2_Click(object sender, EventArgs e)
+        {
+            lstLRRQ11.SelectedDate = DateTime.Now;
+            lstLRRQ22.SelectedDate = DateTime.Now;
+            txtBillNo2.Text = "";
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【录入日期】！");
+                return;
+            }
+            else if (lstLRRQ1.SelectedDate > lstLRRQ2.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+            string strSql = @"SELECT NULL MEMO,BILLNO,XDRQ,NULL XDRQ_EAS,SUBNUM,NULL SUBNUM_EAS,SUBSUM,NULL SUBSUM_EAS,(select VALUE from sys_para where code='USERCODE') CUSTID,SHR,SHRQ
+                                from DAT_DD_DOC WHERE issend='Y' ";
+            string strSearch = "";
+            
+            if (!String.IsNullOrEmpty(txtBillNo.Text.Trim()))
+            {
+                strSearch += string.Format(" AND BILLNO  LIKE '%{0}%'", txtBillNo.Text);
+                ViewState["dhd_billno"] = txtBillNo.Text;
+            }
+            DateTime lrrq1Value = (DateTime)lstLRRQ1.SelectedDate;
+            DateTime lrrq2Value = (DateTime)lstLRRQ2.SelectedDate;
+            strSearch += string.Format(" AND XDRQ>=TO_DATE('{0}','YYYY-MM-DD')", lrrq1Value.ToString("yyyy-MM-dd"));
+            strSearch += string.Format(" AND XDRQ <TO_DATE('{0}','YYYY-MM-DD') + 1", lrrq2Value.ToString("yyyy-MM-dd"));
+            ViewState["beginDate1"] = lrrq1Value.ToString("yyyy-MM-dd");
+            ViewState["endDate1"] = lrrq2Value.ToString("yyyy-MM-dd");
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY BILLNO ";
+            GridList.DataSource = DbHelperOra.Query(strSql).Tables[0];
+            GridList.DataBind();
+            GridDetail.DataSource = null;
+            GridDetail.DataBind();
+        }
+
+        protected void btnSearch2_Click(object sender, EventArgs e)
+        {
+            if (lstLRRQ11.SelectedDate == null || lstLRRQ22.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【录入日期】！");
+                return;
+            }
+            else if (lstLRRQ11.SelectedDate > lstLRRQ22.SelectedDate)
+            {
+                Alert.Show("开始日期大于结束日期，请重新输入！");
+                return;
+            }
+
+            DateTime lrrq1Value = (DateTime)lstLRRQ11.SelectedDate;
+            DateTime lrrq2Value = (DateTime)lstLRRQ22.SelectedDate;
+
+            string custId = DbHelperOra.GetSingle("select value from sys_para where code='USERCODE'").ToString();
+            string dno = txtBillNo2.Text.Trim();
+
+            string strBeginDate = lrrq1Value.ToString("yyyy-MM-dd");
+            string strEndDate = lrrq2Value.ToString("yyyy-MM-dd");
+
+            String[] paramArray = { strBeginDate, strEndDate, dno, custId };
+
+            //查询eas上调拨入库单
+            string result = ApiClientService.QueryEASBill("DRK", paramArray);
+            if (String.IsNullOrWhiteSpace(result) || "-1".Equals(result))
+            {
+                Alert.Show("与数据中心通讯失败，请稍后再试！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            string strBillNos = "";
+            JArray jaResult = JArray.Parse(result);//多单据数组
+            foreach (JToken jt in jaResult)
+            {
+                JObject jResult = (JObject)jt;//单单据对象
+                if ("success".Equals(jResult.Value<String>("result")))
+                {
+                    JArray ja = jResult.Value<JArray>("data");
+                    if (ja.Count > 0)
+                    {
+                        strBillNos = strBillNos +　"'" + saveRKDocCom(ja) + "',";//把下传的单据保存到用于比较的临时表DAT_RK_DOC_COMPARE,DAT_RK_COM_COMPARE
+                    }
+                }
+            }
+            if (!String.IsNullOrWhiteSpace(strBillNos))
+            {
+                strBillNos = strBillNos.TrimEnd(',');
+                string strSql = @"SELECT SEQNO,DDBH,NULL DHRQ,DHRQ DHRQ_EAS,NULL SUBNUM,SUBNUM SUBNUM_EAS,NULL SUBSUM,SUBSUM SUBSUM_EAS,(select VALUE from sys_para where code='USERCODE') CUSTID
+                                from DAT_RK_DOC_COMPARE  where BILLNO IN (" + strBillNos + ") order by seqno";
+                GridList2.DataSource = DbHelperOra.Query(strSql).Tables[0];
+            }
+            else
+            {
+                Alert.Show("没有查询到订单！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+
+            GridList2.DataBind();
+            GridDetail2.DataSource = null;
+            GridDetail2.DataBind();
+        }
+
+        protected void btnCompare_Click(object sender, EventArgs e)
+        {
+            string custId = DbHelperOra.GetSingle("select value from sys_para where code='USERCODE'").ToString();
+            string dno = "";
+            if (ViewState["dhd_billno"] != null && !"".Equals(ViewState["dhd_billno"].ToString()))
+            {
+                dno = ViewState["dhd_billno"].ToString();
+            }
+            string strBeginDate = "";
+            if (ViewState["beginDate1"] != null && !"".Equals(ViewState["beginDate1"].ToString()))
+            {
+                strBeginDate = ViewState["beginDate1"].ToString();
+            }
+            string strEndDate = "";
+            if (ViewState["endDate1"] != null && !"".Equals(ViewState["endDate1"].ToString()))
+            {
+                strEndDate = ViewState["endDate1"].ToString();
+            }
+            String[] paramArray = { strBeginDate, strEndDate, dno, custId };
+             //组合要查询的单据号
+            string strDDBHs = "";
+            if (GridList.Rows.Count > 0)
+            {
+                for (int i = 0; i < GridList.Rows.Count; i++)
+                {
+                    if (i == GridList.Rows.Count - 1)
+                    {
+                        strDDBHs = strDDBHs + "'" + GridList.Rows[i].Values[1].ToString() + "'";
+                    }
+                    else
+                    {
+                        strDDBHs = strDDBHs + "'" + GridList.Rows[i].Values[1].ToString() + "',";
+                    }
+                }
+            }
+            else
+            {
+                Alert.Show("没有查询到订单，请先查询订单！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            //根据条件查询eas上调拨单
+            string result = ApiClientService.QueryEASBill("DHD", paramArray);
+            if (String.IsNullOrWhiteSpace(result) || "-1".Equals(result))
+            {
+                Alert.Show("与数据中心通讯失败，请稍后再试！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            JArray jaResult = JArray.Parse(result);//多单据数组
+            foreach (JToken jt in jaResult)
+            {
+                JObject jResult = (JObject)jt;//单单据对象
+                if ("success".Equals(jResult.Value<String>("result")))
+                {
+                    JArray ja = jResult.Value<JArray>("data");
+                    if (ja.Count > 0)
+                    {
+                        saveDDDocCom(ja);//把下传的单据保存到用于比较的临时表DAT_DD_DOC_COMPARE,DAT_DD_COM_COMPARE
+                    }
+                }
+            }
+            //关联DAT_DD_DOC表和DAT_DD_DOC_COMPARE表，重新绑定GridList
+            #region 
+            string strSql = @"SELECT NULL MEMO,A.*,B.XDRQ XDRQ_EAS,B.SUBNUM SUBNUM_EAS,B.SUBSUM SUBSUM_EAS 
+                              FROM (SELECT BILLNO,XDRQ,SUBNUM,SUBSUM,(select VALUE from sys_para where code='USERCODE') CUSTID,SHR,SHRQ 
+                              FROM DAT_DD_DOC WHERE SEQNO in ({0})) A LEFT JOIN DAT_DD_DOC_COMPARE B
+                              ON A.BILLNO=B.SEQNO ORDER BY A.BILLNO";
+            strSql = string.Format(strSql, strDDBHs);
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            string GreenRowsList = "";
+            string RedRowsList = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                Decimal SUBNUM = 0;
+                try
+                {
+                    SUBNUM = Convert.ToDecimal(dr["SUBNUM"]);
+                }
+                catch
+                {
+                    SUBNUM = 0;
+                }
+                Decimal SUBNUM_EAS = 0;
+                if (dr["SUBNUM_EAS"] != null && !"".Equals(dr["SUBNUM_EAS"].ToString()))
+                {
+                    try
+                    {
+                        SUBNUM_EAS = Convert.ToDecimal(dr["SUBNUM_EAS"]);
+                    }
+                    catch
+                    {
+                        SUBNUM_EAS = 0;
+                    }
+                }
+                else
+                {
+                    dr["MEMO"] = "SPD有EAS没有";
+                    continue;
+                }
+
+                if (SUBNUM == SUBNUM_EAS)
+                {
+                    dr["MEMO"] = "完全匹配";
+                    GreenRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                }
+                else
+                {
+                    dr["MEMO"] = "条目数不匹配";
+                    RedRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                }
+            }
+            GridList.DataSource = dt;
+            GridList.DataBind();
+            PageContext.RegisterStartupScript("onGridDataLoad('" + RedRowsList + "','" + GreenRowsList + "','" + GridList.ClientID + "');");
+            #endregion
+        }
+
+        protected void GridList_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            string strBillNo = GridList.Rows[e.RowIndex].Values[1].ToString();
+            ToolbarBillno.Text = strBillNo;
+            string strSql = @"SELECT NULL MEMO,A.SEQNO,B.ROWNO,A.GDSEQ,A.GDNAME,B.GDSEQ GDSEQ_EAS,F_GETUNITNAME(A.UNIT) UNIT,B.UNIT UNIT_EAS,A.GDSPEC,B.GDSPEC GDSPEC_EAS,A.DHS,B.DHS DHS_EAS
+                              FROM DAT_DD_COM A LEFT JOIN DAT_DD_COM_COMPARE B ON A.SEQNO=B.SEQNO AND A.GDSEQ=B.GDSEQ 
+                              WHERE A.SEQNO='" + strBillNo + "'";
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            string GreenRowsList = "";
+            string RedRowsList = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                string strGDSEQ = dr["GDSEQ"].ToString();
+                string strGDSEQ_EAS = "";
+                if (dr["GDSEQ_EAS"] != null && !"".Equals(dr["GDSEQ_EAS"].ToString()))
+                {
+                    strGDSEQ_EAS = dr["GDSEQ_EAS"].ToString();
+                }
+                else
+                {
+                    dr["MEMO"] = "SPD有EAS没有";
+                    continue;//如果GDSEQ_EAS是null，表明表体中少商品，用默认白色标注
+                }
+                string strUNIT = dr["UNIT"].ToString();
+                string strUNIT_EAS = dr["UNIT_EAS"].ToString();
+                string strGDSPEC = dr["GDSPEC"].ToString();
+                string strGDSPEC_EAS = dr["GDSPEC_EAS"].ToString();
+                Decimal DHS = Convert.ToDecimal(dr["DHS"]);
+                Decimal DHS_EAS = Convert.ToDecimal(dr["DHS_EAS"]);
+
+                if (strGDSEQ.Equals(strGDSEQ_EAS) && DHS == DHS_EAS )
+                {
+                    dr["MEMO"] = "完全匹配";
+                    GreenRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                }
+                else
+                {
+                    dr["MEMO"] = "字段不匹配";
+                    RedRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                }
+            }
+            GridDetail.DataSource = dt;
+            GridDetail.DataBind();
+            PageContext.RegisterStartupScript("onGridDataLoad('" + RedRowsList + "','" + GreenRowsList + "','" + GridDetail.ClientID + "');");
+        }
+
+        protected void btnCompare2_Click(object sender, EventArgs e)
+        {
+            string strDDBHs = "";
+            if (GridList2.Rows.Count > 0)
+            {
+                for (int i = 0; i < GridList2.Rows.Count; i++)
+                {
+                    if (i == GridList2.Rows.Count - 1)
+                    {
+                        strDDBHs = strDDBHs + "'" + GridList2.Rows[i].Values[1].ToString() + "'";
+                    }
+                    else
+                    {
+                        strDDBHs = strDDBHs + "'" + GridList2.Rows[i].Values[1].ToString() + "',";
+                    }
+                }
+            }
+            else
+            {
+                Alert.Show("没有查询到入库单，请先查询入库单！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            //取得查询条件
+            DateTime lrrq1Value = (DateTime)lstLRRQ11.SelectedDate;
+            DateTime lrrq2Value = (DateTime)lstLRRQ22.SelectedDate;
+            string strBeginDate = lrrq1Value.ToString("yyyy-MM-dd");
+            string strEndDate = lrrq2Value.ToString("yyyy-MM-dd");
+            string dno = txtBillNo2.Text.Trim();
+            string strWhere = "";
+            if (!String.IsNullOrWhiteSpace(dno))
+            {
+                strWhere = " seqno like '%" + dno + "%'";
+            }
+            else
+            {
+                strWhere = "  DHRQ>=to_date('" + strBeginDate + "','YYYY-MM-DD') and DHRQ<=to_date('" + strEndDate + "','YYYY-MM-DD')";
+            }
+
+            #region 关联DAT_RK_DOC表和DAT_RK_DOC_COMPARE表，重新绑定GridList2
+
+//            string strSql = @"select A.*,B.LRRQ,B.SUBNUM,B.SUBSUM  
+//                              from (SELECT BILLNO,TO_CHAR(LRRQ,'YYYY-MM-DD') LRRQ_EAS,SUBNUM SUBNUM_EAS,SUBSUM SUBSUM_EAS,(select VALUE from sys_para where code='USERCODE') CUSTID from DAT_RK_DOC_COMPARE 
+//                              WHERE BILLNO in ({0})) A LEFT JOIN DAT_RK_DOC B ON A.BILLNO=B.SEQNO";
+
+            string strSql = @"select null MEMO,c.* from
+                            (select a.*,B.DHRQ DHRQ_EAS,B.SUBNUM SUBNUM_EAS from
+                            (select SEQNO,DHrq,subnum from dat_rk_doc 
+                            where MEMO='FROM_PLATFORM' AND {0} ) a
+                            left join (select SEQNO,DHrq,subnum from dat_rk_doc_compare where {0} ) b
+                            on a.seqno=b.seqno
+                            union
+                            select a.seqno,null DHRQ,null subnum,a.DHRQ DHRQ_EAS,A.subnum subnum_eas from
+                            (select SEQNO,DHRQ,subnum from dat_rk_doc_compare 
+                            where {0} ) a
+                            where  not EXISTS ( select * from (select SEQNO,DHrq,subnum from dat_rk_doc where MEMO='FROM_PLATFORM' AND {0} ) b where a.seqno=b.seqno)) c
+                            order by c.seqno asc";
+
+            strSql = string.Format(strSql, strWhere);
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            
+            string GreenRowsList = "";
+            string RedRowsList = "";
+            string YellowRowsList = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                string strDHRQ = "";
+                if (dr["DHRQ"] != null && !"".Equals(dr["DHRQ"].ToString()))
+                {
+                    strDHRQ = dr["DHRQ"].ToString();
+                }
+                else
+                {
+                    //如果DHRQ是NULL或者空值，说明DAT_RK_DOC中没有该单据,标识黄色
+                    YellowRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "SPD没有EAS有";
+                    continue;
+                }
+                string strDHRQ_EAS = "";
+                if (dr["DHRQ_EAS"] != null && !"".Equals(dr["DHRQ_EAS"].ToString()))
+                {
+                    strDHRQ_EAS = dr["DHRQ_EAS"].ToString();
+                }
+                else
+                {
+                    //如果DHRQ_EAS是NULL或者空值，说明DAT_RK_DOC_COMPARE中没有该单据,标识白色
+                    dr["MEMO"] = "SPD有EAS没有";
+                    continue;
+                }
+                
+                Decimal SUBNUM = 0;
+                if (dr["SUBNUM"] != null && !"".Equals(dr["SUBNUM"].ToString()))
+                {
+                    try
+                    {
+                        SUBNUM = Convert.ToDecimal(dr["SUBNUM"]);
+                    }
+                    catch
+                    { }
+                }
+                Decimal SUBNUM_EAS = Convert.ToDecimal(dr["SUBNUM_EAS"]);
+                if (SUBNUM == SUBNUM_EAS)
+                {
+                    GreenRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "完全匹配";
+                }
+                else
+                {
+                    RedRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "条数不匹配";
+                }
+            }
+            GridList2.DataSource = dt;
+            GridList2.DataBind();
+            PageContext.RegisterStartupScript("onGridDataLoad2('" + RedRowsList + "','" + GreenRowsList + "','" + YellowRowsList + "','" + GridList2.ClientID + "');");
+            #endregion
+        }
+
+        protected void GridList2_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            string strBillNo = GridList2.Rows[e.RowIndex].Values[1].ToString();
+            ToolbarSeqno.Text = strBillNo;
+//            string strSql = @"SELECT A.SEQNO,A.ROWNO,B.GDSEQ,A.GDSEQ GDSEQ_EAS,B.UNIT,A.UNIT UNIT_EAS,B.GDSPEC,A.GDSPEC GDSPEC_EAS,B.SSSL,A.SSSL SSSL_EAS
+//                               ,B.PH,A.PH PH_EAS,B.HSJJ,A.HSJJ HSJJ_EAS
+//                               FROM DAT_RK_COM_COMPARE A LEFT JOIN DAT_RK_COM B ON A.SEQNO=B.SEQNO AND A.ROWNO=B.ROWNO 
+//                               WHERE A.SEQNO='" + strBillNo + "'";
+            string strSql = @"select null MEMO,c.* from
+                            (select a.*,B.GDSEQ GDSEQ_EAS,B.SSSL SSSL_EAS,B.PH PH_EAS from
+                            (select SEQNO,GDSEQ,GDNAME,F_GETUNITNAME(UNIT) UNIT,GDSPEC,SSSL,PH from dat_rk_com 
+                            where SEQNO='{0}' ) a
+                            left join (select SEQNO,GDSEQ,SSSL,PH from dat_rk_com_compare where SEQNO='{0}' ) b
+                            on a.gdseq=b.gdseq and a.ph=b.ph
+                            union
+                            select a.seqno,null gdseq,a.gdname,a.unit,a.gdspec,null sssl,null ph,a.gdseq gdseq_eas,a.sssl sssl_eas,a.ph ph_eas from
+                            (select SEQNO,GDSEQ,GDNAME,F_GETUNITNAME(UNIT) UNIT,GDSPEC,SSSL,PH from dat_rk_com_compare 
+                            where SEQNO='{0}' ) a
+                            where  not EXISTS ( select * from (select SEQNO,ROWNO,GDSEQ,SSSL,PH from dat_rk_com where SEQNO='{0}' ) b where a.gdseq=b.gdseq and a.ph=b.ph)) c
+                            order by c.seqno asc";
+            strSql = string.Format(strSql, strBillNo);
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+            string GreenRowsList = "";
+            string RedRowsList = "";
+            string YellowRowsList = "";
+            foreach (DataRow dr in dt.Rows)
+            {
+                string strGDSEQ = "";
+                if (dr["GDSEQ"] != null && !"".Equals(dr["GDSEQ"].ToString()))
+                {
+                    strGDSEQ = dr["GDSEQ"].ToString();
+                }
+                else
+                {
+                    //如果GDSEQ是NULL或者空值，说明DAT_RK_COM中没有该单据,标识黄色
+                    YellowRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "SPD没有EAS有";
+                    continue;
+                }
+                string strGDSEQ_EAS = dr["GDSEQ_EAS"].ToString();
+                if (dr["GDSEQ_EAS"] != null && !"".Equals(dr["GDSEQ_EAS"].ToString()))
+                {
+                    strGDSEQ_EAS = dr["GDSEQ_EAS"].ToString();
+                }
+                else
+                {
+                    //如果GDSEQ_EAS是NULL或者空值，说明DAT_RK_COM_COMPARE中没有该单据,标识白色
+                    dr["MEMO"] = "SPD有EAS没有";
+                    continue;
+                }
+                //string strUNIT = dr["UNIT"].ToString();
+                //string strUNIT_EAS = dr["UNIT_EAS"].ToString();
+                //string strGDSPEC = dr["GDSPEC"].ToString();
+                //string strGDSPEC_EAS = dr["GDSPEC_EAS"].ToString();
+                Decimal SSSL = Convert.ToDecimal(dr["SSSL"]);
+                Decimal SSSL_EAS = Convert.ToDecimal(dr["SSSL_EAS"]);
+                //Decimal HSJJ = Convert.ToDecimal(dr["HSJJ"]);
+                //Decimal HSJJ_EAS = Convert.ToDecimal(dr["HSJJ_EAS"]);
+                if (strGDSEQ_EAS.Equals(strGDSEQ) && SSSL == SSSL_EAS)
+                {
+                    GreenRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "完全匹配";
+                }
+                else
+                {
+                    RedRowsList += dt.Rows.IndexOf(dr).ToString() + ",";
+                    dr["MEMO"] = "订单数量不匹配";
+                }
+            }
+            GridDetail2.DataSource = dt;
+            GridDetail2.DataBind();
+            PageContext.RegisterStartupScript("onGridDataLoad2('" + RedRowsList + "','" + GreenRowsList + "','" + YellowRowsList + "','" + GridDetail2.ClientID + "');");
+        }
+
+        private string saveRKDocCom(JArray ja)
+        {
+            DataTable dResultDOC = ApiUtil.GetTableSchema("DAT_RK_DOC_COMPARE");
+            DataTable dResultCOM = ApiUtil.GetTableSchema("DAT_RK_COM_COMPARE");
+            String strDDBH = "";
+            String strCustId = "";
+            String SEQNO = "";
+            foreach (JToken jt in ja)
+            {
+                //表头
+                JObject jo = (JObject)jt;
+                String billType = jo.Value<String>("BILLTYPE");
+
+                String convSqlDOC = @"select * from dat_download_rule where type = '" + billType + "' and doccom='D'";
+                String convSqlCOM = @"select * from dat_download_rule where type='" + billType + "' and doccom='C'";
+                DataTable convertTableDOC = DbHelperOra.Query(convSqlDOC).Tables[0];
+                DataTable convertTableCOM = DbHelperOra.Query(convSqlCOM).Tables[0];
+                DataRow docRow = dResultDOC.NewRow();
+
+                SEQNO = jo.Value<String>("FNUMBER");
+                //String SOURCENUMBER = jo.Value<String>("SOURCENUMBER");
+                //strDDBH = SOURCENUMBER.Split('_')[0];
+                //strCustId = SOURCENUMBER.Split('_')[1];
+                ////strCustId = getCustIdByEasCustId(strCustId);
+                //docRow["DDBH"] = strDDBH;
+                //docRow["CUSTID"] = strCustId;
+
+                //判断FLAG<>4的单据不要
+                String strFlag = jo.Value<String>("FBASESTATUS");
+                if (!"4".Equals(strFlag))
+                {
+                    continue;
+                }
+
+                foreach (DataRow dr in convertTableDOC.Rows)
+                {
+                    String colTarget = dr["COLTARGET"].ToString();
+                    String colName = dr["COLNAME"].ToString();
+                    Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                    String convRule = dr["CONVRULE"].ToString();
+                    if (!isConv)
+                    {
+                        if (String.IsNullOrWhiteSpace(jo.Value<String>(colName)))
+                        {
+                            docRow[colTarget] = DBNull.Value;
+                        }
+                        else
+                        {
+                            docRow[colTarget] = jo.Value<String>(colName);
+                        }
+                    }
+                    else
+                    {
+                        docRow[colTarget] = convRule;
+                    }
+                }
+
+                int intSubNum = 0;//表头条数
+                decimal decSubSum = 0;//表头总金额
+
+                //表体
+                JArray jacom = jo.Value<JArray>("ENTRIES");
+                foreach (JToken jtcom in jacom)
+                {
+                    JObject jocom = (JObject)jtcom;
+                    DataRow comRow = dResultCOM.NewRow();
+                    foreach (DataRow dr in convertTableCOM.Rows)
+                    {
+                        String colTarget = dr["COLTARGET"].ToString();
+                        String colName = dr["COLNAME"].ToString();
+                        Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                        String convRule = dr["CONVRULE"].ToString();
+
+                        if (!isConv)
+                        {
+                            if (String.IsNullOrWhiteSpace(jocom.Value<String>(colName)))
+                            {
+                                comRow[colTarget] = DBNull.Value;
+                            }
+                            else
+                            {
+                                comRow[colTarget] = jocom.Value<String>(colName);
+                            }
+                        }
+                        else
+                        {
+                            comRow[colTarget] = convRule;
+                        }
+                    }
+                    //计算表头中条数和总金额
+                    intSubNum++;
+                    //decSubSum = decSubSum + Convert.ToDecimal(comRow["HSJJ"]) * Convert.ToDecimal(comRow["SSSL"]);
+
+                    //comRow["CUSTID"] = strCustId;
+                    comRow["SEQNO"] = SEQNO;
+                    comRow["ROWNO"] = jacom.IndexOf(jtcom) + 1;
+                    DataTable goodsDt = getSpdGoodsTable(jocom.Value<String>("MATERIALNUMBER"));
+                    if (goodsDt.Rows.Count > 0)
+                    {
+                        comRow["GDSEQ"] = goodsDt.Rows[0]["GDSEQ"];
+                        comRow["UNIT"] = goodsDt.Rows[0]["UNIT"];
+                        comRow["GDNAME"] = goodsDt.Rows[0]["GDNAME"];
+                        comRow["GDSPEC"] = goodsDt.Rows[0]["GDSPEC"];
+                        comRow["GDMODE"] = goodsDt.Rows[0]["GDMODE"];
+                        comRow["CATID"] = goodsDt.Rows[0]["CATID"];
+                        //comRow["JXTAX"] = goodsDt.Rows[0]["JXTAX"];
+                        //comRow["PZWH"] = goodsDt.Rows[0]["PZWH"];
+                        comRow["ZPBH"] = goodsDt.Rows[0]["ZPBH"];
+                        comRow["BZHL"] = (goodsDt.Rows[0]["BZHL"] == null ? 0 : goodsDt.Rows[0]["BZHL"]);
+                        //comRow["ISGZ"] = goodsDt.Rows[0]["ISGZ"];//
+                        comRow["ISLOT"] = goodsDt.Rows[0]["ISLOT"];
+                        comRow["BHSJJ"] = goodsDt.Rows[0]["BHSJJ"];
+                        //comRow["DDBH"] = strDDBH;
+                        comRow["ISGZ"] = "";
+                    }
+
+                    dResultCOM.Rows.Add(comRow);
+                }
+
+                docRow["SUBNUM"] = intSubNum;//
+                docRow["SUBSUM"] = decSubSum;
+                dResultDOC.Rows.Add(docRow);
+            }
+            bulkInsert("DAT_RK_DOC_COMPARE", dResultDOC, SEQNO, strCustId);
+            bulkInsert("DAT_RK_COM_COMPARE", dResultCOM, SEQNO, strCustId);
+            return SEQNO;
+        }
+
+        private void saveDDDocCom(JArray ja)
+        {
+            DataTable dResultDOC = ApiUtil.GetTableSchema("DAT_DD_DOC_COMPARE");
+            DataTable dResultCOM = ApiUtil.GetTableSchema("DAT_DD_COM_COMPARE");
+            String strDDBH = "";
+            String strCustId = "";
+            String SEQNO = "";
+            foreach (JToken jt in ja)
+            {
+                //表头
+                JObject jo = (JObject)jt;
+                String billType = jo.Value<String>("BILLTYPE");
+
+                String convSqlDOC = @"select * from dat_download_rule where type = '" + billType + "' and doccom='D'";
+                String convSqlCOM = @"select * from dat_download_rule where type='" + billType + "' and doccom='C'";
+                DataTable convertTableDOC = DbHelperOra.Query(convSqlDOC).Tables[0];
+                DataTable convertTableCOM = DbHelperOra.Query(convSqlCOM).Tables[0];
+                DataRow docRow = dResultDOC.NewRow();
+
+                SEQNO = jo.Value<String>("FNUMBER");
+                strDDBH = SEQNO.Split('_')[0];
+                strCustId = SEQNO.Split('_')[1];
+
+                //判断FLAG<>4的单据不要
+                String strFlag = jo.Value<String>("FBASESTATUS");
+                //if (!"4".Equals(strFlag))
+                //{
+                //    continue;
+                //}
+
+                foreach (DataRow dr in convertTableDOC.Rows)
+                {
+                    String colTarget = dr["COLTARGET"].ToString();
+                    String colName = dr["COLNAME"].ToString();
+                    Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                    String convRule = dr["CONVRULE"].ToString();
+                    if (!isConv)
+                    {
+                        if (String.IsNullOrWhiteSpace(jo.Value<String>(colName)))
+                        {
+                            docRow[colTarget] = DBNull.Value;
+                        }
+                        else
+                        {
+                            docRow[colTarget] = jo.Value<String>(colName);
+                        }
+                    }
+                    else
+                    {
+                        docRow[colTarget] = convRule;
+                    }
+                }
+
+                int intSubNum = 0;//表头条数
+                decimal decSubSum = 0;//表头总金额
+
+                //表体
+                JArray jacom = jo.Value<JArray>("ENTRIES");
+                foreach (JToken jtcom in jacom)
+                {
+                    JObject jocom = (JObject)jtcom;
+                    DataRow comRow = dResultCOM.NewRow();
+                    foreach (DataRow dr in convertTableCOM.Rows)
+                    {
+                        String colTarget = dr["COLTARGET"].ToString();
+                        String colName = dr["COLNAME"].ToString();
+                        Boolean isConv = "Y".Equals(dr["ISCONV"].ToString());
+                        String convRule = dr["CONVRULE"].ToString();
+
+                        if (!isConv)
+                        {
+                            if (String.IsNullOrWhiteSpace(jocom.Value<String>(colName)))
+                            {
+                                comRow[colTarget] = DBNull.Value;
+                            }
+                            else
+                            {
+                                comRow[colTarget] = jocom.Value<String>(colName);
+                            }
+                        }
+                        else
+                        {
+                            comRow[colTarget] = convRule;
+                        }
+                    }
+                    //计算表头中条数和总金额
+                    intSubNum++;
+                   // decSubSum = decSubSum + Convert.ToDecimal(comRow["HSJJ"]) * Convert.ToDecimal(comRow["DHS"]);
+
+                    comRow["SEQNO"] = strDDBH;
+                    comRow["ROWNO"] = jacom.IndexOf(jtcom) + 1;
+                    DataTable goodsDt = getSpdGoodsTable(jocom.Value<String>("MATERIALNUMBER"));
+                    if (goodsDt.Rows.Count > 0)
+                    {
+                        comRow["GDSEQ"] = goodsDt.Rows[0]["GDSEQ"];
+                        comRow["UNIT"] = goodsDt.Rows[0]["UNIT"];
+                        comRow["GDNAME"] = goodsDt.Rows[0]["GDNAME"];
+                        comRow["GDSPEC"] = goodsDt.Rows[0]["GDSPEC"];
+                        //comRow["GDMODE"] = goodsDt.Rows[0]["GDMODE"];
+                        comRow["CATID"] = goodsDt.Rows[0]["CATID"];
+                        //comRow["JXTAX"] = goodsDt.Rows[0]["JXTAX"];
+                        //comRow["PZWH"] = goodsDt.Rows[0]["PZWH"];
+                        comRow["ZPBH"] = goodsDt.Rows[0]["ZPBH"];
+                        comRow["BZHL"] = (goodsDt.Rows[0]["BZHL"] == null ? 0 : goodsDt.Rows[0]["BZHL"]);
+                        //comRow["ISGZ"] = goodsDt.Rows[0]["ISGZ"];//
+                        comRow["ISLOT"] = goodsDt.Rows[0]["ISLOT"];
+                        comRow["BHSJJ"] = goodsDt.Rows[0]["BHSJJ"];
+                        //comRow["DDBH"] = strDDBH;
+                        comRow["ISGZ"] = "";
+                    }
+
+                    dResultCOM.Rows.Add(comRow);
+                }
+                docRow["SEQNO"] = strDDBH;
+                docRow["BILLNO"] = strDDBH;
+                docRow["SUBNUM"] = intSubNum;//
+                docRow["SUBSUM"] = decSubSum;
+                dResultDOC.Rows.Add(docRow);
+            }
+            bulkInsert("DAT_DD_DOC_COMPARE", dResultDOC, strDDBH, strCustId);
+            bulkInsert("DAT_DD_COM_COMPARE", dResultCOM, strDDBH, strCustId);
+        }
+
+        private DataTable getSpdGoodsTable(String material, String custId)
+        {
+            String sql = "select a.* from doc_goods a,doc_customer c,doc_custrange r ,doc_goodsgroup gr where a.flag='Y' and c.code = '" + custId + "' and gr.eascode='" + material + "' and a.gdseq = gr.gdseq and gr.groupid=r.catid and c.code=r.custid";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            return dt;
+        }
+
+        private DataTable getSpdGoodsTable(String material)
+        {
+            String sql = "select a.* from doc_goods a where a.flag='Y' and a.BAR3='" + material + "'";
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            return dt;
+        }
+
+        /// <summary>
+        /// 批量插入数据。 先清临时表，再bulkcopy到临时表
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="dt"></param>
+        /// <param name="procedureName"></param>
+        private void bulkInsert(String tableName, DataTable dt, String strDDBH, String strCustId)
+        {
+            String sql = "delete from " + tableName + " where SEQNO='" + strDDBH + "'";
+            DbHelperOra.ExecuteSql(sql);
+            ApiUtil.BulkInsert(tableName, dt);
+        }
+    }
+}

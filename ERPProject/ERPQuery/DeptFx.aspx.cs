@@ -1,0 +1,390 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class DeptFx : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+                DataSearch();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            lisDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+            lisDATE2.SelectedDate = DateTime.Now;
+            PubFunc.DdlDataGet("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID, ddlDEPTID);
+        }
+
+        private void DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(dpkDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(dpkDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("【输入日期】不正确,请检查！", MessageBoxIcon.Warning);
+                return;
+            }
+            if (dpkDATE1.SelectedDate > dpkDATE2.SelectedDate)
+            {
+                Alert.Show("【开始日期】不能大于【结束日期】！", MessageBoxIcon.Warning);
+                return;
+            }
+            string strSql = @"SELECT A.*,NVL(C.TBJE,0) TBJE,NVL(C.TBSL,0) TBSL,NVL(B.HBJE,0) HBJE,NVL(B.HBSL,0) HBSL
+                            FROM
+                            (SELECT A.CODE,A.NAME,f_getusername(A.MANAGER) USERNAME,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) HSJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) SL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3'  AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ >= TO_DATE('{0}','yyyy-MM-dd') AND B.RQSJ <TO_DATE('{1}','yyyy-MM-dd') + 1
+                            AND B.KCADD < 0 {3}
+                            GROUP BY A.CODE,A.NAME,A.MANAGER) A,
+                            (SELECT B.DEPTID,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) HBJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) HBSL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3' AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ >= TO_DATE('{0}','yyyy-MM-dd') - {2} AND B.RQSJ <TO_DATE('{1}','yyyy-MM-dd') + 1 - {2}
+                            AND B.KCADD < 0 {3}
+                            GROUP BY B.DEPTID) B,
+                            (SELECT B.DEPTID,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) TBJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) TBSL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3' AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ >= ADD_MONTHS(TO_DATE('{0}','yyyy-MM-dd'),-12) AND B.RQSJ<ADD_MONTHS((TO_DATE('{1}','yyyy-MM-dd') + 1),-12)
+                            AND B.KCADD < 0 {3}
+                            GROUP BY B.DEPTID) C
+                            WHERE A.CODE = B.DEPTID(+) AND A.CODE = C.DEPTID(+)";
+            string strWhere = "";
+            if (lstDEPTID.SelectedValue.Length > 0) strWhere += " AND A.CODE = '" + lstDEPTID.SelectedValue + "'";
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) strWhere += " AND EXISTS(SELECT 1 FROM DOC_GOODS K WHERE K.ISGZ = '" + ddlISGZ.SelectedValue + "' AND K.GDSEQ = B.GDSEQ)";
+            string sortField = GridGoods.SortField;
+            string sortDirection = GridGoods.SortDirection;
+
+            int span = Convert.ToDateTime(dpkDATE2.Text).Subtract(Convert.ToDateTime(dpkDATE1.Text)).Days+1;
+            string ss = string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, span, strWhere);
+            DataTable dt = DbHelperOra.QueryForTable(string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, span, strWhere) + String.Format(" ORDER BY {0} {1}", sortField, sortDirection));
+            GridGoods.DataSource = dt;
+            GridGoods.DataBind();
+
+            JObject summary = new JObject();
+            hfdArray.Text = "";
+            hfdArrayVal.Text = "";
+            hfdArrayVal2.Text = "";
+            Decimal SL = 0, HSJE = 0, total = 0, totaltb = 0, totalhb = 0, sltb = 0, slhb = 0;
+            int i = 0;
+            if (dt.Rows.Count < 1)
+            {
+                hfdArray.Text = "无数据信息,";
+                hfdArrayVal.Text = "0$无数据信息,";
+            }
+            foreach (DataRow dr in dt.Rows)
+            {
+                SL += Convert.ToDecimal(dr["SL"]);
+                HSJE += Convert.ToDecimal(dr["HSJE"]);
+                totaltb += Convert.ToDecimal(dr["TBJE"]);
+                totalhb += Convert.ToDecimal(dr["HBJE"]);
+                sltb += Convert.ToDecimal(dr["TBSL"]);
+                slhb += Convert.ToDecimal(dr["HBSL"]);
+                if (i > 8)
+                {
+                    total += Convert.ToDecimal(dr["HSJE"].ToString());
+                }
+                else
+                {
+                    hfdArray.Text += dr["NAME"] + ",";
+                    hfdArrayVal.Text += dr["HSJE"] + "$" + dr["NAME"] + ",";
+                }
+                i++;
+            }
+            if (total > 0)
+            {
+                hfdArray.Text += "其他,";
+                hfdArrayVal.Text += total.ToString() + "$其他,";
+            }
+            hfdArray.Text = hfdArray.Text.TrimEnd(',');
+            hfdArrayVal.Text = hfdArrayVal.Text.TrimEnd(',');
+            Totalsl.Text = SL.ToString();
+            Totalje.Text = HSJE.ToString();
+            hfdArrayVal2.Text = HSJE.ToString() + "," + (Math.Round(totaltb, 2)).ToString() + "," + (Math.Round(totalhb, 2)).ToString();
+            summary.Add("NAME", "本页合计");
+            summary.Add("SL", SL.ToString("F2"));
+            summary.Add("HSJE", HSJE.ToString("F2"));
+            summary.Add("TBJE", totaltb.ToString("F2"));
+            summary.Add("HBJE", totalhb.ToString("F2"));
+            summary.Add("TBSL", sltb.ToString("F2"));
+            summary.Add("HBSL", slhb.ToString("F2"));
+            GridGoods.SummaryData = summary;
+            PageContext.RegisterStartupScript("getEcharsData2();getEcharsData();updateDate()");
+        }
+        protected void btnSch_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.StrIsEmpty(lisDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(lisDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("【输入日期】不正确,请检查！", MessageBoxIcon.Warning);
+                return;
+            }
+            if (lisDATE1.SelectedDate > lisDATE2.SelectedDate)
+            {
+                Alert.Show("【开始日期】不能大于【结束日期】！", MessageBoxIcon.Warning);
+                return;
+            }
+            string strSql = @"SELECT A.SL,A.HSJE,B.GDSEQ,B.GDNAME,B.GDSPEC,f_getunitname(B.UNIT) UNITNAME,f_getproducername(B.PRODUCER) PRODUCERNAME,
+                                   B.HSJJ,B.PIZNO,
+                                   ROUND((A.SL/(SELECT SUM(DECODE(AA.BILLTYPE,'XST',-ABS(AA.SL),'XSG',ABS(AA.SL),'XSD',ABS(AA.SL),'DSH',ABS(AA.SL)))
+                                    FROM DAT_GOODSJXC AA
+                                    WHERE AA.RQSJ >= TO_DATE('{0}','yyyy-MM-dd') AND  AA.RQSJ<TO_DATE('{1}','yyyy-MM-dd') + 1 AND AA.DEPTID = A.DEPTID AND AA.KCADD < 0)),4) SLZB,
+                                    ROUND((A.HSJE/(SELECT SUM(DECODE(AA.BILLTYPE,'XST',-ABS(AA.HSJE),'XSG',ABS(AA.HSJE),'XSD',ABS(AA.HSJE),'DSH',ABS(AA.HSJE)))
+                                    FROM DAT_GOODSJXC AA
+                                    WHERE AA.RQSJ >= TO_DATE('{0}','yyyy-MM-dd') AND AA.RQSJ<TO_DATE('{1}','yyyy-MM-dd') + 1 AND AA.DEPTID = A.DEPTID AND AA.KCADD < 0)),4) JEZB,
+                                    F_GETBL('KSJEHB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','') JEHB,F_GETBL('KSJETB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','') JETB,
+                                    F_GETBL('KSSLHB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','') SLHB,F_GETBL('KSSLTB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','') SLTB
+                            FROM (SELECT A.DEPTID,A.GDSEQ,NVL(SUM(DECODE(A.BILLTYPE,'XST',-ABS(A.SL),'DSH',ABS(A.SL),'XSD',ABS(A.SL),'XSG',ABS(A.SL))),0) SL,
+               NVL(SUM(DECODE(A.BILLTYPE,'XST',-ABS(A.HSJE),'DSH',ABS(A.HSJE),'XSD',ABS(A.HSJE),'XSG',ABS(A.HSJE))),0) HSJE
+                            FROM DAT_GOODSJXC A,SYS_DEPT B
+                            WHERE A.RQSJ >=TO_DATE('{0}','yyyy-MM-dd') AND A.RQSJ< TO_DATE('{1}','yyyy-MM-dd') + 1
+                            {2} AND A.DEPTID = B.CODE AND B.TYPE ='3' AND A.KCADD < 0
+                            GROUP BY A.DEPTID,A.GDSEQ) A,DOC_GOODS B
+                            WHERE A.GDSEQ = B.GDSEQ AND A.SL<>0";
+            string strWhere = "";
+            string strWhere2 = "";
+            if (ddlDEPTID.SelectedValue.Length > 1) strWhere2 += " AND A.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+            if (lisGDSEQ.Text.Trim().Length > 0)
+            {
+                strWhere += String.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%')", lisGDSEQ.Text.Trim());
+            }
+            if (lstISGZ.SelectedValue.Length > 0) strWhere += " AND B.ISGZ = '" + lstISGZ.SelectedValue + "'";
+            if (strWhere.Trim().Length > 0) strSql = strSql + strWhere;
+            int total = 0;
+            string sortField = GridList.SortField;
+            string sortDirection = GridList.SortDirection;
+
+            DataTable dtData = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, string.Format(strSql, lisDATE1.Text, lisDATE2.Text, strWhere2) + String.Format(" ORDER BY {0} {1}", sortField, sortDirection), ref total);
+            GridList.RecordCount = total;
+            GridList.DataSource = dtData;
+            GridList.DataBind();
+
+            Decimal SL = 0, HSJE = 0;
+            JObject summary = new JObject();
+            foreach (DataRow dr in dtData.Rows)
+            {
+                SL += Convert.ToDecimal(dr["SL"]);
+                HSJE += Convert.ToDecimal(dr["HSJE"]);
+            }
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("SL2", SL.ToString("F2"));
+            summary.Add("HSJE2", HSJE.ToString("F2"));
+            GridList.SummaryData = summary;
+        }
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+                dpkDATE2.SelectedDate = DateTime.Now;
+                lstDEPTID.SelectedValue = "";
+                ddlISGZ.SelectedValue = "";
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                lisDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+                lisDATE2.SelectedDate = DateTime.Now;
+                lisGDSEQ.Text = String.Empty;
+                lstISGZ.SelectedValue = "";
+            }
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                if (GridGoods.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                //Response.ClearContent();
+                //Response.AddHeader("content-disposition", "attachment; filename=科室排行.xls");
+                //Response.ContentType = "application/excel";
+                //Response.ContentEncoding = System.Text.Encoding.UTF8;
+                //Response.Write(PubFunc.GridToHtml(GridGoods));
+                //Response.End();
+                string strSql = @"SELECT A.NAME 科室,A.SL 使用数量,NVL(C.TBSL,0) 同比数量,NVL(B.HBSL,0) 环比数量,
+                                        concat(to_char(ROUND((A.SL /(SELECT SUM(DECODE(AA.BILLTYPE,
+                                                     'XST',
+                                                     -ABS(AA.SL),
+                                                     'XSG',
+                                                     ABS(AA.SL),
+                                                     'XSD',
+                                                     ABS(AA.SL),
+                                                     'DSH',
+                                                     ABS(AA.SL)))
+                                     FROM DAT_GOODSJXC AA
+                                    WHERE AA.RQSJ >= TO_DATE('{0}', 'yyyy-MM-dd') 
+                                          AND AA.RQSJ <TO_DATE('{1}','yyyy-MM-dd') + 1
+                                          AND AA.KCADD < 0)),
+                                     4)*100,'fm990.9999'),'%') 数量占比,
+                                    NVL(ROUND(F_GETBL('DPSLTB', '{0}', '{1}', A.CODE, '', '', '', '')*100,4),0)||'%' 数量同比,
+                                    NVL(ROUND(F_GETBL('DPSLHB', '{0}', '{1}', A.CODE, '', '', '', '')*100,4),0)||'%' 数量环比,
+                                    A.HSJE 使用金额,NVL(C.TBJE,0) 同比金额,NVL(B.HBJE,0) 环比金额,
+                                       concat(to_char(ROUND((A.HSJE /
+             (SELECT SUM(DECODE(AA.BILLTYPE,
+                                 'XST',
+                                 -ABS(AA.HSJE),
+                                 'XSG',
+                                 ABS(AA.HSJE),
+                                 'XSD',
+                                 ABS(AA.HSJE),
+                                 'DSH',
+                                 ABS(AA.HSJE)))
+                 FROM DAT_GOODSJXC AA
+                WHERE AA.RQSJ >= TO_DATE('{0}', 'yyyy-MM-dd')
+                  AND AA.RQSJ < TO_DATE('{1}', 'yyyy-MM-dd') + 1
+                  AND AA.KCADD < 0)) ,
+             4)*100,'fm990.9999'),'%') 金额占比,
+                                    NVL(ROUND(F_GETBL('DPJETB', '{0}', '{1}', A.CODE, '', '', '', '')*100,4),0)||'%' 金额同比,
+                                    NVL(ROUND(F_GETBL('DPJEHB', '{0}', '{1}', A.CODE, '', '', '', '')*100,4),0)||'%' 金额环比
+                            FROM
+                            (SELECT A.CODE,A.NAME,f_getusername(A.MANAGER) USERNAME,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) HSJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) SL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3'  AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ>= TO_DATE('{0}','yyyy-MM-dd') AND B.RQSJ<TO_DATE('{1}','yyyy-MM-dd') + 1
+                            AND B.KCADD < 0 {3}
+                            GROUP BY A.CODE,A.NAME,A.MANAGER) A,
+                            (SELECT B.DEPTID,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) HBJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) HBSL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3' AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ >= TO_DATE('{0}','yyyy-MM-dd') - {2} AND B.RQSJ< TO_DATE('{1}','yyyy-MM-dd') + 1 - {2}
+                            AND B.KCADD < 0 {3}
+                            GROUP BY B.DEPTID) B,
+                            (SELECT B.DEPTID,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'DSH',ABS(B.HSJE),'XSD',ABS(B.HSJE),'XSG',ABS(B.HSJE))) TBJE,
+                                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'DSH',ABS(B.SL),'XSD',ABS(B.SL),'XSG',ABS(B.SL))) TBSL
+                            FROM SYS_DEPT A,DAT_GOODSJXC B
+                            WHERE A.CODE = B.DEPTID AND A.TYPE = '3' AND B.BILLTYPE IN ('XST', 'DSH', 'XSD','XSG')
+                            AND B.RQSJ >= ADD_MONTHS(TO_DATE('{0}','yyyy-MM-dd'),-12) AND B.RQSJ<ADD_MONTHS((TO_DATE('{1}','yyyy-MM-dd') + 1),-12)
+                            AND B.KCADD < 0 {3}
+                            GROUP BY B.DEPTID) C
+                            WHERE A.CODE = B.DEPTID(+) AND A.CODE = C.DEPTID(+)";
+                string strWhere = "";
+                if (lstDEPTID.SelectedValue.Length > 0) strWhere += " AND A.CODE = '" + lstDEPTID.SelectedValue + "'";
+                if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) strWhere += " AND EXISTS(SELECT 1 FROM DOC_GOODS K WHERE K.ISGZ = '" + ddlISGZ.SelectedValue + "' AND K.GDSEQ = B.GDSEQ)";
+                string sortField = GridGoods.SortField;
+                string sortDirection = GridGoods.SortDirection;
+                int span = Convert.ToDateTime(dpkDATE2.Text).Subtract(Convert.ToDateTime(dpkDATE1.Text)).Days+1;
+                string ss = string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, span, strWhere);
+                DataTable dt = DbHelperOra.QueryForTable(string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, span, strWhere) + String.Format(" ORDER BY {0} {1}", "使用金额", sortDirection));
+                XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "科室消耗排行", "科室消耗排行_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+                btnExp.Enabled = true;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                if (GridList.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                //Response.ClearContent();
+                //Response.AddHeader("content-disposition", "attachment; filename=科室明细排行.xls");
+                //Response.ContentType = "application/excel";
+                //Response.ContentEncoding = System.Text.Encoding.UTF8;
+                //Response.Write(PubFunc.GridToHtml(GridList));
+                //Response.End();
+                string strSql = @"SELECT ' '||B.GDSEQ 商品编码,
+                                   B.GDNAME 商品名称,
+                                   B.GDSPEC 规格容量,
+                                   f_getunitname(B.UNIT) 单位,
+                                   A.SL 使用数,
+                                   ROUND((A.SL /
+                                         (SELECT SUM(DECODE(AA.BILLTYPE,'XST',-ABS(AA.SL),'XSG',ABS(AA.SL),'XSD',ABS(AA.SL),'DSH',ABS(AA.SL)))
+                                             FROM DAT_GOODSJXC AA
+                                            WHERE AA.RQSJ >= TO_DATE('{0}', 'yyyy-MM-dd') 
+                                                 AND AA.RQSJ<TO_DATE('{1}', 'yyyy-MM-dd') + 1
+                                              AND AA.DEPTID = A.DEPTID))*100,2)||'%' 数量占比,
+                                         ROUND(F_GETBL('KSSLTB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','')*100,2)||'%' 数量同比,
+                                         ROUND(F_GETBL('KSSLHB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','')*100,2)||'%' 数量环比,
+                                   A.HSJE 使用金额,
+                                   ROUND((A.HSJE /
+                                         (SELECT SUM(DECODE(AA.BILLTYPE,'XST',-ABS(AA.HSJE),'XSG',ABS(AA.HSJE),'XSD',ABS(AA.HSJE),'DSH',ABS(AA.HSJE)))
+                                             FROM DAT_GOODSJXC AA
+                                            WHERE AA.RQSJ >= TO_DATE('{0}', 'yyyy-MM-dd') 
+                                                  AND AA.RQSJ<TO_DATE('{1}', 'yyyy-MM-dd') + 1
+                                              AND AA.DEPTID = A.DEPTID))*100,2)||'%' 金额占比,
+                                   ROUND(F_GETBL('KSJETB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','')*100,2)||'%' 金额同比,
+                                   ROUND(F_GETBL('KSJEHB','{0}','{1}',A.DEPTID,B.GDSEQ,'','','')*100,2)||'%' 金额环比,
+                                   f_getproducername(B.PRODUCER) 生产厂家,
+                                   --B.HSJJ,
+                                   B.PIZNO 批准文号
+                              FROM (SELECT A.DEPTID,
+                                           A.GDSEQ,
+                                           NVL(SUM(DECODE(A.BILLTYPE,'XST',-ABS(A.SL),'DSH',ABS(A.SL),'XSD',ABS(A.SL),'XSG',ABS(A.SL))),0) SL,
+                                           NVL(SUM(DECODE(A.BILLTYPE,'XST',-ABS(A.HSJE),'DSH',ABS(A.HSJE),'XSD',ABS(A.HSJE),'XSG',ABS(A.HSJE))),0) HSJE
+                                      FROM DAT_GOODSJXC A, SYS_DEPT B
+                                     WHERE A.RQSJ >=TO_DATE('{0}', 'yyyy-MM-dd') 
+                                           AND A.RQSJ<TO_DATE('{1}', 'yyyy-MM-dd') + 1 {2}
+                                       AND A.DEPTID = B.CODE
+                                       AND B.TYPE = '3'
+                                       AND A.KCADD < 0
+                                     GROUP BY A.DEPTID, A.GDSEQ) A,
+                                   DOC_GOODS B
+                             WHERE A.GDSEQ = B.GDSEQ AND A.SL<>0";
+                string strWhere = "";
+                string strWhere2 = "";
+                if (ddlDEPTID.SelectedValue.Length > 1) strWhere2 += " AND A.DEPTID = '" + ddlDEPTID.SelectedValue + "'";
+                if (lisGDSEQ.Text.Trim().Length > 0)
+                {
+                    strWhere += String.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%')", lisGDSEQ.Text.Trim());
+                }
+                if (lstISGZ.SelectedValue.Length > 0) strWhere += " AND B.ISGZ = '" + lstISGZ.SelectedValue + "'";
+                if (strWhere.Trim().Length > 0) strSql = strSql + strWhere;
+                string sortField = GridList.SortField;
+                string sortDirection = GridList.SortDirection;
+                DataTable dtData = DbHelperOra.QueryForTable(string.Format(strSql, lisDATE1.Text, lisDATE2.Text, strWhere2) + String.Format(" ORDER BY {0} {1}", "使用金额", sortDirection));
+                XTBase.Utilities.ExcelHelper.ExportByWeb(dtData, "科室明细排行", "科室明细排行_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+                btnExp.Enabled = true;
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            ddlDEPTID.SelectedValue = GridGoods.DataKeys[e.RowIndex][0].ToString();
+            lstISGZ.SelectedValue = ddlISGZ.SelectedValue;
+            lisDATE1.SelectedDate = dpkDATE1.SelectedDate;
+            lisDATE2.SelectedDate = dpkDATE2.SelectedDate;
+            TabStrip1.ActiveTabIndex = 1;
+            lisGDSEQ.Text = String.Empty;
+            btnSch_Click(null, null);
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            btnSch_Click(null, null);
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            DataSearch();
+        }
+    }
+}

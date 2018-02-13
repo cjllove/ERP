@@ -1,0 +1,38 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdStorage
+{
+    public partial class EASImport : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btnSelect_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btImport_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}

@@ -1,0 +1,253 @@
+﻿using FineUIPro;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ERPProject.ERPWorkbench
+{
+    public partial class IndexPH : PageBase
+    {
+        public IndexPH()
+        {
+            ISCHECK = false;
+        }
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                StockEarlyWarning();
+                OrderArrival();
+                EffectiveEarlyWarning();
+                ConsumeData();
+                Search(); 
+            }
+        }
+        private void StockEarlyWarning()
+        {
+            string sql_yj = @"select a.gdseq,
+                                               a.gdname,
+                                               a.gdspec,
+                                               f_getunitname(a.unit)  unit,
+                                               a.hsjj,
+                                               b.zdkc,
+                                               b.zgkc,
+                                               nvl(c.kcsl, 0) kcsl,
+                                               a.pizno,
+                                               f_getproducername(a.producer) producername,
+                                               f_getsupname(a.supplier) supname
+                                          from doc_goods a,
+                                               (select * from doc_goodscfg where deptid = '{0}') b,
+                                               (select deptid, gdseq, sum(kcsl) kcsl
+                                                  from dat_goodsstock
+                                                 where deptid = '{0}'
+                                                 group by deptid, gdseq) c
+                                         where a.gdseq = b.gdseq
+                                           and a.isgz = 'N'
+                                           and b.deptid = c.deptid(+)
+                                           and b.gdseq = c.gdseq(+)
+                                           and nvl(c.kcsl, 0) < decode(nvl(b.zdkc, 0), 0, 1, b.zdkc)
+                                           and nvl(b.zdkc, 0) > 0
+                                           order by a.gdseq";
+            DataTable dtYuJing = new DataTable();
+            int total = 0;
+            try
+            {
+                dtYuJing = GetDataTable(GridStockEarlyWarning.PageIndex, GridStockEarlyWarning.PageSize, string.Format(sql_yj, UserAction.UserDept), ref total);
+            }
+            catch (Exception ex)
+            {
+                //有异常也不抛出,防止影响系统主界面运行 c 20150414
+                return;
+            }
+
+            GridStockEarlyWarning.RecordCount = total;
+            GridStockEarlyWarning.DataSource = dtYuJing;
+            GridStockEarlyWarning.DataBind();
+        }
+
+        private void OrderArrival()
+        {
+            string sql_dd = @"select *
+                                      from (select a.seqno,
+                                                   a.subnum,f_getsupname(a.pssid) supname,
+                                                   (select sum(dhs)
+                                                      from dat_dd_doc dd, dat_dd_com dc
+                                                     where dd.seqno = dc.seqno
+                                                       and dd.seqno = a.seqno) dhsl,
+                                                   a.xdrq,
+                                                   a.dhrq,
+                                                   f_getusername(a.lry) lry,
+                                                   rk.rksl,
+                                                   rk.rktms,
+                                                   rk.rkd
+                                              from dat_dd_doc a,
+                                                   (select b.ddbh,
+                                                           (select sum(rc.sssl)
+                                                              from dat_rk_doc rd, dat_rk_com rc
+                                                             where rd.seqno = rc.seqno
+                                                               and rd.ddbh = b.ddbh) rksl,
+                                                           (select count(1)
+                                                              from dat_rk_doc rd, dat_rk_com rc
+                                                             where rd.seqno = rc.seqno
+                                                               and rd.ddbh = b.ddbh) rktms,
+                                                           listagg(seqno, ',') within group(order by seqno) rkd
+                                                      from dat_rk_doc b
+                                                     where b.flag in ('Y', 'G')
+                                                       and b.ddbh is not null
+                                                     group by b.ddbh) rk
+                                             where a.seqno = rk.ddbh(+) and a.lry='{0}' and a.flag = 'Y')
+                                     where nvl(dhsl, 0) <> nvl(rksl, 0)";
+            DataTable table = new DataTable();
+            int total = 0;
+            try
+            {
+                table = GetDataTable(GridOrderArrival.PageIndex, GridOrderArrival.PageSize, string.Format(sql_dd, UserAction.UserID), ref total);
+            }
+            catch (Exception ex)
+            {
+                //有异常也不抛出,防止影响系统主界面运行 c 20150414
+                return;
+            }
+
+            GridOrderArrival.RecordCount = total;
+            GridOrderArrival.DataSource = table;
+            GridOrderArrival.DataBind();
+        }
+
+        private void EffectiveEarlyWarning()
+        {
+            string sql_yj = @"select b.gdseq,
+                                               b.gdname,
+                                               b.gdspec,
+                                               f_getunitname(b.unit) unit,
+                                               a.kcsl,
+                                               a.kchsjj,
+                                               a.ph,
+                                               a.yxqz,
+                                               a.picino,
+                                               f_getcatname(a.catid) catname,
+                                               f_getproducername(b.producer) producername,
+                                               f_getsupname(a.supid) supname
+                                          from dat_goodsstock a, doc_goods b
+                                         where a.gdseq = b.gdseq
+                                           and a.deptid = '{0}'
+                                           and b.isgz = 'N'
+                                           and nvl(a.kcsl, 0) > 0
+                                           and floor(a.yxqz - sysdate) < 93";
+            DataTable table = new DataTable();
+            int total = 0;
+            try
+            {
+                table = GetDataTable(GridEffectiveEarlyWarning.PageIndex, GridEffectiveEarlyWarning.PageSize, string.Format(sql_yj, UserAction.UserDept), ref total);
+            }
+            catch (Exception ex)
+            {
+                //有异常也不抛出,防止影响系统主界面运行 c 20150414
+                return;
+            }
+
+            GridEffectiveEarlyWarning.RecordCount = total;
+            GridEffectiveEarlyWarning.DataSource = table;
+            GridEffectiveEarlyWarning.DataBind();
+        }
+
+        private void ConsumeData()
+        {
+            string sql_yj = @"select b.gdseq,
+                                               b.gdname,
+                                               b.gdspec,
+                                               f_getunitname(b.unit) unit,
+                                               a.sl,b.hsjj,
+                                               f_getcatname(a.catid) catname,
+                                               f_getproducername(b.producer) producername,
+                                               f_getsupname(a.supid) supname
+                                          from (select gdseq,
+                                                       catid,
+                                                       supid,
+                                                       abs(sum(decode(billtype, 'XST', decode(kcadd, '1', sl, 0), sl))) sl
+                                                  from dat_goodsjxc
+                                                 where f_chk_datarange(deptid, '{0}') = 'Y'
+                                                   and billtype in ('XSD','DSH','XST')
+                                                   and to_char(rqsj, 'YYYY-MM-DD') = '{1}'
+                                                 group by gdseq, catid, supid) a,
+                                               doc_goods b
+                                         where a.gdseq = b.gdseq";
+            DataTable dtYuJing = new DataTable();
+            int total = 0;
+            try
+            {
+                dtYuJing = GetDataTable(GridConsume.PageIndex, GridConsume.PageSize, string.Format(sql_yj, UserAction.UserID,DateTime.Now.ToString("yyyy-MM-dd")), ref total);
+            }
+            catch (Exception ex)
+            {
+                //有异常也不抛出,防止影响系统主界面运行 c 20150414
+                return;
+            }
+
+            GridConsume.RecordCount = total;
+            GridConsume.DataSource = dtYuJing;
+            GridConsume.DataBind();
+        }
+
+        protected void GridOrderArrival_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            string ddbh = GridOrderArrival.Rows[e.RowIndex].DataKeys[0].ToString();
+            string url = "ERPQuery/GoodsDhfx.aspx?fid=7214&dd="+ddbh;
+            PageContext.RegisterStartupScript("openTODOLINK('7214','" + url + "','到货情况分析')");
+        }
+
+        protected void GridStockEarlyWarning_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridStockEarlyWarning.PageIndex = e.NewPageIndex;
+            StockEarlyWarning();
+        }
+
+        protected void GridOrderArrival_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridOrderArrival.PageIndex = e.NewPageIndex;
+            OrderArrival();
+        }
+
+        protected void Search()
+        {
+            string strNum = DbHelperOra.GetSingle("select to_char(sysdate-1,'d') from dual").ToString();
+            string strSql = string.Format(@"SELECT A.*,F_GETDEPTPS(A.CODE,'{1}','FLAG') FLAGNAME,f_getusername(A.MANAGER) PSYNAME,F_GETDEPTPS(A.CODE,'{1}','TIME') TIMENAME
+                                FROM SYS_DEPT A
+                                WHERE A.DHZQ{0} <> 'N'", strNum, DateTime.Now.ToString("yyyy-MM-dd"));
+            string strWhere = " ";
+            //if (DbHelperOra.Exists(string.Format("SELECT 1 FROM SYS_DEPT WHERE Manager = '{0}'", hfduser.Text)) && hfduser.Text.Length > 0)
+            //{
+            //    strWhere += " AND A.STR4 = '" + hfduser.Text + "'";
+            //}
+
+            strWhere += string.Format(" AND a.code in( select code FROM SYS_DEPT where F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+
+            if (strWhere != " ") strSql = strSql + strWhere;
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            lblMemo.Text = string.Format("今日配送{0}个科室，已配送{1}个，未配送{2}个", dt.Rows.Count, dt.Select("FLAGNAME='已配送'").Count(), dt.Select("FLAGNAME<>'已配送'").Count());
+            if (dt.Rows.Count > 0)
+            {
+                decimal bf = dt.Select("FLAGNAME = '已配送'").Count() * 100 / dt.Rows.Count;
+                barPercent.Text = Math.Round(bf).ToString();
+                labelTop.Text = Math.Round(bf).ToString() + "%";
+            }
+            else
+            {
+                barPercent.Text = "";
+                labelTop.Text = "0.00%";
+            }
+        }
+
+        protected void GridConsume_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridConsume.PageIndex = e.NewPageIndex;
+            ConsumeData();
+        }
+    }
+}

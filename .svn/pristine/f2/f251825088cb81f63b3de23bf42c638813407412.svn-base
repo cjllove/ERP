@@ -1,0 +1,540 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdInventory
+{
+    public partial class DecreaseOverflowSure : BillBase
+    {
+        private string strDocSql = "SELECT A.* FROM DAT_SY_DOC A WHERE A.SEQNO ='{0}' AND A.FLAG <>'M' ";
+        private string strLisSQL = "SELECT A.*,F_GETUNITNAME(UNIT) UNITNAME FROM DAT_SY_COM A WHERE SEQNO = '{0}' ORDER BY ROWNO";
+        public DecreaseOverflowSure()
+        {
+            BillType = "SYD";
+        }
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billNew();
+            }
+            if (Request.QueryString["pid"] != null && !string.IsNullOrWhiteSpace(Request.QueryString["pid"].ToString()))
+            {
+                lstBILLNO.Text = Request.QueryString["pid"].ToString();
+                lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-90);
+                billOpen(lstBILLNO.Text);
+            }
+        }
+
+        public override Field[] LockControl
+        {
+            get { return new Field[] { tbxBILLNO, ddlFLAG, ddlLRY, dpkLRRQ, ddlDEPTID, ddlKCTYPE }; }
+        }
+
+        private void DataInit()
+        {
+            ButtonHidden(btnCopy, btnAddRow);
+            PubFunc.DdlDataGet("DDL_USER", ddlLRY, ddlSHR);
+            PubFunc.DdlDataGet("DDL_SYS_DEPT", ddlDEPTID);
+            PubFunc.DdlDataGet("DDL_BILL_FLAG_MNYR", ddlFLAG);
+            PubFunc.DdlDataGet("DDL_DAT_KCTYPE", ddlKCTYPE);
+            PubFunc.DdlDataGet("DDL_BILL_REASON", ddlReject);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+            dpkLRRQ.SelectedDate = DateTime.Now;
+            ddlLRY.SelectedValue = UserAction.UserID;
+        }
+
+        private Boolean isDg()
+        {
+            if (Request.QueryString["dg"] == null)
+            {
+                return false;
+            }
+            else if (Request.QueryString["dg"].ToString() == "1")
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        protected override void billNew()
+        {
+            ddlFLAG.SelectedValue = "N";
+            ddlLRY.SelectedValue = UserAction.UserID;
+            dpkLRRQ.SelectedDate = DateTime.Now;
+            ddlDEPTID.Enabled = true;
+            ddlKCTYPE.Enabled = true;
+            tbxBILLNO.Enabled = true;
+            tbxBILLNO.Text = string.Empty;
+            tbxMEMO.Enabled = true;
+            tbxMEMO.Text = string.Empty;
+            GridGoods.SummaryData = null;
+            PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+        }
+        protected override void billDel()
+        {
+            if (tbxBILLNO.Text.Trim() == "" || tbxBILLNO.Enabled == true)
+            {
+                Alert.Show("请选择需要删除的单据");
+                return;
+            }
+            if (ddlFLAG.SelectedValue != "N" && ddlFLAG.SelectedValue != "R")
+            {
+                Alert.Show("非新单不能删除!");
+                return;
+            }
+            DbHelperOra.ExecuteSql("Delete from dat_sy_com t WHERE T.SEQNO ='" + tbxBILLNO.Text.Trim() + "'");
+            DbHelperOra.ExecuteSql("Delete from dat_sy_doc t WHERE T.SEQNO ='" + tbxBILLNO.Text.Trim() + "'");
+            Alert.Show("单据删除成功!");
+            billNew();
+        }
+        protected override void billDelRow()
+        {
+            if (ddlFLAG.SelectedValue != "N" && ddlFLAG.SelectedValue != "R")
+            {
+                Alert.Show("非新增单据不能删除！");
+                return;
+            }
+            if (GridGoods.SelectedCell == null) return;
+            int rowIndex = GridGoods.SelectedRowIndex;
+            PageContext.RegisterStartupScript(GridGoods.GetDeleteRowReference(rowIndex));
+        }
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstLRRQ1.SelectedDate = DateTime.Now;
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+        protected override void billSearch()
+        {
+            if (lstLRRQ1.SelectedDate == null || lstLRRQ2.SelectedDate == null)
+            {
+                Alert.Show("请输入条件【损益日期】！");
+                return;
+            }
+            string strSql = @"SELECT A.*,F_GETUSERNAME(LRY) LRYNAME,F_GETUSERNAME(SHR) SHRNAME,F_GETDEPTNAME(DEPTID) DEPTIDNAME,F_GETSYTYPENAME(SYTYPE) SYTYPENAME,DECODE(FLAG,'N','已提交','Y','已审核','R','已驳回','已执行') FLAGNAME,F_GETSYTYPENAME(SYTYPE) SYTYPENAME 
+                        FROM DAT_SY_DOC A WHERE A.FLAG <>'M' ";
+            string strSearch = "";
+            if (lstBILLNO.Text.Length > 0)
+            { strSearch += string.Format(" AND SEQNO like '%{0}%'", lstBILLNO.Text); }
+            if (lisFLAG.SelectedValue.Length > 0)
+            { strSearch += string.Format(" AND FLAG = '{0}'", lisFLAG.SelectedValue); }
+            strSearch += string.Format(" AND (LRRQ between TO_DATE('{0}','YYYY-MM-DD') and (TO_DATE('{1}','YYYY-MM-DD')) + 1)", lstLRRQ1.Text, lstLRRQ2.Text);
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+            strSql += " ORDER BY LRRQ DESC";
+            highlightRows.Text = ",";
+            DataTable dtBill = new DataTable();
+            dtBill = DbHelperOra.Query(strSql).Tables[0];
+            GridList.DataSource = dtBill;
+            GridList.DataBind();
+        }
+        protected override void billCancel()
+        {
+            if (ddlFLAG.SelectedValue != "N")
+            {
+                Alert.Show("非【已提交】单据不能驳回！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (PubFunc.StrIsEmpty(tbxBILLNO.Text))
+            {
+                Alert.Show("请选择需要驳回的单据");
+                return;
+            }
+            WindowReject.Hidden = false;
+        }
+        protected void btnRejectSubmit_Click(object sender, EventArgs e)
+        {
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            if (tbxBILLNO.Text.Length < 1)
+            { return; }
+          
+            string strMemo = "驳回原因：";
+            if (string.IsNullOrWhiteSpace(ddlReject.SelectedValue))
+            {
+                Alert.Show("请选择【驳回原因】");
+                return;
+            }
+            else
+            {
+                strMemo += ddlReject.SelectedText;
+            }
+
+            if (!string.IsNullOrWhiteSpace(txaMemo.Text.Trim()))
+            {
+                strMemo += ";详细说明:" + txaMemo.Text;
+            }
+            if (strMemo.Length > 40)
+            {
+                Alert.Show("驳回备注超长！");
+                return;
+
+            }
+            cmdList.Add(new CommandInfo("UPDATE DAT_DO_LIST SET FLAG = 'Y' WHERE PARA='" + tbxBILLNO.Text.Trim() + "'", null));
+            cmdList.Add(new CommandInfo("UPDATE DAT_SY_DOC SET memo='" + strMemo + "' where seqno='" + tbxBILLNO.Text.Trim() + "' AND FLAG='N'", null));
+            if (DbHelperOra.ExecuteSqlTran(cmdList))
+            {
+                if (BillOper(tbxBILLNO.Text, "CANCEL") == 1)
+                {
+                    WindowReject.Hidden = true;
+                    OperLog("商品损益", "驳回单据【" + tbxBILLNO.Text + "】");
+                    billOpen(tbxBILLNO.Text);
+                }
+            }
+            else
+            {
+                Alert.Show("数据异常，驳回操作失败，请稍候重试！");
+            }
+        }
+        protected override void billAudit()
+        {
+            if (tbxBILLNO.Text.Length < 1 || ddlFLAG.SelectedValue == "S")
+            {
+                Alert.Show("请选择需要审核的单据!");
+                return;
+            }
+            //验证科室是否盘点
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_PD_LOCK WHERE FLAG='N' AND DEPTID = '" + ddlDEPTID.SelectedValue + "'"))
+            {
+                Alert.Show(string.Format("损益部门【{0}】正在盘点,请检查!", ddlDEPTID.SelectedText), "警告提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (ddlFLAG.SelectedValue == "N")
+            {
+                if (BillOper(tbxBILLNO.Text, "AUDIT") == 1)
+                {
+                    billLockDoc(true);
+                    Alert.Show("单据【" + tbxBILLNO.Text + "】审核成功！");
+                    OperLog("商品损益", "审核单据【" + tbxBILLNO.Text + "】");
+                    billOpen(tbxBILLNO.Text);
+                }
+            }
+        }
+        protected override void listRow_DoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            //dpkPDRQ.Enabled = false;
+            tbxBILLNO.Enabled = false;
+            billOpen(GridList.Rows[e.RowIndex].Values[1].ToString());
+        }
+
+        protected override void billOpen(string strBillno)
+        {
+            //表头进行赋值
+            DataTable dtDoc = DbHelperOra.Query(string.Format(strDocSql, strBillno)).Tables[0];
+            if (dtDoc == null || dtDoc.Rows.Count <= 0) { return; }
+            PubFunc.FormDataSet(FormDoc, dtDoc.Rows[0]);
+            //表体赋值
+            DataTable dtBill = DbHelperOra.Query(string.Format(strLisSQL, strBillno)).Tables[0];
+            PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+            decimal bzslTotal = 0, feeTotal = 0, ddslTotal = 0, je1 = 0, je2 = 0, je3 = 0;
+            if (dtBill != null && dtBill.Rows.Count > 0)
+            {
+                foreach (DataRow row in dtBill.Rows)
+                {
+                    //PubFunc.GridRowAdd(GridGoods, row, false);
+                    ddslTotal += Convert.ToDecimal(row["KCSL"]);
+                    bzslTotal += Convert.ToDecimal(row["SYSL"]);
+                    feeTotal += Convert.ToDecimal(row["KCHSJE"]);
+                    je1 += Convert.ToDecimal(row["HSJE"]);
+                    je2 += Convert.ToDecimal(row["BHSJE"]);
+                    je3 += Convert.ToDecimal(row["LSJE"]);
+                }
+                /*
+                *  修 改 人 ：袁鹏    修改时间：2015-04-24
+                *  研发组织：威高讯通信息科技有限公司
+                */
+                Doc.GridRowAdd(GridGoods, dtBill);
+            }
+            PubFunc.FormLock(FormDoc, true, "");
+            TabStrip1.ActiveTabIndex = 1;
+            //判断单据状态
+            //接口下传时控制按钮状态
+            string ss = "SELECT 1 FROM DAT_SY_DOC WHERE SCTH = 'N' AND SEQNO = '" + tbxBILLNO.Text + "' AND EXISTS(SELECT 1 FROM SYS_PARA WHERE CODE ='INTERFACE' AND VALUE <> 'N')";
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_SY_DOC WHERE SCTH = 'Y' AND SEQNO = '" + tbxBILLNO.Text + "' AND EXISTS(SELECT 1 FROM SYS_PARA WHERE CODE ='INTERFACE' AND VALUE <> 'N')"))
+            {
+                btnAudit.Enabled = false;
+                btnCancel.Enabled = false;
+            }
+            else
+            {
+                if (ddlFLAG.SelectedValue == "N")
+                {
+                    btnCancel.Enabled = true;
+                    btnAudit.Enabled = true;
+                }
+                else
+                {
+                    btnCancel.Enabled = false;
+                    btnAudit.Enabled = false;
+                }
+            }
+            //增加合计
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            summary.Add("KCSL", ddslTotal.ToString());
+            summary.Add("SYSL", bzslTotal.ToString());
+            summary.Add("KCHSJE", feeTotal.ToString("F2"));
+            summary.Add("HSJE", je1.ToString("F2"));
+            summary.Add("BHSJE", je2.ToString("F2"));
+            summary.Add("LSJE", je3.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+        protected override void billGoods()
+        {
+            if (PubFunc.FormDataCheck(FormDoc).Length > 1) return;
+            billLockDoc(true);
+            tbxMEMO.Enabled = true;
+            //绑定库存,区分代管和非代管的供应商
+            string strSql = "";
+            strSql = @"SELECT A.*,B.GDNAME,b.PIZNO PZWH,F_GETUNITNAME(A.UNIT) UNITNAME,0 SL FROM DAT_GOODSSTOCK A, DOC_GOODS B 
+                            WHERE A.GDSEQ = B.GDSEQ AND A.KCSL >0 AND A.DEPTID = '" + ddlDEPTID.SelectedValue + "' ORDER BY PH DESC";
+
+            GridLot.DataSource = DbHelperOra.Query(strSql).Tables[0];
+            GridLot.DataBind();
+            WindowLot.Hidden = false;
+        }
+        protected void btnClosePostBack_Click(object sender, EventArgs e)
+        {
+            foreach (GridRow row in GridLot.Rows)
+            {
+                int rowIndex = row.RowIndex;
+                System.Web.UI.WebControls.TextBox tbxNumber = (System.Web.UI.WebControls.TextBox)GridLot.Rows[rowIndex].FindControl("tbxNumber");
+                if (!string.IsNullOrWhiteSpace(tbxNumber.Text) && tbxNumber.Text != "0")
+                {
+                    string PICINO = GridLot.DataKeys[rowIndex][0].ToString();
+                    //表体赋值
+                    //金额取批次中的价格A.KCHSJJ,A.KCBHSJJ,a.KCLSJ
+                    string strSql = @"SELECT 0 SYSL,0 HSJE,0 LSJE,0 BHSJE,'' MEMO,B.GDSPEC,A.GDSEQ,B.GDNAME,b.PIZNO PZWH,B.BARCODE,A.HWID,A.HWID,B.GDMODE,A.BZHL,A.KCSL,A.KCHSJE,A.JXTAX,A.KCHSJJ HSJJ,A.KCBHSJJ BHSJJ,A.KCLSJ LSJ,A.PH,B.PIZNO,A.RQ_SC,A.YXQZ,A.ZPBH,'' MEMO,A.UNIT,F_GETUNITNAME(A.UNIT) UNITNAME
+                                    FROM DAT_GOODSSTOCK A,doc_goods B WHERE A.GDSEQ = B.GDSEQ AND A.PICINO = {0}";
+                    DataTable dtBill = DbHelperOra.Query(string.Format(strSql, PICINO)).Tables[0];
+                    //PageContext.RegisterStartupScript(GridGoods.GetRejectChangesReference());
+                    if (dtBill != null && dtBill.Rows.Count > 0)
+                    {
+                        foreach (DataRow AddRow in dtBill.Rows)
+                        {
+                            AddRow["SYSL"] = tbxNumber.Text;
+                            if (AddRow["RQ_SC"] != DBNull.Value)
+                            {
+                                AddRow["RQ_SC"] = DateTime.Parse(AddRow["RQ_SC"].ToString()).ToString("yyyy-MM-dd");
+                            }
+                            if (AddRow["YXQZ"] != DBNull.Value)
+                            {
+                                AddRow["YXQZ"] = DateTime.Parse(AddRow["YXQZ"].ToString()).ToString("yyyy-MM-dd");
+                            }
+                            AddRow["HSJE"] = Convert.ToDecimal(tbxNumber.Text) * Convert.ToDecimal(AddRow["HSJJ"]);
+                            AddRow["BHSJE"] = Convert.ToDecimal(tbxNumber.Text) * Convert.ToDecimal(AddRow["BHSJJ"]);
+                            AddRow["LSJE"] = Convert.ToDecimal(tbxNumber.Text) * Convert.ToDecimal(AddRow["LSJ"]);
+                            PubFunc.GridRowAdd(GridGoods, AddRow, false);
+                        }
+                    }
+                }
+            }
+            WindowLot.Hidden = true;
+        }
+        protected void btnClose_Click(object sender, EventArgs e)
+        {
+            WindowLot.Hidden = true;
+        }
+        protected override void billSave()
+        {
+            #region 数据有效性验证
+            if (ddlFLAG.SelectedValue != "N")
+            {
+                Alert.Show("非新单不能保存！", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            if (ddlKCTYPE.SelectedValue.Length < 1)
+            {
+                Alert.Show("请选择【损益类别】");
+                return;
+            }
+            if (PubFunc.FormDataCheck(FormDoc).Length > 0) return;
+
+            List<Dictionary<string, object>> newDict = GridGoods.GetNewAddedList().OrderBy(x => x["GDSEQ"]).ToList();
+            if (newDict.Count == 0)
+            {
+                Alert.Show("请输入商品信息", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            List<Dictionary<string, object>> goodsData = new List<Dictionary<string, object>>();
+            //判断是否有空行、批号填写是否符合要求
+            for (int i = 0; i < newDict.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(newDict[i]["GDSEQ"].ToString()) && !string.IsNullOrWhiteSpace(newDict[i]["GDNAME"].ToString()))
+                {
+                    goodsData.Add(newDict[i]);
+                }
+                if (string.IsNullOrWhiteSpace(newDict[i]["BZHL"].ToString()) || string.IsNullOrWhiteSpace(newDict[i]["UNIT"].ToString()))
+                {
+                    Alert.Show("商品包装单位信息错误，请联系管理员进行维护！", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(newDict[i]["SYSL"].ToString()))
+                {
+                    Alert.Show("请填写正确的损益数量", "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            if (goodsData.Count == 0)//所有Gird行都为空行时
+            {
+                Alert.Show("商品信息不能为空", "消息提示", MessageBoxIcon.Warning);
+                return;
+            }
+            #endregion
+
+            if (PubFunc.StrIsEmpty(tbxBILLNO.Text))
+            {
+                tbxBILLNO.Text = BillSeqGet();
+                tbxBILLNO.Enabled = false;
+            }
+            MyTable mtType = new MyTable("DAT_SY_DOC");
+            mtType.ColRow = PubFunc.FormDataHT(FormDoc);
+            mtType.ColRow["SEQNO"] = tbxBILLNO.Text;
+            mtType.ColRow.Add("BILLTYPE", BillType);
+            mtType.ColRow.Add("SUBNUM", goodsData.Count);
+            //如果是代管商品，把发送标志设为G-即不发送
+            if (isDg())
+            {
+                mtType.ColRow.Add("ISSEND", "G");
+            }
+
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            MyTable mtTypeMx = new MyTable("DAT_SY_COM");
+            decimal subNum = 0;//总金额
+            //先删除单据信息在插入
+            cmdList.Add(mtType.DeleteCommand(""));//删除单据台头
+            cmdList.Add(new CommandInfo("delete DAT_SY_COM where seqno='" + tbxBILLNO.Text + "'", null));//删除单据明细
+            for (int i = 0; i < goodsData.Count; i++)
+            {
+                mtTypeMx.ColRow = PubFunc.GridDataGet(goodsData[i]);
+
+                //判断含税进价，为0时不能保存
+                string isJiFei = string.Format("select 1 from DOC_GOODS t where iscf = 'N' and gdseq = '{0}'", mtTypeMx.ColRow["GDSEQ"].ToString());
+                if (DbHelperOra.Exists(isJiFei))
+                {
+                    if (PubFunc.StrIsEmpty(mtTypeMx.ColRow["HSJJ"].ToString()) || mtTypeMx.ColRow["HSJJ"].ToString() == "0")
+                    {
+                        Alert.Show("商品【含税进价】为0或空，无法进行【商品损益管理】操作。");
+                        return;
+                    }
+                }
+
+                //重新计算金额
+                mtTypeMx.ColRow["HSJE"] = Convert.ToDecimal(mtTypeMx.ColRow["SYSL"]) * Convert.ToDecimal(mtTypeMx.ColRow["HSJJ"]);
+                mtTypeMx.ColRow["BHSJE"] = Convert.ToDecimal(mtTypeMx.ColRow["SYSL"]) * Convert.ToDecimal(mtTypeMx.ColRow["BHSJJ"]);
+                mtTypeMx.ColRow["LSJE"] = Convert.ToDecimal(mtTypeMx.ColRow["SYSL"]) * Convert.ToDecimal(mtTypeMx.ColRow["LSJ"]);
+                subNum = subNum + decimal.Parse(mtTypeMx.ColRow["HSJE"].ToString());
+                mtTypeMx.ColRow.Add("SEQNO", tbxBILLNO.Text);
+                mtTypeMx.ColRow["BZSL"] = mtTypeMx.ColRow["SYSL"];
+                mtTypeMx.ColRow["ROWNO"] = i + 1;
+                mtTypeMx.ColRow.Add("PHID", mtTypeMx.ColRow["PH"]);
+                mtTypeMx.ColRow.Remove("UNITNAME");
+                cmdList.Add(mtTypeMx.Insert());
+            }
+            mtType.ColRow["SUBSUM"] = subNum;
+            //mtType.ColRow.Add("SUBSUM", subNum);
+            cmdList.AddRange(mtType.InsertCommand());
+
+
+            DbHelperOra.ExecuteSqlTran(cmdList);
+            Alert.Show("损益单信息保存成功！");
+            //billNew();
+            OperLog("商品损益", "修改单据【" + tbxBILLNO.Text + "】");
+            billOpen(tbxBILLNO.Text);
+            billLockDoc(true);
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+                FineUIPro.BoundField flagcol = GridList.FindColumn("FLAGNAME") as FineUIPro.BoundField;
+                if (flag == "N")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                else if (flag == "R")
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            GridList.SortDirection = e.SortDirection;
+            GridList.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridList);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridList.SortField, GridList.SortDirection);
+            GridList.DataSource = view1;
+            highlightRows.Text = ",";
+            GridList.DataBind();
+
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            //            string strSql = @"SELECT A.ROWNO 行号,A.GDSEQ 商品编码,A.GDNAME 商品名称,A.GDSPEC 商品规格,f_getunitname(A.UNIT) 单位,
+            //                        A.SYSL 损益数量,A.HSJJ 含税价格,A.HSJE 含税金额,A.PH 批号,A.RQ_SC 生产日期,A.YXQZ 有效期至
+            //                        FROM DAT_SY_COM A WHERE A.SEQNO ='{0}'";
+            //            DataTable dt = DbHelperOra.Query(String.Format(strSql, tbxBILLNO.Text)).Tables[0];
+            //            ExcelHelper.ExportByWeb(dt, "损益信息", "损益信息导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+
+            string strLisSQL = "SELECT ' '||A.GDSEQ GDSEQ,A.ROWNO,A.HWID,A.BZHL,A.KCSL,A.GDNAME,A.GDSPEC,A.SYSL,A.HSJJ,A.HSJE,A.PH,A.RQ_SC,A.YXQZ,A.MEMO,A.PZWH,A.ZPBH, F_GETUNITNAME(UNIT) UNITNAME FROM DAT_SY_COM A WHERE SEQNO = '{0}' ORDER BY ROWNO";
+            DataTable dtData = DbHelperOra.Query(string.Format(strLisSQL, tbxBILLNO.Text)).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string strExp = "损益信息" + DateTime.Now.ToString("yyyyMMddHH");
+            string[] columnNames = new string[GridGoods.Columns.Count];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField && column.Hidden == false && column.HeaderText != null)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index] = column.HeaderText;
+                }
+                else if (column is FineUIPro.RenderField && column.Hidden == false && column.HeaderText != null)
+                {
+                    dtData.Columns[((FineUIPro.RenderField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index] = column.HeaderText;
+                }
+
+            }
+            List<string> expnull = new List<string>();
+            foreach (string s in columnNames)
+            {
+                if (!string.IsNullOrEmpty(s))
+                {
+                    expnull.Add(s);
+                }
+            }
+
+            columnNames = expnull.ToArray();
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "损益信息", strExp + ".xls");
+        }
+    }
+}

@@ -1,0 +1,185 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+
+
+namespace ERPProject.ERPQuery
+{
+    public partial class SupFx : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            lisDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+            lisDATE2.SelectedDate = DateTime.Now;
+            PubFunc.DdlDataGet("DDL_DOC_SUPPLIERNULL", UserAction.UserID, lstSUPTID, ddlSUPID);
+        }
+
+        private void DataSearch()
+        {
+            if (PubFunc.StrIsEmpty(dpkDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(dpkDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("【输入日期】不正确,请检查！", MessageBoxIcon.Warning);
+                return;
+            }
+            if (dpkDATE1.SelectedDate > dpkDATE2.SelectedDate)
+            {
+                Alert.Show("【开始日期】不能大于【结束日期】！", MessageBoxIcon.Warning);
+                return;
+            }
+
+            string strSql = @"SELECT A.SUPID,A.SUPNAME,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'LTD',-ABS(B.SL),'DST',-ABS(B.SL),ABS(B.SL))) XSSL,
+                   SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'LTD',-ABS(B.HSJE),'DST',-ABS(B.HSJE),ABS(B.HSJE))) XSJE,
+                  ROUND(SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'LTD',-ABS(B.SL),'DST',-ABS(B.SL),ABS(B.SL)))/(SELECT SUM(DECODE(BB.BILLTYPE,'XST',-ABS(BB.SL),'LTD',-ABS(BB.SL),'DST',-ABS(BB.SL),ABS(BB.SL)))
+                  FROM DAT_GOODSJXC BB
+                  WHERE BB.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1),4) SLZB,
+                  ROUND(SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'LTD',-ABS(B.HSJE),'DST',-ABS(B.HSJE),ABS(B.HSJE)))/(SELECT SUM(DECODE(BB.BILLTYPE,'XST',-ABS(BB.HSJE),'LTD',-ABS(BB.HSJE),'DST',-ABS(BB.HSJE),ABS(BB.HSJE)))
+                  FROM DAT_GOODSJXC BB
+                  WHERE BB.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1),4) JEZB
+            FROM DOC_SUPPLIER A,DAT_GOODSJXC B
+            WHERE A.ISSUPPLIER = 'Y' AND A.SUPID = B.SUPID
+            AND B.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1 {2}
+            GROUP BY A.SUPID,A.SUPNAME";
+            string strWhere = "";
+            if (lstSUPTID.SelectedValue.Length > 0) strWhere += " AND A.SUPID = '" + lstSUPTID.SelectedValue + "'";
+            string sortField = GridGoods.SortField;
+            string sortDirection = GridGoods.SortDirection;
+
+            GridGoods.DataSource = DbHelperOra.QueryForTable(string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, strWhere) + String.Format(" ORDER BY {0} {1}", sortField, sortDirection));
+            GridGoods.DataBind();
+        }
+        protected void btnSch_Click(object sender, EventArgs e)
+        {
+            if (PubFunc.StrIsEmpty(lisDATE1.SelectedDate.ToString()) || PubFunc.StrIsEmpty(lisDATE2.SelectedDate.ToString()))
+            {
+                Alert.Show("【输入日期】不正确,请检查！", MessageBoxIcon.Warning);
+                return;
+            }
+            if (lisDATE1.SelectedDate > lisDATE2.SelectedDate)
+            {
+                Alert.Show("【开始日期】不能大于【结束日期】！", MessageBoxIcon.Warning);
+                return;
+            }
+            string strSql = @"SELECT A.SUPID,A.SUPNAME,B.GDSEQ,SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'LTD',-ABS(B.SL),'DST',-ABS(B.SL),ABS(B.SL))) XSSL,
+                               C.GDNAME,C.GDSPEC,f_getunitname(C.UNIT) UNITNAME,C.HSJJ,f_getproducername(C.PRODUCER) PRODUCERNAME,C.PIZNO,
+                               SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'LTD',-ABS(B.HSJE),'DST',-ABS(B.HSJE),ABS(B.HSJE))) XSJE,
+                              ROUND(SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.SL),'LTD',-ABS(B.SL),'DST',-ABS(B.SL),ABS(B.SL)))/(SELECT SUM(DECODE(BB.BILLTYPE,'XST',-ABS(BB.SL),'LTD',-ABS(BB.SL),'DST',-ABS(BB.SL),ABS(BB.SL)))
+                              FROM DAT_GOODSJXC BB
+                              WHERE BB.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1),4) SLZB,
+                              ROUND(SUM(DECODE(B.BILLTYPE,'XST',-ABS(B.HSJE),'LTD',-ABS(B.HSJE),'DST',-ABS(B.HSJE),ABS(B.HSJE)))/(SELECT SUM(DECODE(BB.BILLTYPE,'XST',-ABS(BB.HSJE),'LTD',-ABS(BB.HSJE),'DST',-ABS(BB.HSJE),ABS(BB.HSJE)))
+                              FROM DAT_GOODSJXC BB
+                              WHERE BB.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1),4) JEZB
+                        FROM DOC_SUPPLIER A,DAT_GOODSJXC B,DOC_GOODS C
+                        WHERE A.ISSUPPLIER = 'Y' AND A.SUPID = B.SUPID AND B.GDSEQ = C.GDSEQ {2}
+                        AND B.RQSJ BETWEEN TO_DATE('{0}','yyyy-MM-dd') AND TO_DATE('{1}','yyyy-MM-dd') + 1
+                        GROUP BY A.SUPID,A.SUPNAME,B.GDSEQ,C.GDNAME,C.GDSPEC,C.UNIT,C.HSJJ,C.PRODUCER,C.PIZNO";
+            string strWhere = "";
+            if (ddlSUPID.SelectedValue.Length > 0) strWhere += " AND A.SUPID = '" + ddlSUPID.SelectedValue + "'";
+            if (lisGDSEQ.Text.Trim().Length > 0)
+            {
+                strWhere += String.Format(" AND (C.GDSEQ LIKE '%{0}%' OR C.GDNAME LIKE '%{0}%' C.ZJM LIKE '%{0}%')", lisGDSEQ.Text.Trim());
+            }
+            int total = 0;
+            string sortField = GridList.SortField;
+            string sortDirection = GridList.SortDirection;
+
+            DataTable dtData = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, string.Format(strSql, dpkDATE1.Text, dpkDATE2.Text, strWhere) + String.Format(" ORDER BY {0} {1}", sortField, sortDirection), ref total);
+            GridList.RecordCount = total;
+            GridList.DataSource = dtData;
+            GridList.DataBind();
+        }
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+                dpkDATE2.SelectedDate = DateTime.Now;
+                lstSUPTID.SelectedValue = "";
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                lisDATE1.SelectedDate = DateTime.Now.AddMonths(-3);
+                lisDATE2.SelectedDate = DateTime.Now;
+                ddlSUPID.SelectedValue = "";
+                lisGDSEQ.Text = String.Empty;
+            }
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+            if (TabStrip1.ActiveTabIndex == 0)
+            {
+                if (GridGoods.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=供应商排行.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridGoods));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+            if (TabStrip1.ActiveTabIndex == 1)
+            {
+                if (GridList.Rows.Count < 1)
+                {
+                    Alert.Show("没有数据,无法导出！");
+                    return;
+                }
+                Response.ClearContent();
+                Response.AddHeader("content-disposition", "attachment; filename=供应商明细排行.xls");
+                Response.ContentType = "application/excel";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                Response.Write(PubFunc.GridToHtml(GridList));
+                Response.End();
+                btnExp.Enabled = true;
+            }
+        }
+
+        protected void GridGoods_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            lisDATE1.SelectedDate = dpkDATE1.SelectedDate;
+            lisDATE2.SelectedDate = dpkDATE2.SelectedDate;
+            ddlSUPID.SelectedValue = GridGoods.DataKeys[e.RowIndex][0].ToString();
+            lisGDSEQ.Text = String.Empty;
+            TabStrip1.ActiveTabIndex = 1;
+            btnSch_Click(null, null);
+        }
+
+        protected void GridList_Sort(object sender, GridSortEventArgs e)
+        {
+            btnSch_Click(null, null);
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            DataSearch();
+        }
+    }
+}

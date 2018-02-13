@@ -1,0 +1,243 @@
+﻿Object Report
+	Version='5.8.0.6'
+	Title='你的报表标题'
+	Object Font
+		Name='宋体'
+		Size=105000,0
+		Weight=400
+		Charset=134
+	End
+	Object Printer
+		Size=256
+		Width=5
+		Height=3
+		LeftMargin=0
+		TopMargin=0
+		RightMargin=0
+		BottomMargin=0
+	End
+	Object DetailGrid
+		BorderStyles=[]
+		BorderWidth=0
+		ColLineWidth=0
+		RowLineWidth=0
+		NewPage=After
+		Object Recordset
+			ConnectionString='Provider=OraOLEDB.Oracle.1;Persist Security Info=False;User ID=dbspd3;Password=dbspd3;Data Source=SPD_1520;Extended Properties=""'
+			QuerySQL='SELECT A.BILLNO,A.GDSEQ,B.GDNAME,B.GDSPEC,A.BZHL||f_getunitname(B.UNIT) BZALL,f_getdeptname(A.DEPTCUR) DEPTCURNAME,SYSDATE PRINTDATE,\r\n                B.HSJJ,f_getproducername(B.PRODUCER) PRODUCERNAME,A.INSTIME,A.BZHL,A.ONECODE,A.FLAG,DECODE(A.FLAG,'T','已退货','Y','已使用','未使用') FLAGNAME\r\n                 FROM DAT_DD_EXT A,DOC_GOODS B\r\n                 WHERE A.GDSEQ = B.GDSEQ AND A.ONECODE in ('2122600000100041279000000000')'
+			Items Field
+				Item
+					Name='GDNAME'
+				End
+				Item
+					Name='GDSPEC'
+				End
+				Item
+					Name='UNIT'
+				End
+				Item
+					Name='HJCODE1'
+				End
+				Item
+					Name='KCSL'
+					Type=Float
+				End
+			End
+		End
+		Items Column
+			Item
+				Name='Column1'
+				Width=7.59354
+			End
+		End
+		Object ColumnContent
+			Height=2.98979
+			Items ColumnContentCell
+				Item
+					Column='Column1'
+					FreeCell=T
+					Items Control
+						Item
+							Type=StaticBox
+							Name='StaticBox1'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.079375
+							Top=2.38125
+							Width=4.84188
+							Height=0.555625
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox13'
+							BorderStyles=[DrawBottom]
+							Left=1.37583
+							Top=1.21708
+							Width=2.38125
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							TextAlign=MiddleCenter
+							Text='[#KCSL#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox14'
+							BorderStyles=[DrawTop|DrawRight|DrawBottom]
+							Left=1.37583
+							Top=0.0529167
+							Width=3.54542
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='[#GDNAME#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox15'
+							BorderStyles=[DrawRight|DrawBottom]
+							Left=1.37583
+							Top=0.635
+							Width=3.54542
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='[#GDSPEC#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox20'
+							BorderStyles=[DrawRight|DrawBottom]
+							Left=1.37583
+							Top=1.79917
+							Width=3.54542
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							WordWrap=T
+							TextAlign=MiddleCenter
+							Text='[#HJCODE1#]'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox21'
+							BorderStyles=[DrawLeft|DrawTop|DrawRight|DrawBottom]
+							Left=0.079375
+							Top=0.0529167
+							Width=1.32292
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='物品名称'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox22'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.079375
+							Top=0.635
+							Width=1.32292
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='规格\\型号'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox23'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.079375
+							Top=1.79917
+							Width=1.32292
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='库位'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox24'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.079375
+							Top=1.21708
+							Width=1.32292
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='备货数量'
+						End
+						Item
+							Type=MemoBox
+							Name='MemoBox25'
+							BorderStyles=[DrawRight|DrawBottom]
+							Left=3.73063
+							Top=1.21708
+							Width=1.19063
+							Height=0.582083
+							Object Font
+								Name='宋体'
+								Size=75000,0
+								Weight=400
+								Charset=134
+							End
+							Text='[#UNIT#]'
+						End
+						Item
+							Type=Barcode
+							Name='Barcode1'
+							BorderStyles=[DrawLeft|DrawRight|DrawBottom]
+							Left=0.264583
+							Top=2.43417
+							Width=4.47146
+							Height=0.423333
+							CaptionPosition=None
+							DataField='HJCODE1'
+							Text='12345'
+						End
+					End
+				End
+			End
+		End
+		Object ColumnTitle
+			Height=0
+			Items ColumnTitleCell
+				Item
+					GroupTitle=F
+					Column='Column1'
+					Text='Column1'
+				End
+			End
+		End
+	End
+End

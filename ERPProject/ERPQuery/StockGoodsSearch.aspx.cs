@@ -1,0 +1,475 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using System.Data;
+using Newtonsoft.Json.Linq;
+using XTBase.Utilities;
+using System.Text;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class StockGoodsSearch : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+        }
+
+        private void BindDDL()
+        {
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkDATE2.SelectedDate = DateTime.Now;
+            DepartmentBind.BindDDL("DDL_SYS_DEPOTRANGE", UserAction.UserID, ddlDEPTID);
+            //PubFunc.DdlDataGet("DDL_DOC_SUPID", ddlSUPID);
+            PubFunc.DdlDataGet("DDL_DOC_SUPPLIER", ddlSUPID);
+            //计算合计数量
+            JObject summary = new JObject();
+            summary.Add("GDNAME", "本页合计");
+            
+            GridGoods.SummaryData = summary;
+        }
+
+        private string GetSearchSql()
+        {
+            string strSql = @"WITH TA AS
+ (SELECT GDSEQ,
+         DEPTID,
+         PSSID,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{0}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCSL,
+                    0)) QCKCSL,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{0}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCHSJE,
+                    0)) QCKCHSJE,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{2}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCSL,
+                    0)) KCSL,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{2}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCHSJE,
+                    0)) KCHSJE
+    FROM V_STOCKALL T
+   WHERE (trunc(t.rq) = (to_date('{0}', 'YYYY-MM-DD'))
+      or trunc(t.rq) = (to_date('{2}', 'YYYY-MM-DD')))
+     and T.deptid in (SELECT distinct code
+                        FROM sys_dept
+                       where TYPE = '1'
+                      /*AND F_CHK_DATARANGE(CODE, '{3}') = 'Y'*/
+                      )
+   GROUP BY GDSEQ, DEPTID, PSSID),
+TB AS
+ (SELECT A.GDSEQ,
+         A.DEPTID,
+         PSSID,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'RKD', SL, 0), 0)) CGRK,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'RKD', HSJE, 0), 0)) CGRKHSJE,
+         SUM(DECODE(A.KCADD,
+                    '1',
+                    DECODE(A.BILLTYPE, 'LTD', SL, 'XST', SL, 'DST', SL, 0),
+                    0)) KSTH,
+         SUM(DECODE(A.KCADD,
+                    '1',
+                    DECODE(A.BILLTYPE,
+                           'LTD',
+                           HSJE,
+                           'XST',
+                           HSJE,
+                           'DST',
+                           HSJE,
+                           0),
+                    0)) KSTHHSJE,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'SYD', SL, 0), 0)) PYRK,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'SYD', HSJE, 0), 0)) PYRKHSJE,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'DBD', SL, 0), 0)) DBRK, --调拨入库 
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'DBD', HSJE, 0), 0)) DBRKHSJE, --调拨入库 
+         (SUM(DECODE(A.KCADD,
+                     '-1',
+                     DECODE(A.BILLTYPE, 'LCD', SL, 'CKD', SL, 'DSC', SL, 0),
+                     0))) KFCK,
+         (SUM(DECODE(A.KCADD,
+                     '-1',
+                     DECODE(A.BILLTYPE,
+                            'LCD',
+                            HSJE,
+                            'CKD',
+                            HSJE,
+                            'DSC',
+                            HSJE,
+                            0),
+                     0))) KFCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'THD', SL, 0), 0))) THCK,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'THD', HSJE, 0), 0))) THCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'SYD', SL, 0), 0))) PKCK,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'SYD', HSJE, 0), 0))) PKCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'DBD', SL, 0), 0))) DBCK, --调拨出库 
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'DBD', HSJE, 0), 0))) DBCKHSJE, --调拨出库 
+         SUM(DECODE(A.KCADD, '0', DECODE(A.BILLTYPE, 'TJD', HSJE, 0), 0)) TJJE --调价金额 
+    FROM DAT_GOODSJXC A
+   WHERE /*to_char(A.rqsj, 'yyyy-mm-DD') >= '{1}' 
+  AND to_char(A.rqsj, 'yyyy-mm-DD') <= '{2}'*/
+   trunc(A.rqsj) between to_date('{1}', 'YYYY-MM-DD') and
+   to_date('{2}', 'YYYY-MM-DD')
+and A.deptid in (SELECT distinct code
+                  FROM sys_dept
+                 where TYPE = '1'
+                /*AND F_CHK_DATARANGE(CODE, '{3}') = 'Y'*/
+                )
+   GROUP BY A.GDSEQ, A.DEPTID, PSSID)
+SELECT DG.GDSEQ,
+       DG.HISCODE,
+       DG.BAR3 EASCODE,
+       F_GETHISINFO(DG.GDSEQ, 'GDNAME') GDNAME,
+       F_GETHISINFO(DG.GDSEQ, 'GDSPEC') GDSPEC,
+       F_GETUNITNAME(DG.UNIT) UNIT,
+       decode(F_GETDEPTNAME(TB.DEPTID),
+              '',
+              F_GETDEPTNAME(TA.DEPTID),
+              F_GETDEPTNAME(TB.DEPTID)) DEPTID,
+       decode(F_GETSUPPLIERNAME(TB.PSSID),
+              '',
+              F_GETSUPPLIERNAME(TA.PSSID),
+              F_GETSUPPLIERNAME(TB.PSSID)) SUPPLIERNAME,
+       DG.HSJJ,
+       NVL(TA.QCKCSL, 0) QCKCSL,
+       NVL(TA.QCKCHSJE, 0) QCKCHSJE,
+       NVL(TB.TJJE, 0) TJJE,
+       NVL(TB.CGRK, 0) CGRK,
+       NVL(TB.CGRKHSJE, 0) CGRKHSJE,
+       NVL(TB.KSTH, 0) KSTH,
+       NVL(TB.KSTHHSJE, 0) KSTHHSJE,
+       NVL(TB.PYRK, 0) PYRK,
+       NVL(TB.PYRKHSJE, 0) PYRKHSJE,
+       NVL(TB.DBRK, 0) DBRK,
+       NVL(TB.DBRKHSJE, 0) DBRKHSJE,
+       NVL(TB.CGRK, 0) + NVL(TB.KSTH, 0) + NVL(TB.PYRK, 0) +
+       NVL(TB.DBRK, 0) RKHJ,
+       NVL(TB.CGRKHSJE, 0) + NVL(TB.KSTHHSJE, 0) + NVL(TB.PYRKHSJE, 0) +
+       NVL(TB.DBRKHSJE, 0) RKHJHSJE,
+       NVL(TB.KFCK, 0) KFCK,
+       NVL(TB.KFCKHSJE, 0) KFCKHSJE,
+       NVL(TB.THCK, 0) THCK,
+       NVL(TB.THCKHSJE, 0) THCKHSJE,
+       NVL(TB.PKCK, 0) PKCK,
+       NVL(TB.PKCKHSJE, 0) PKCKHSJE,
+       NVL(TB.DBCK, 0) DBCK,
+       NVL(TB.DBCKHSJE, 0) DBCKHSJE,
+       
+       NVL(TB.PYRK, 0) + NVL(TB.PKCK, 0) PYSL,
+       NVL(TB.PYRKHSJE, 0) + NVL(TB.PKCKHSJE, 0) PYHSJE,
+       --(NVL(TB.KSTH, 0) + NVL(TB.PYRK, 0) + NVL(TB.DBRK, 0) + 
+       -- NVL(TB.PKCK, 0) + NVL(TB.DBCK, 0)) OTHERSL, 
+       --(NVL(TB.KSTHHSJE, 0) + NVL(TB.PYRKHSJE, 0) + NVL(TB.DBRKHSJE, 0) + 
+       -- NVL(TB.PKCKHSJE, 0) + NVL(TB.DBCKHSJE, 0)) OTHERHSJE, 
+       
+       NVL(TB.KFCK, 0) + NVL(TB.THCK, 0) + NVL(TB.PKCK, 0) +
+       NVL(TB.DBCK, 0) CKHJ,
+       NVL(TB.KFCKHSJE, 0) + NVL(TB.THCKHSJE, 0) + NVL(TB.PKCKHSJE, 0) +
+       NVL(TB.DBCKHSJE, 0) CKHJHSJE,
+       NVL(TA.KCSL, 0) KCSL,
+       NVL(TA.KCHSJE, 0) KCHSJE,
+       NVL(TA.QCKCSL, 0) +
+       ((NVL(TB.CGRK, 0) + NVL(TB.KSTH, 0) + NVL(TB.PYRK, 0) +
+        NVL(TB.DBRK, 0)) + (NVL(TB.KFCK, 0) + NVL(TB.THCK, 0) +
+        NVL(TB.PKCK, 0) + NVL(TB.DBCK, 0))) QMKCSL,
+       NVL(TB.TJJE, 0) + NVL(TA.QCKCHSJE, 0) +
+       ((NVL(TB.CGRKHSJE, 0) + NVL(TB.KSTHHSJE, 0) + NVL(TB.PYRKHSJE, 0) +
+        NVL(TB.DBRKHSJE, 0)) + (NVL(TB.KFCKHSJE, 0) + NVL(TB.THCKHSJE, 0) +
+        NVL(TB.PKCKHSJE, 0) + NVL(TB.DBCKHSJE, 0))) QMKCHSJE
+  FROM TA
+  full join TB
+    on ta.GDSEQ = tb.GDSEQ
+   and ta.DEPTID = tb.DEPTID
+   and ta.PSSID = tb.PSSID, DOC_GOODS DG
+ where (TA.GDSEQ = DG.GDSEQ
+    or TB.GDSEQ = DG.GDSEQ)";
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " and (TA.DEPTID = '" + ddlDEPTID.SelectedValue + "' OR TB.DEPTID='" + ddlDEPTID.SelectedValue + "')";
+            if (!PubFunc.StrIsEmpty(ddlSUPID.SelectedValue)) strWhere += " and (TA.PSSID = '" + ddlSUPID.SelectedValue + "' OR TB.PSSID= '" + ddlSUPID.SelectedValue + "')";
+            //DateTime time = DateTime.Parse(dpkDATE1.Text);
+            String time1 = DateTime.Parse(dpkDATE1.Text).AddDays(-1).ToString("yyyyMMdd");
+            //if (!PubFunc.StrIsEmpty(txbGDSEQ.Text)) strWhere += " and (TA.gdseq = '" + txbGDSEQ.Text + "' OR TB.GDSEQ='" + txbGDSEQ.Text + "')";
+            if (!PubFunc.StrIsEmpty(txbGDSEQ.Text)) strWhere += " AND (DG.GDSEQ LIKE UPPER('%" + txbGDSEQ.Text + "%') OR DG.ZJM LIKE UPPER('%" + txbGDSEQ.Text + "%') OR DG.GDNAME LIKE '%" + txbGDSEQ.Text + "%' OR DG.GDSPEC LIKE '%" + txbGDSEQ.Text + "%')";
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY {0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            strSql = string.Format(strSql, time1, dpkDATE1.Text, dpkDATE2.Text, UserAction.UserID);
+            return strSql;
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+            //计算合计数量
+            if (dtData != null && dtData.Rows.Count > 0)
+            {
+                decimal QCKCSLTotal = 0, QCKCHSJETotal = 0, CGRKTotal = 0, CGRKHSJETotal = 0, KSTHTotal = 0, KSTHHSJETotal = 0, PYSLTotal = 0, PYHSJETotal = 0, DBRKTotal = 0, DBRKHSJETotal = 0, RKHJTotal = 0, RKHJHSJETotal = 0;
+                decimal KFCKTotal = 0, KFCKHSJETotal = 0, THCKTotal = 0, THCKHSJETotal = 0,  DBCKTotal = 0, DBCKHSJETotal = 0, CKHJTotal = 0, CKHJHSJETotal = 0, KCSLTotal = 0, KCHSJETotal = 0, TJJETotal = 0;
+                decimal QMKCSLTotal = 0, QMKCHSJETotal = 0;
+                foreach (DataRow row in dtData.Rows)
+                {
+                   
+                    QCKCSLTotal += Convert.ToDecimal(row["QCKCSL"] ?? "0");
+                    QCKCHSJETotal += Convert.ToDecimal(row["QCKCHSJE"] ?? "0");
+                    QMKCSLTotal += Convert.ToDecimal(row["QMKCSL"] ?? "0");
+                    QMKCHSJETotal += Convert.ToDecimal(row["QMKCHSJE"] ?? "0");
+                    CGRKTotal += Convert.ToDecimal(row["CGRK"] ?? "0");
+                    CGRKHSJETotal += Convert.ToDecimal(row["CGRKHSJE"] ?? "0");
+                    KSTHTotal += Convert.ToDecimal(row["KSTH"] ?? "0");
+                    KSTHHSJETotal += Convert.ToDecimal(row["KSTHHSJE"] ?? "0");
+                    PYSLTotal += Convert.ToDecimal(row["PYSL"] ?? "0");
+                    PYHSJETotal += Convert.ToDecimal(row["PYHSJE"] ?? "0");
+                    DBRKTotal += Convert.ToDecimal(row["DBRK"] ?? "0");
+                    DBRKHSJETotal += Convert.ToDecimal(row["DBRKHSJE"] ?? "0");
+                    RKHJTotal += Convert.ToDecimal(row["RKHJ"] ?? "0");
+                    RKHJHSJETotal += Convert.ToDecimal(row["RKHJHSJE"] ?? "0");
+
+                    KFCKTotal += Convert.ToDecimal(row["KFCK"] ?? "0");
+                    KFCKHSJETotal += Convert.ToDecimal(row["KFCKHSJE"] ?? "0");
+                    THCKTotal += Convert.ToDecimal(row["THCK"] ?? "0");
+                    THCKHSJETotal += Convert.ToDecimal(row["THCKHSJE"] ?? "0");
+                    DBCKTotal += Convert.ToDecimal(row["DBCK"] ?? "0");
+                    DBCKHSJETotal += Convert.ToDecimal(row["DBCKHSJE"] ?? "0");
+                    CKHJTotal += Convert.ToDecimal(row["CKHJ"] ?? "0");
+                    CKHJHSJETotal += Convert.ToDecimal(row["CKHJHSJE"] ?? "0");
+                    KCSLTotal += Convert.ToDecimal(row["KCSL"] ?? "0");
+                    KCHSJETotal += Convert.ToDecimal(row["KCHSJE"] ?? "0");
+                    TJJETotal += Convert.ToDecimal(row["TJJE"] ?? "0");
+                }
+                JObject summary = new JObject();
+                summary.Add("GDNAME", "本页合计");
+                
+                summary.Add("QCKCSL", QCKCSLTotal);
+                summary.Add("QCKCHSJE", QCKCHSJETotal.ToString("F2"));
+                summary.Add("QMKCSL", QMKCSLTotal);
+                summary.Add("QMKCHSJE", QMKCHSJETotal.ToString("F2"));
+                summary.Add("CGRK", CGRKTotal);
+                summary.Add("CGRKHSJE", CGRKHSJETotal.ToString("F2"));
+                summary.Add("KSTH", KSTHTotal);
+                summary.Add("KSTHHSJE", KSTHHSJETotal.ToString("F2"));
+                summary.Add("PYSL", PYSLTotal);
+                summary.Add("PYHSJE", PYHSJETotal.ToString("F2"));
+                summary.Add("DBRK", DBRKTotal);
+                summary.Add("DBRKHSJE", DBRKHSJETotal.ToString("F2"));
+                summary.Add("RKHJ", RKHJTotal);
+                summary.Add("RKHJHSJE", RKHJHSJETotal.ToString("F2"));
+                summary.Add("KFCK", KFCKTotal);
+                summary.Add("KFCKHSJE", KFCKHSJETotal.ToString("F2"));
+                summary.Add("THCK", THCKTotal);
+                summary.Add("THCKHSJE", THCKHSJETotal.ToString("F2"));
+               
+                summary.Add("DBCK", DBCKTotal);
+                summary.Add("DBCKHSJE", DBCKHSJETotal.ToString("F2"));
+                summary.Add("CKHJ", CKHJTotal);
+                summary.Add("CKHJHSJE", CKHJHSJETotal.ToString("F2"));
+                summary.Add("KCSL", KCSLTotal);
+                summary.Add("KCHSJE", KCHSJETotal.ToString("F2"));
+                summary.Add("TJJE", TJJETotal);
+                GridGoods.SummaryData = summary;
+            }
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+        protected void btClear_Click(object sender, EventArgs e)
+        {
+            PubFunc.FormDataClear(FormUser);
+            dpkDATE1.SelectedDate = DateTime.Now.AddMonths(-1);
+            dpkDATE2.SelectedDate = DateTime.Now;
+        }
+        protected void btExport_Click(object sender, EventArgs e)
+        {
+             
+             if (GridGoods.Rows.Count <= 0)
+             {
+                 Alert.Show("请先选择要导出的商品进销存明细！");
+                 return;
+             }
+            string strSql = @"
+WITH TA AS
+ (SELECT GDSEQ,
+         DEPTID,
+         PSSID,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{0}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCSL,
+                    0)) QCKCSL,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{0}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCHSJE,
+                    0)) QCKCHSJE,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{2}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCSL,
+                    0)) KCSL,
+         SUM(DECODE(TO_CHAR(T.RQ, 'YYYY-MM-DD'),
+                    TO_CHAR(TO_DATE('{2}', 'yyyy-MM-dd'), 'YYYY-MM-DD'),
+                    T.KCHSJE,
+                    0)) KCHSJE
+    FROM V_STOCKALL T
+   WHERE (trunc(t.rq) = (to_date('{0}', 'YYYY-MM-DD'))
+      or trunc(t.rq) = (to_date('{2}', 'YYYY-MM-DD')))
+     and T.deptid in (SELECT distinct code
+                        FROM sys_dept
+                       where TYPE = '1'
+                      /*AND F_CHK_DATARANGE(CODE, '{3}') = 'Y'*/
+                      )
+   GROUP BY GDSEQ, DEPTID, PSSID),
+TB AS
+ (SELECT A.GDSEQ,
+         A.DEPTID,
+         PSSID,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'RKD', SL, 0), 0)) CGRK,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'RKD', HSJE, 0), 0)) CGRKHSJE,
+         SUM(DECODE(A.KCADD,
+                    '1',
+                    DECODE(A.BILLTYPE, 'LTD', SL, 'XST', SL, 'DST', SL, 0),
+                    0)) KSTH,
+         SUM(DECODE(A.KCADD,
+                    '1',
+                    DECODE(A.BILLTYPE,
+                           'LTD',
+                           HSJE,
+                           'XST',
+                           HSJE,
+                           'DST',
+                           HSJE,
+                           0),
+                    0)) KSTHHSJE,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'SYD', SL, 0), 0)) PYRK,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'SYD', HSJE, 0), 0)) PYRKHSJE,
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'DBD', SL, 0), 0)) DBRK, --调拨入库 
+         SUM(DECODE(A.KCADD, '1', DECODE(A.BILLTYPE, 'DBD', HSJE, 0), 0)) DBRKHSJE, --调拨入库 
+         (SUM(DECODE(A.KCADD,
+                     '-1',
+                     DECODE(A.BILLTYPE, 'LCD', SL, 'CKD', SL, 'DSC', SL, 0),
+                     0))) KFCK,
+         (SUM(DECODE(A.KCADD,
+                     '-1',
+                     DECODE(A.BILLTYPE,
+                            'LCD',
+                            HSJE,
+                            'CKD',
+                            HSJE,
+                            'DSC',
+                            HSJE,
+                            0),
+                     0))) KFCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'THD', SL, 0), 0))) THCK,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'THD', HSJE, 0), 0))) THCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'SYD', SL, 0), 0))) PKCK,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'SYD', HSJE, 0), 0))) PKCKHSJE,
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'DBD', SL, 0), 0))) DBCK, --调拨出库 
+         (SUM(DECODE(A.KCADD, '-1', DECODE(A.BILLTYPE, 'DBD', HSJE, 0), 0))) DBCKHSJE, --调拨出库 
+         SUM(DECODE(A.KCADD, '0', DECODE(A.BILLTYPE, 'TJD', HSJE, 0), 0)) TJJE --调价金额 
+    FROM DAT_GOODSJXC A
+   WHERE /*to_char(A.rqsj, 'yyyy-mm-DD') >= '{1}' 
+  AND to_char(A.rqsj, 'yyyy-mm-DD') <= '{2}'*/
+   trunc(A.rqsj) between to_date('{1}', 'YYYY-MM-DD') and
+   to_date('{2}', 'YYYY-MM-DD')
+and A.deptid in (SELECT distinct code
+                  FROM sys_dept
+                 where TYPE = '1'
+                /*AND F_CHK_DATARANGE(CODE, '{3}') = 'Y'*/
+                )
+   GROUP BY A.GDSEQ, A.DEPTID, PSSID)
+SELECT ' '||DG.GDSEQ 商品编码,
+        ' '||DG.HISCODE HIS编码,
+        DG.BAR3 EAS编码,
+        F_GETHISINFO(DG.GDSEQ, 'GDNAME') 商品名称,
+        F_GETHISINFO(DG.GDSEQ, 'GDSPEC') 规格,
+        F_GETUNITNAME(DG.UNIT) 单位,
+        decode(F_GETDEPTNAME(TB.DEPTID),'',F_GETDEPTNAME(TA.DEPTID),F_GETDEPTNAME(TB.DEPTID)) 库房,
+       decode(F_GETSUPPLIERNAME(TB.PSSID),
+              '',
+              F_GETSUPPLIERNAME(TA.PSSID),
+              F_GETSUPPLIERNAME(TB.PSSID)) 配送商,
+       DG.HSJJ 价格,
+       NVL(TA.QCKCSL, 0) 期初库存数量,
+       NVL(TA.QCKCHSJE, 0) 期初库存金额,
+       
+       NVL(TB.CGRK, 0) 采购入库数,
+       NVL(TB.CGRKHSJE, 0) 采购入库金额,
+       NVL(TB.KFCK, 0) 库房出库数,
+       NVL(TB.KFCKHSJE, 0) 库房出库金额,
+       NVL(TB.THCK, 0) 采购退货数,
+       NVL(TB.THCKHSJE, 0) 采购退货金额,
+       NVL(TB.KSTH, 0) 科室退货数,
+       NVL(TB.KSTHHSJE, 0) 科室退货金额,
+       
+       NVL(TB.DBRK, 0) 调拨入库数,
+       NVL(TB.DBRKHSJE, 0) 调拨入库金额,
+       NVL(TB.DBCK, 0) 调拨出库数,
+       NVL(TB.DBCKHSJE, 0) 调拨出库金额,
+       NVL(TB.PYRK, 0)+NVL(TB.PKCK, 0) 损益数量,
+       NVL(TB.PYRKHSJE, 0)+ NVL(TB.PKCKHSJE, 0) 损益金额,
+       NVL(TB.TJJE, 0) 调价金额,
+       NVL(TA.QCKCSL, 0)+((NVL(TB.CGRK, 0) + NVL(TB.KSTH, 0) + NVL(TB.PYRK, 0) + NVL(TB.DBRK, 0))+
+       (NVL(TB.KFCK, 0) + NVL(TB.THCK, 0) + NVL(TB.PKCK, 0) + NVL(TB.DBCK, 0)))期末数量,
+       NVL(TB.TJJE, 0)+NVL(TA.QCKCHSJE, 0)+((NVL(TB.CGRKHSJE, 0) + NVL(TB.KSTHHSJE, 0) + NVL(TB.PYRKHSJE, 0) + NVL(TB.DBRKHSJE, 0)) +
+       (NVL(TB.KFCKHSJE, 0) + NVL(TB.THCKHSJE, 0) + NVL(TB.PKCKHSJE, 0) + NVL(TB.DBCKHSJE, 0)))期末金额,
+        NVL(TA.KCSL, 0) 期末库存数量,
+       NVL(TA.KCHSJE, 0) 期末库存金额
+  FROM TA
+  full join TB
+    on ta.GDSEQ = tb.GDSEQ
+   and ta.DEPTID = tb.DEPTID
+   and ta.PSSID = tb.PSSID, DOC_GOODS DG
+ where (TA.GDSEQ = DG.GDSEQ
+    or TB.GDSEQ = DG.GDSEQ)";
+            string strWhere = " ";
+            if (!PubFunc.StrIsEmpty(ddlDEPTID.SelectedValue)) strWhere += " and (TA.DEPTID = '" + ddlDEPTID.SelectedValue + "' OR TB.DEPTID='" + ddlDEPTID.SelectedValue + "')";
+            if (!PubFunc.StrIsEmpty(ddlSUPID.SelectedValue)) strWhere += " and (TA.PSSID = '" + ddlSUPID.SelectedValue + "' OR TB.PSSID= '" + ddlSUPID.SelectedValue + "')";
+            //DateTime time = DateTime.Parse(dpkDATE1.Text);
+            String time1 = DateTime.Parse(dpkDATE1.Text).AddDays(-1).ToString("yyyyMMdd");
+            //if (!PubFunc.StrIsEmpty(txbGDSEQ.Text)) strWhere += " and (TA.gdseq = '" + txbGDSEQ.Text + "' OR TB.GDSEQ='" + txbGDSEQ.Text + "')";
+            if (!PubFunc.StrIsEmpty(txbGDSEQ.Text)) strWhere += " AND (DG.GDSEQ LIKE UPPER('%" + txbGDSEQ.Text + "%') OR DG.ZJM LIKE UPPER('%" + txbGDSEQ.Text + "%') OR DG.GDNAME LIKE '%" + txbGDSEQ.Text + "%' OR DG.GDSPEC LIKE '%" + txbGDSEQ.Text + "%')";
+            if (strWhere != " ") strSql = strSql + strWhere;
+            strSql += string.Format(" ORDER BY DG.{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            strSql = string.Format(strSql, time1, dpkDATE1.Text, dpkDATE2.Text, UserAction.UserID);
+             DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+             ExcelHelper.ExportByWeb(dt, string.Format("库房进销存信息"), "商品进销存信息_" + DateTime.Now.ToString("yyyyMMdd") + ".xls");
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            //GridGoods.SortDirection = e.SortDirection;
+            //GridGoods.SortField = e.SortField;
+            //DataTable table = PubFunc.GridDataGet(GridGoods);
+            //DataView view = table.DefaultView;
+            //view.Sort = String.Format("{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            //GridGoods.DataSource = view;
+            //GridGoods.DataBind();
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+
+    }
+   
+
+
+}

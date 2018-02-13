@@ -1,0 +1,260 @@
+﻿using FineUIPro;
+using Newtonsoft.Json.Linq;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class GoodsBatchSetup : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlGoodsType, "DDL_GOODS_TYPE");
+            PubFunc.DdlDataGet(ddlSUPID, "DDL_DOC_SUPPLIERALL");
+            PubFunc.DdlDataGet(ddlPRODUCER, "DDL_PRODUCER");
+            string strSql = @"
+                        SELECT '--请选择--' NAME,'%' CODE,0 TREELEVEL,1 ISLAST  FROM DUAL
+                              UNION ALL
+                              SELECT '【'||CODE||'】'||NAME NAME,CODE,(CLASS-1) TREELEVEL,DECODE(ISLAST,'Y',1,0) ISLAST
+                                          FROM SYS_CATEGORY
+                         ORDER BY CODE ";
+            List<CategoryTreeBean> myList = new List<CategoryTreeBean>();
+            DataTable categoryTreeTable = DbHelperOra.Query(strSql).Tables[0];
+            foreach (DataRow dr in categoryTreeTable.Rows)
+            {
+                myList.Add(new CategoryTreeBean(dr["code"].ToString(), dr["name"].ToString(), Convert.ToInt16(dr["TreeLevel"]), Convert.ToInt16(dr["islast"]) == 1));
+            }
+            // 绑定到下拉列表（启用模拟树功能）
+            ddlCATID.EnableSimulateTree = true;
+            ddlCATID.DataTextField = "Name";
+            ddlCATID.DataValueField = "Id";
+            ddlCATID.DataEnableSelectField = "EnableSelect";
+            ddlCATID.DataSimulateTreeLevelField = "Level";
+            ddlCATID.DataSource = myList;
+            ddlCATID.DataBind();
+        }
+
+        private string GetSearchSql()
+        {
+            StringBuilder sbSql = new StringBuilder(@"SELECT CFG.DEPTID,
+                                                                                       G.GDSEQ,
+                                                                                       G.GDNAME,
+                                                                                       G.GDSPEC,G.HSJJ,
+                                                                                       CFG.HJCODE1,G.PIZNO,
+                                                                                       DECODE(G.ISGZ, 'Y', '高值', '非高值') ISGZ,
+                                                                                       A.NAME UNITNAME,
+                                                                                       GT.NAME TYPENAME,
+                                                                                       '[' || CAT.CODE || ']' || CAT.NAME CATNAME,
+                                                                                       F_GETPRODUCERNAME(G.PRODUCER) PRODUCER,
+                                                                                       CFG.ZDKC,
+                                                                                       CFG.ZGKC
+                                                                                  FROM DOC_GOODS     G,
+                                                                                       DOC_GOODSUNIT A,
+                                                                                       DOC_GOODSCFG  CFG,
+                                                                                       DOC_GOODSTYPE GT,
+                                                                                       SYS_DEPT      DEPT,
+                                                                                       SYS_CATEGORY  CAT
+                                                                                 WHERE G.ISDELETE = 'N'
+                                                                                   AND G.UNIT = A.CODE(+)
+                                                                                   AND G.CATID0 = GT.CODE(+)
+                                                                                   AND CFG.DEPTID = DEPT.CODE(+)
+                                                                                   AND G.CATID = CAT.CODE(+)
+                                                                                   AND G.GDSEQ = CFG.GDSEQ(+)
+                                                                                   AND CFG.DEPTID = '0001' ");
+
+            if (!string.IsNullOrWhiteSpace(ddlSUPID.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.SUPPLIER='{0}'", ddlSUPID.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlGoodsType.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.CATID0='{0}'", ddlGoodsType.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlCATID.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.CATID LIKE '{0}%'", ddlCATID.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlPRODUCER.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.PRODUCER = '{0}'", ddlPRODUCER.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlISGZ.SelectedValue))
+            {
+                sbSql.AppendFormat(" AND G.ISGZ = '{0}'", ddlISGZ.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                sbSql.AppendFormat(" AND (UPPER(G.GDSEQ) LIKE UPPER('%{0}%') OR UPPER(G.ZJM) LIKE UPPER('%{0}%') OR G.GDNAME LIKE '%{0}%' OR G.GDSPEC LIKE '%{0}%')", trbSearch.Text.Trim());
+            }
+
+            sbSql.Append(" ORDER BY G.GDSEQ,G.GDNAME");
+
+            return sbSql.ToString();
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+            GridGoods.DataSource = GetDataTable(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataBind();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void bntSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void bntSave_Click(object sender, EventArgs e)
+        {
+            List<CommandInfo> lci = new List<CommandInfo>();
+            Dictionary<int, Dictionary<string, object>> modifiedDict = GridGoods.GetModifiedDict();
+
+            bool update = false;
+            foreach (int rowIndex in modifiedDict.Keys)
+            {
+                object[] keys = GridGoods.DataKeys[rowIndex];
+                String gdseq = keys[0].ToString();
+                String deptId = "0001";
+                if (DbHelperOra.Exists(string.Format("SELECT 1 FROM DOC_GOODS WHERE GDSEQ = '{0}' AND ISGZ='Y'", gdseq)))
+                {
+                    Alert.Show(string.Format("商品【{0}】为高值商品，不允许设置为定数", keys[4].ToString()), "消息提示", MessageBoxIcon.Warning);
+                    return;
+                }
+                update = false;
+                string uptSql = "UPDATE DOC_GOODSCFG SET ";
+                string msg = "修改商品【" + gdseq + "】" + keys[1].ToString() + ":修改表DOC_GOODSCFG中字段";
+                if (modifiedDict[rowIndex].ContainsKey("HJCODE1") && !string.IsNullOrWhiteSpace(modifiedDict[rowIndex]["HJCODE1"].ToString()))
+                {
+                    string sql_hw = @"select a.seqno, b.gdname, 'RK' flag
+                                      from dat_rk_doc a, dat_rk_com b
+                                     where a.seqno = b.seqno
+                                       and a.flag in ('M', 'N')
+                                       and b.gdseq = '{0}'
+                                       and b.hwid = '{1}'
+                                    union all
+                                    select a.seqno, b.gdname, 'CK' flag
+                                      from dat_ck_doc a, dat_ck_com b
+                                     where a.seqno = b.seqno
+                                       and a.flag in ('M', 'N')
+                                       and b.gdseq = '{0}'
+                                       and b.hwid = '{1}'";
+                    DataTable dt = DbHelperOra.Query(string.Format(sql_hw, gdseq, modifiedDict[rowIndex]["HJCODE1"])).Tables[0];
+                    if (dt != null && dt.Rows.Count > 0)
+                    {
+                        string msg_hw = "单据【" + dt.Rows[0]["SEQNO"].ToString() + "】中存在商品【" + dt.Rows[0]["GDNAME"].ToString() + "】，该单据还未审核，请检查！";
+                        Alert.Show(msg_hw, "消息提示", MessageBoxIcon.Warning);
+                        return;
+                    }
+                    uptSql += " HJCODE1='" + modifiedDict[rowIndex]["HJCODE1"] + "',";
+                    msg += "HWID=" + modifiedDict[rowIndex]["HJCODE1"] + ",";
+
+                    sql_hw = "UPDATE DAT_GOODSSTOCK SET HWID='" + modifiedDict[rowIndex]["HJCODE1"] + "' WHERE GDSEQ='" + gdseq + "' AND DEPTID='" + deptId + "'";
+                    lci.Add(new CommandInfo(sql_hw, null));
+                    update = true;
+                }
+                if (modifiedDict[rowIndex].ContainsKey("ZDKC"))
+                {
+                    uptSql += " ZDKC='" + modifiedDict[rowIndex]["ZDKC"] + "',";
+                    msg += "ZDKC=" + modifiedDict[rowIndex]["ZDKC"] + ",";
+                    update = true;
+                }
+                if (modifiedDict[rowIndex].ContainsKey("ZGKC"))
+                {
+                    uptSql += " ZGKC='" + modifiedDict[rowIndex]["ZGKC"] + "',";
+                    msg += "ZGKC=" + modifiedDict[rowIndex]["ZGKC"] + ",";
+                    update = true;
+                }
+
+                if (update)
+                {
+                    uptSql = uptSql.TrimEnd(',') + " WHERE GDSEQ='" + gdseq + "' AND DEPTID='" + deptId + "'";
+                    lci.Add(new CommandInfo(uptSql, null));
+                    OperLog("商品信息批量更新", msg.TrimEnd(','));
+                }
+            }
+            if (update)
+            {
+                if (DbHelperOra.ExecuteSqlTran(lci))
+                {
+                    Alert.Show("商品信息修改成功！", "商品信息", MessageBoxIcon.Information);
+                    DataSearch();
+                }
+                else
+                {
+                    Alert.Show("商品信息修改失败！", "商品信息", MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+
+                GridColumn column = GridGoods.Columns[index];
+
+                if (column is FineUIPro.RenderField)
+                {
+                    //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.RenderField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+                if (column is FineUIPro.BoundField)
+                {
+                    //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "商品信息", string.Format("商品信息_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridGoods);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            GridGoods.DataSource = view1;
+            GridGoods.DataBind();
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+    }
+}

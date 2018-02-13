@@ -1,0 +1,5 @@
+C:\Users\cjl\Desktop\ERP\ERPProject\bin\ERPProject.dll.config
+C:\Users\cjl\Desktop\ERP\ERPProject\bin\ERPProject.pdb
+C:\Users\cjl\Desktop\ERP\ERPProject\obj\Release\ERPProject.dll
+C:\Users\cjl\Desktop\ERP\ERPProject\obj\Release\ERPProject.pdb
+C:\Users\cjl\Desktop\ERP\ERPProject\obj\Release\ERPProject.csprojResolveAssemblyReference.cache

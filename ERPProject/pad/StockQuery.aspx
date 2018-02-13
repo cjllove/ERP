@@ -1,0 +1,305 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="StockQuery.aspx.cs" Inherits="ERPProject.pad.StockQuery" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta name="viewport" content="minimal-ui"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title></title>
+    <link rel="stylesheet" href="/res/css/pad.css" />
+    <style>
+        .item-table .firstcol {
+            min-width:160px;
+        }
+        .item-table .secondcol {
+        min-width:160px;
+        }
+        .item-table .thirdcol {
+        min-width:160px;
+        
+        }
+
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="Panel1"  runat="server" />
+        <f:Panel ID="Panel1" ShowBorder="false" ShowHeader="false" Layout="Fit" BoxConfigChildMargin="0 0 5px 0" BodyPadding="10px" runat="server" AutoScroll="true">
+            <Toolbars>
+                        <f:Toolbar runat="server" HeaderStyle="true" >
+                            <Items>
+                                <f:Button runat="server" Text="" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="Home"  ID="Button1">
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="home" />
+                                    </Listeners>
+                                 </f:Button>
+                                <f:Label runat="server" Text="商品库存查询" CssClass="large-font ml-10"></f:Label>
+                                <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                <f:Button runat="server" Text="条件查询" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="Search" >
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="onOpenWindowQuery" />
+                                    </Listeners>
+                                </f:Button>
+                        
+                            </Items>
+                        </f:Toolbar>
+                        <f:Toolbar runat="server" Position="Bottom">
+                            <Items>
+                                <f:Button runat="server" Text="" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="StepBackward"  ID="btnStepBackward" >
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="stepBackward" />
+                                    </Listeners>
+                                 </f:Button>
+                                <f:Button runat="server" Text="" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="ChevronLeft"  ID="btnBackward">
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="forward" />
+                                    </Listeners>
+                                 </f:Button>
+                                <f:TextBox runat="server" ID="currPage" Readonly="true" Text="1" Width="50px"></f:TextBox>
+                                <f:Label runat="server" Text="/"></f:Label>
+                                <f:TextBox runat="server" ID="totalPage" Readonly="true" Width="50px"></f:TextBox>
+                                <f:Button runat="server" Text="" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="ChevronRight"  ID="btnForward">
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="backward" />
+                                    </Listeners>
+                                 </f:Button>
+                                <f:Button runat="server" Text="" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="StepForward"  ID="btnStepForward">
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="stepForward" />
+                                    </Listeners>
+                                 </f:Button>
+                                <f:HiddenField runat="server" ID="pageSize" Text="20"></f:HiddenField>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+            <Items>
+                <f:Panel runat="server" Hidden="false" ShowBorder="false" ShowHeader="false" ID="EmptyPanel">
+                            <Items>
+                                <f:ContentPanel runat="server" ShowBorder="false" ShowHeader="false">
+                            
+                                    <h2><i class="f-btn-icon ui-icon f-icon-info-circle" style="display: inline-block;"></i>未查询到数据</h2>
+                                    <p> 如需查询数据或更改查询条件请点击 [条件查询] 进行筛选查询</p>
+                                </f:ContentPanel>
+                            </Items>
+                        </f:Panel>
+                <f:DataList runat="server" ID="BillList" Hidden="true" >
+                        </f:DataList>
+            </Items>
+        </f:Panel>
+        <f:Window runat="server" ID="WindowQuery" ShowHeader="false" Hidden="true" EnableAnimation="true"
+                    IsModal="true" HideOnMaskClick="true" Layout="Fit" AutoScroll="true"
+                    PercentWidth="100%" Height="250px" EnableDefaultCorner="false" PositionY="Top">
+            <Items>
+                <f:Panel runat="server" Layout="Fit" ID="PanelQuery" ShowHeader="false" ShowBorder="false">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar2" runat="server" Position="Top" CssClass="ui-state-default">
+                            <Items>
+                                <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                <f:Button runat="server" Text="查询" Size="Large" EnablePostBack="false" EnableDefaultState="false" IconFont="Search">
+                                    <Listeners>
+                                        <f:Listener Event="click" Handler="onQuery" />
+                                    </Listeners>
+                                </f:Button>
+
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormQuery" runat="server" ShowHeader="false" ShowBorder="false" BodyPadding="10px">
+                             <Rows>
+                                <f:FormRow ColumnWidths="25% 25% 25% 25% ">
+                                    <Items>
+                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="库房/科室"  ForceSelection="true">
+                                        </f:DropDownList>
+                                        <f:TextBox ID="tbxGOODS" runat="server" Label="商品信息" EmptyText="可输入编码、名称或助记码" ></f:TextBox>
+                                        <f:DropDownList ID="ddlSHSID" runat="server" Label="供应商"  ForceSelection="true">
+                                        </f:DropDownList>
+
+                                        
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow ColumnWidths="25% 25% 25% 12% 13% ">
+                                    <Items>
+                                        <f:TextBox ID="tbxHWID" runat="server" Label="货位" EmptyText="请输入货位ID" MaxLength="20" ></f:TextBox>
+                                        <f:TextBox ID="tbxPHID" runat="server" Label="批号信息" EmptyText="请输入批次号" ></f:TextBox>
+                                        <%--<f:TriggerBox ID="tbxBILLNO" runat="server" Label="入库单号" EmptyText="可模糊输入入库单号" MaxLength="20" ShowTrigger="false" TriggerIcon="Search" OnTriggerClick="btSearch_Click"></f:TriggerBox>--%>
+                                        <f:DropDownList ID="ddlAll" runat="server" Label="显示模式">
+                                            <f:ListItem Text="显示所有" Value="" />
+                                            <f:ListItem Text="有库存信息" Value="N" Selected="true" />
+                                        </f:DropDownList>
+                                        
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:DropDownList runat="server" ID="ddlISFLAG7" Label="商品类型">
+                                            <f:ListItem Text="-- 全部 --" Value="" />
+                                            <f:ListItem Text="下传商品" Value="N" />
+                                            <f:ListItem Text="本地商品" Value="Y" />
+                                        </f:DropDownList>
+                                        <f:DropDownList ID="ddlISDG" runat="server" Label="商品模式">
+                                            <f:ListItem Text="--请选择--" Value="" Selected="true" />
+                                            <f:ListItem Text="托管" Value="0" />
+                                            <f:ListItem Text="代管" Value="1" />
+                                            <f:ListItem Text="直供" Value="Z" />
+                                        </f:DropDownList>
+                                        <f:DropDownList ID="ddlISGZ" runat="server" Label="高值">
+                                            <f:ListItem Text="--请选择--" Value="" />
+                                            <f:ListItem Text="是" Value="Y" />
+                                            <f:ListItem Text="否" Value="N" />
+                                        </f:DropDownList>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow Hidden="true">
+                                    <Items>
+                                        <f:HiddenField ID="USERID" runat="server" />
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Window>
+    </form>
+    <script src="/res/js/pad.js" type="text/javascript"></script>
+    <script>
+         var WindowQuery = '<%=WindowQuery.ClientID%>';
+        var currPage = '<%=currPage.ClientID%>';
+        var totalPage = '<%=totalPage.ClientID%>';
+        var pageSize = '<%=pageSize.ClientID%>';
+        var billList = '<%=BillList.ClientID%>';
+        var EmptyPanel = '<%=EmptyPanel.ClientID%>';
+        var FormQuery = '<%=FormQuery.ClientID%>';
+        var Panel1 = '<%=Panel1.ClientID%>';
+        var DATALIST_TEMPLATE = "<table class=\"item-table\"><tr><td width='80%'><div><span style='display:none' class='item-guid'>{1}</span><span class='item-gdname firstcol'><b>{3}</b></span><span class='item-gdseq secondcol'>商品编码：<b class='item-gdseq-value'>{2}</b></span><span class='item-gdspec'>规格：{4}</span><span>存货地点：{9}</span></div>"
+            + "<div><span class='firstcol'>ERP编码：{25}</span><span class='secondcol'>货位：{11}</span><span class='item-unit'>单位：{5}</span><span class='item-hsjj'>价格：{7}</span><span >制品编号：{28}</span></div>"
+            + "<div><span class='firstcol'>预占库存数：{15}</span><span class='secondcol'>盘点：{16}</span><span>计费：{17}</span><span >科室使用：{18}</span></div>"
+            + "<div><span class='firstcol'>批号：{10}</span><span class='secondcol'>生产日期：{19}</span><span >效期：{20}</span></div>"
+            + "<div><span class='firstcol'>生产厂家：{21}</span><span class='secondcol'>供应商：{22}</span><span >配送商：{23}</span></div>"
+            + "<div><span class='firstcol'>商品分类：{26}</span><span class='secondcol'>商品类型：{27}</span><span >注册证号：{28}</span><div>"
+            + "</td><td ><span >库存数量：{12}</span></td></tr></table>";
+        function stepBackward() {
+            F(currPage).setValue('1')
+            bindList();
+        }
+        function stepForward() {
+            F(currPage).setValue(F(totalPage).getValue())
+            bindList()
+        }
+        function forward() {
+            if (parseInt(F(currPage).getValue()) > 1) {
+                F(currPage).setValue(parseInt(F(currPage).getValue()) - 1)
+                bindList()
+            }
+
+
+        }
+        function backward() {
+            if (parseInt(F(currPage).getValue()) < parseInt(F(totalPage).getValue())) {
+                F(currPage).setValue(parseInt(F(currPage).getValue()) + 1)
+                bindList()
+            }
+
+        }
+        function home() {
+            //if (parent && parent.home) {
+            //    parent.home();
+            //} else {
+                location.href = '/pad/index.aspx';
+            //}
+        }
+        function onQuery() {
+            bindList(true);
+            F(WindowQuery).hide();
+            //查询按钮
+        }
+
+
+        function bindList(notfirst) {
+            if (notfirst) { F(currPage).setValue("1") }
+            var pagesize = F(pageSize).getValue();
+            var pageindex = F(currPage).getValue();
+            var data = formToJson(FormQuery);
+
+            data["pagesize"] = pagesize;
+            data["pageindex"] = pageindex;
+            toggleMask();
+            $.ajax('/ERPquery/stocksearch.aspx?osid=querylist', {
+                data: data,
+                success: function (data) {
+                    toggleMask(true);
+                    var resultData = eval('(' + data + ')');
+                    var objData = resultData["data"];
+                    var result = resultData["result"];
+                    if (result == "fail") {
+                        F.alert(objData);
+                        return;
+                    }
+                    objData = eval('(' + objData + ')');
+                    var total = resultData["total"];
+                    var totalpage = resultData["totalpage"];
+                    F(totalPage).setValue(totalpage)
+                    //F(ListData).setValue(objData);
+
+                    var newData = new Array();
+                    for (var i = 0; i < objData.length; i++) {
+                        var content = DATALIST_TEMPLATE
+                           .replace(/\{1\}/ig, guid())
+                        .replace(/\{2\}/ig, convertEmptyStr(objData[i]["GDSEQ"]))
+                        .replace(/\{3\}/ig, convertEmptyStr(objData[i]["GDNAME"]))
+                        .replace(/\{4\}/ig, convertEmptyStr(objData[i]["GDSPEC"]))
+                         .replace(/\{5\}/ig, convertEmptyStr(objData[i]["UNIT"]))
+                        .replace(/\{6\}/ig, objData[i]["BZSL"])
+                        .replace(/\{7\}/ig, objData[i]["HSJJ"])
+                        .replace(/\{8\}/ig, objData[i]["HSJE"])
+                            .replace(/\{9\}/ig, convertEmptyStr(objData[i]["DEPTIDNAME"]))
+                            .replace(/\{10\}/ig, convertEmptyStr(objData[i]["PHID"]))
+                             .replace(/\{11\}/ig, convertEmptyStr(objData[i]["HWID"]))
+                             .replace(/\{12\}/ig, convertEmptyStr(objData[i]["KCSL"]))
+                         .replace(/\{13\}/ig, convertEmptyStr(objData[i]["供应模式"]))
+                         .replace(/\{14\}/ig, convertEmptyStr(objData[i]["MEMO"]))
+                        .replace(/\{15\}/ig, convertEmptyStr(objData[i]["LOCKSL"]))
+                        .replace(/\{16\}/ig, convertEmptyStr(objData[i]["IERP_CN"]))
+                        .replace(/\{17\}/ig, convertEmptyStr(objData[i]["ISJF_CN"]))
+                            .replace(/\{18\}/ig, convertEmptyStr(objData[i]["ISCFG_CN"]))
+                            .replace(/\{19\}/ig, splitDate(objData[i]["RQ_SC"]))
+                        .replace(/\{20\}/ig, splitDate(objData[i]["YXQZ"]))
+                        .replace(/\{21\}/ig, convertEmptyStr(objData[i]["PRODUCERNAME"]))
+                            .replace(/\{22\}/ig, convertEmptyStr(objData[i]["SUPID"]))
+                            .replace(/\{23\}/ig, convertEmptyStr(objData[i]["PSSID"]))
+                        .replace(/\{24\}/ig, convertEmptyStr(objData[i]["PIZNO"]))
+                        .replace(/\{25\}/ig, convertEmptyStr(objData[i]["BAR3"]))
+                            .replace(/\{26\}/ig, convertEmptyStr(objData[i]["CATID"]))
+                            .replace(/\{27\}/ig, convertEmptyStr(objData[i]["ISFLAG7_CN"]))
+                        .replace(/\{28\}/ig, convertEmptyStr(objData[i]["ZPBH"]))
+                         .replace(/\{29\}/ig, convertEmptyStr(objData[i]["PIZNO"]))
+                        newData.push(content);
+                    }
+
+                    F(billList).loadData(newData);
+
+                    if (objData.length) {
+                        F(EmptyPanel).hide();
+                        F(billList).show();
+                    } else {
+                        F(EmptyPanel).show();
+                        F(billList).hide();
+                    }
+                }
+            })
+        }
+        function onOpenWindowQuery() {
+            F(WindowQuery).show();
+        }
+
+        F.ready(function () {
+            bindList();
+           // replaceDateControl('')
+        })
+    </script>
+</body>
+</html>

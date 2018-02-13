@@ -1,0 +1,137 @@
+﻿using XTBase;
+using System;
+using System.Data;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+
+namespace ERPProject.ERPQuery
+{
+    public partial class SjSearch : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // 在页面第一次加载时 
+                BindDDL();
+            }
+
+        }
+
+        private void BindDDL()
+        {
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, ddlDEPTID);
+            PubFunc.DdlDataGet("DDL_SYS_DEPTGROUPHASATH", ddlSTR5);
+            PubFunc.DdlDataGet("DDL_USER", ddlLRY);
+            lstLRRQ1.SelectedDate = DateTime.Now.AddDays(-1);
+            lstLRRQ2.SelectedDate = DateTime.Now;
+        }
+
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = DbHelperOra.Query(GetSearchSql()).Tables[0];
+            if (dtData == null || dtData.Rows.Count == 0)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+            string[] columnNames = new string[GridGoods.Columns.Count - 1];
+            for (int index = 1; index < GridGoods.Columns.Count; index++)
+            {
+                GridColumn column = GridGoods.Columns[index];
+                if (column is FineUIPro.BoundField)
+                {
+                    dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    columnNames[index - 1] = column.HeaderText;
+                }
+            }
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData.DefaultView.ToTable(true, columnNames), "高值信息", string.Format("高值信息报表_{0}.xls", DateTime.Now.ToString("yyyyMMddHHmmss")));
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        private void DataSearch()
+        {
+            int total = 0;
+
+            DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, GetSearchSql(), ref total);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+            //绑定Summary
+            decimal toth = 0, tock = 0, je = 0;
+            foreach (DataRow dr in dtData.Rows)
+            {
+                toth += Convert.ToDecimal((dr["THSL"] ?? "0"));
+                tock += Convert.ToDecimal((dr["CKSL"] ?? "0"));
+                je += Convert.ToDecimal((dr["HSJE"] ?? "0"));
+            }
+            JObject summary = new JObject();
+            summary.Add("STR5NAME", "本页合计");
+            summary.Add("THSL", toth.ToString());
+            summary.Add("CKSL", tock.ToString());
+            summary.Add("HSJE", je.ToString("F2"));
+            GridGoods.SummaryData = summary;
+        }
+
+        private string GetSearchSql()
+        {
+            String Sql = @"SELECT A.*,f_getproducername(A.PRODUCER) PRODUCERNAME,f_getdeptname(A.DEPTID) DEPTIDNAME,f_getdeptname(A.STR5) STR5NAME,DECODE(A.XSTYPE,'4','退货','使用') XSTYPENAME,
+                       f_getunitname(A.UNIT) UNITNAME,f_getusername(A.LRY) LRYNAME,f_getusername(A.SHR) SHRNAME,DECODE(A.XSTYPE, '3', A.XSSL, 0) CKSL,DECODE(A.XSTYPE, '4', A.XSSL, 0) THSL
+                       FROM V_SJ A, DOC_GOODS B
+                       WHERE A.GDSEQ = B.GDSEQ AND A.SHRQ BETWEEN TO_DATE('" + lstLRRQ1.Text + "','yyyy-MM-dd') AND TO_DATE('" + lstLRRQ2.Text + "','yyyy-MM-dd') + 1";
+
+            if (ddlDEPTID.SelectedValue.Length > 0)
+            {
+                Sql += " AND A.DEPTID ='" + ddlDEPTID.SelectedValue + "'";
+            }
+
+            if (ddlSTR5.SelectedValue.Length > 0)
+            {
+                Sql += " AND A.STR5 ='" + ddlSTR5.SelectedValue + "'";
+            }
+
+            if (tbxGOODS.Text.Trim().Length > 0)
+            {
+                Sql += String.Format(" AND (B.GDSEQ LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%' OR B.ZJM LIKE '%{0}%' OR B.BARCODE LIKE '%{0}%' OR B.HISCODE LIKE '%{0}%' OR B.HISNAME LIKE '%{0}%' OR B.STR4 LIKE '%{0}%')", tbxGOODS.Text.Trim());
+            }
+            if (tgbPH.Text.Trim().Length > 0)
+            {
+                Sql += " AND A.PH LIKE '%" + tgbPH.Text.Trim() + "%'";
+            }
+            if (tbxBILLNO.Text.Trim().Length > 0)
+            {
+                Sql += " AND A.SEQNO LIKE '%" + tbxBILLNO.Text.Trim() + "%'";
+            }
+            if (ddlLRY.SelectedValue.Length > 0)
+            {
+                Sql += " AND A.LRY='" + ddlLRY.SelectedValue + "'";
+            }
+            Sql += " ORDER BY  A.SHRQ DESC  ";
+            return Sql;
+        }
+
+        protected void tbxGOODS_TriggerClick(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        protected void GridGoods_Sort(object sender, FineUIPro.GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataSearch();
+        }
+    }
+}

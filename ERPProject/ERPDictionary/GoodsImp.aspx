@@ -1,0 +1,77 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsImp.aspx.cs" Inherits="ERPProject.ERPDictionary.ImpGoods" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <style type="text/css" media="all">
+        .x-grid-row.highlight td {
+            background-color: red;
+            background-image: none;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="PanelDetail" runat="server" />
+        <f:Panel ID="PanelDetail" runat="server" ShowBorder="false" BodyPadding="0px" Layout="HBox" ShowHeader="False">
+            <Items>
+                <f:Panel ID="PanelPicture" runat="server" ShowHeader="false" BoxFlex="2" ShowBorder="false"
+                    BodyPadding="0px" Layout="Fit">
+                    <Items>
+                        <f:Grid ID="GridStock" ShowBorder="false" ShowHeader="false" EnableCheckBoxSelect="false" IsDatabasePaging="true" EnableTextSelection="true"
+                            AllowSorting="true" AutoScroll="true" runat="server" EnableColumnLines="true" CssStyle="border-top: 1px solid #99bce8;" AllowPaging="true" PageSize="120"
+                            DataKeyNames="IMPSEQ" OnPageIndexChange="GridStock_PageIndexChange" OnRowDataBound="GridStock_RowDataBound">
+                            <Toolbars>
+                                <f:Toolbar ID="Toolbar2" runat="server">
+                                    <Items>
+                                        <f:ToolbarText ID="ToolbarText1" Text="导入商品资料excel文件:" EnableAjax="true" runat="server" />
+                                        <f:FileUpload runat="server" ID="fuDocument" EmptyText="导入EXCEL文件" ShowRedStar="true" AutoPostBack="true" OnFileSelected="btnSelect_Click" />
+                                        <f:LinkButton ID="LinkButton1" Text="下载模板" EnablePostBack="false" OnClientClick="DownLoadModelclick();" runat="server" />
+                                        <f:ToolbarSeparator ID="ToolbarSeparator1" runat="server"></f:ToolbarSeparator>
+                                        <f:DropDownList ID="ddlCATID0" runat="server" Label="商品类型" LabelWidth="70px"></f:DropDownList>
+                                        <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                        <f:Button runat="server" ID="btnClear" Icon="Delete" Hidden="true" Text="清空列表数据" DisableControlBeforePostBack="false" Enabled="true" OnClick="btnClear_Click"></f:Button>
+                                        <f:Button runat="server" ID="btnSubmit" Icon="DatabaseGo" Text="导 入" EnableDefaultState="false" DisableControlBeforePostBack="false" OnClick="btnSelect_Click"></f:Button>
+                                        <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                        <f:Button runat="server" ID="btnSave" Icon="Disk" Enabled="false" EnableDefaultState="false"
+                                            Text="提 交" DisableControlBeforePostBack="false" ValidateForms="FormMain" OnClick="btnSave_Click">
+                                        </f:Button>
+                                    </Items>
+                                </f:Toolbar>
+                            </Toolbars>
+                            <Columns>
+                                <f:RowNumberField Width="35px" EnablePagingNumber="true" />
+                                <f:BoundField Width="160px" DataField="MEMO" HeaderText="提示信息" />
+                                <f:BoundField Width="90px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                <f:BoundField Width="150px" DataField="GDNAME" HeaderText="商品名称" />
+                                <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="商品规格" />
+                                <f:BoundField Width="60px" DataField="UNIT" HeaderText="单位" TextAlign="Center" />
+                                <f:BoundField Width="80px" DataField="HSJJ" HeaderText="含税进价" TextAlign="Center" />
+                                <f:BoundField Width="170px" DataField="PRODUCER" HeaderText="生产厂家" />
+                                <f:BoundField Width="130px" DataField="PIZNO" HeaderText="注册证号" />
+                                <f:BoundField Width="60px" DataField="ISLOT" HeaderText="管理批号" TextAlign="Center" />
+                                <f:BoundField Width="90px" DataField="CATID" HeaderText="商品类别" TextAlign="Center" />
+                                <f:BoundField Width="190px" DataField="SUPPLIER" HeaderText="供应商" />
+                                <f:BoundField Width="60px" DataField="ISGZ" HeaderText="是否高值" TextAlign="Center" />
+                                <f:BoundField Width="90px" DataField="SEQNO" HeaderText="流水号" TextAlign="Center" />
+                                <f:BoundField Width="70px" DataField="ISJG" HeaderText="是否代表品" TextAlign="Center" />
+                                <f:BoundField Width="40px" DataField="ZUHAO" HeaderText="组号" TextAlign="Center" />
+                            </Columns>
+                        </f:Grid>
+                    </Items>
+                </f:Panel>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="highlightRows" runat="server" />
+
+    </form>
+    <script type="text/javascript">
+        function DownLoadModelclick() {
+            window.location.href = '商品资料导入模板.xlsx';
+        }
+    </script>
+</body>
+</html>

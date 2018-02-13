@@ -1,0 +1,146 @@
+﻿using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+
+namespace ERPProject.ERPApply
+{
+    public partial class ConstantChecking : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                //PubFunc.DdlDataGet(ddlDEPTINT, "DDL_SYS_DEPTNULL");
+                DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, ddlDEPTINT);
+                dpkout1.SelectedDate = DateTime.Now.AddDays(-30);
+                dpkout2.SelectedDate = DateTime.Now;
+            }
+        }
+        private void DataSearch()
+        {
+            int total = 0;
+            string msg = "";
+            NameValueCollection nvc = new NameValueCollection();
+
+            DataTable dtData = GetGoodsList(GridGoods.PageIndex, GridGoods.PageSize, nvc, ref total, ref msg);
+            GridGoods.RecordCount = total;
+            GridGoods.DataSource = dtData;
+            GridGoods.DataBind();
+        }
+
+        protected void btSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            DataSearch();
+        }
+
+        /// <summary>
+        /// 获取商品数据信息
+        /// </summary>
+        /// <param name="pageNum">第几页</param>
+        /// <param name="pageSize">每页显示天数</param>
+        /// <param name="nvc">查询条件</param>
+        /// <param name="total">总的条目数</param>
+        /// <param name="errMsg"></param>
+        /// <returns></returns>
+        public DataTable GetGoodsList(int pageNum, int pageSize, NameValueCollection nvc, ref int total, ref string errMsg)
+        {
+            string strSearch = "";
+            highlightRows.Text = "";
+            if (tbxGDSEQ.Text.Trim().Length > 0) { strSearch += string.Format(" and (b.GDSEQ LIKE '%{0}%' OR b.GDNAME LIKE '%{0}%' OR b.NAMEJC  LIKE '%{0}%' OR  b.BAR3 LIKE '%{0}%' OR b.ZJM  LIKE '%{0}%')", tbxGDSEQ.Text.Trim()); }
+            //if (tbxGDSEQ.Text.Trim().Length > 0) { strSearch += " and a.GDSEQ like '" + tbxGDSEQ.Text + "'"; }
+            if (ddlDEPTINT.SelectedValue.Length > 0) { strSearch += " and a.DEPTIN ='" + ddlDEPTINT.SelectedValue.ToString() + "'"; }
+            if (ddlSFHS.SelectedValue.Length > 0) { strSearch += " and a.FLAG ='" + ddlSFHS.SelectedValue.ToString() + "'"; }
+            if (tgbONECODE.Text.Trim().Length > 0) { strSearch += " and a.BARCODE ='" + tgbONECODE.Text.Trim() + "'"; }
+            if (dpkout1.SelectedDate != null) { strSearch += string.Format(" AND a.OUTRQ>=TO_DATE('{0}','YYYY-MM-DD')", dpkout1.Text); }
+            if (dpkout2.SelectedDate != null) { strSearch += string.Format(" AND a.OUTRQ<TO_DATE('{0}','YYYY-MM-DD')+1", dpkout2.Text); }
+            strSearch += string.Format(" AND deptin in( select code FROM SYS_DEPT where type <>'1' and  F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            string strGoods = @"SELECT A.GDSEQ,B.GDNAME,B.ZJM,B.GDSPEC,B.BZHL,A.DSHL,C.NUM1,C.DSNUM,A.BARCODE,C.ZDKC,C.ZGKC,A.FLAG,DECODE(A.FLAG,'N',' 未回收','Y','已回收','已退货') FLAGNAME,A.INRQ,A.INBILLNO
+                            ,F_GETDEPTNAME(A.DEPTOUT) DEPTOUT,F_GETDEPTNAME(A.DEPTIN) DEPTIN,A.OUTRQ,A.OUTBILLNO,F_GETUNITNAME(B.UNIT) UNITNAME,F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,B.PIZNO
+                                FROM DAT_GOODSDS_LOG A,DOC_GOODS B,DOC_GOODSCFG C WHERE A.GDSEQ = B.GDSEQ AND A.GDSEQ = C.GDSEQ AND A.DEPTIN=C.DEPTID ";
+
+            StringBuilder strSql = new StringBuilder(strGoods);
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql.Append(strSearch);
+            }
+            return GetDataTable(pageNum, pageSize, strSql, ref total);
+        }
+        protected void btnExp_Click(object sender, EventArgs e)
+        {
+            string strSql = @"SELECT A.OUTRQ 出库日期,
+                                   A.OUTBILLNO 出库单号,
+                                   F_GETDEPTNAME(A.DEPTOUT) 出库库房,
+                                   F_GETDEPTNAME(A.DEPTIN) 使用科室,
+                                   ''''||A.GDSEQ 商品编码,
+                                   B.GDNAME 商品名称,
+                                   B.GDSPEC 商品规格,
+                                   F_GETUNITNAME(B.UNIT) 单位,
+                                   C.NUM1 定数含量,
+                                   C.DSNUM 定数数量,
+                                   ''''||A.BARCODE 定数条码,
+                                   A.INRQ 回收日期,
+                                   A.INBILLNO 回收单号,
+                                   DECODE(A.FLAG, 'N', ' 未回收', 'Y', '已回收', '已退货') 定数状态,
+                                   F_GETPRODUCERNAME(B.PRODUCER) 生产厂家,
+                                   B.PIZNO 注册证号
+                              FROM DAT_GOODSDS_LOG A, DOC_GOODS B, DOC_GOODSCFG C
+                             WHERE A.GDSEQ = B.GDSEQ
+                               AND A.GDSEQ = C.GDSEQ
+                               AND A.DEPTIN = C.DEPTID";
+            string strSearch = "";
+            if (tbxGDSEQ.Text.Trim().Length > 0) { strSearch += string.Format(" and (b.GDSEQ LIKE '%{0}%' OR b.GDNAME LIKE '%{0}%' OR b.NAMEJC  LIKE '%{0}%' OR  b.BAR3 LIKE '%{0}%' OR b.ZJM  LIKE '%{0}%')", tbxGDSEQ.Text.Trim()); }
+            //if (tbxGDSEQ.Text.Trim().Length > 0) { strSearch += " and a.GDSEQ like '" + tbxGDSEQ.Text + "'"; }
+            if (ddlDEPTINT.SelectedValue.Length > 0) { strSearch += " and a.DEPTIN ='" + ddlDEPTINT.SelectedValue.ToString() + "'"; }
+            if (ddlSFHS.SelectedValue.Length > 0) { strSearch += " and a.FLAG ='" + ddlSFHS.SelectedValue.ToString() + "'"; }
+            if (tgbONECODE.Text.Trim().Length > 0) { strSearch += " and a.BARCODE ='" + tgbONECODE.Text.Trim() + "'"; }
+            if (dpkout1.SelectedDate != null) { strSearch += string.Format(" AND a.OUTRQ>=TO_DATE('{0}','YYYY-MM-DD')", dpkout1.Text); }
+            if (dpkout2.SelectedDate != null) { strSearch += string.Format(" AND a.OUTRQ<TO_DATE('{0}','YYYY-MM-DD')+1", dpkout2.Text); }
+            strSearch += string.Format(" AND deptin in( select code FROM SYS_DEPT where type <>'1' and  F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+
+            strSql += strSearch;
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dt, "定数出库信息", "定数出库信息导出_" + DateTime.Now.ToString("yyyyMMdd") + ".xls");
+            
+        }
+
+        protected void GridGoods_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                string flag = row["FLAG"].ToString();
+
+                if (flag == "N")
+                {
+                    highlightRows.Text += e.RowIndex.ToString() + ",";
+                }
+            }
+        }
+
+        protected void GridGoods_Sort(object sender, GridSortEventArgs e)
+        {
+            GridGoods.SortDirection = e.SortDirection;
+            GridGoods.SortField = e.SortField;
+
+            DataTable table = PubFunc.GridDataGet(GridGoods);
+            DataView view1 = table.DefaultView;
+            view1.Sort = String.Format("{0} {1}", GridGoods.SortField, GridGoods.SortDirection);
+            GridGoods.DataSource = view1;
+            GridGoods.DataBind();
+        }
+    }
+}

@@ -1,0 +1,196 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using Newtonsoft.Json.Linq;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using System.Data;
+using System.Collections.Specialized;
+using System.Text;
+using XTBase.Utilities;
+
+namespace SPDProject.SpdQuery
+{
+    public partial class NearValidForInquiry : BillBase
+    {
+        static string xq;
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                billSearch();
+            }
+        }
+        private void DataInit()
+        {
+            try
+            {
+                xq = DbHelperOra.GetSingle("select value from SYS_PARA where code = 'YXQZDAYS'").ToString();
+            }
+            catch
+            {
+                xq = "30";
+            }
+            //近效期时间下拉表
+            //PubFunc.DdlDataGet("DAT_GOODS_YXQZ", lstDQSJ);
+            //lstDQSJ.SelectedValue = "30";
+            //库房科室库房下拉表
+            //DepartmentBind.BindDDL("DDL_SYS_DEPTRANGE", UserAction.UserID, lstDEPTID);
+            DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, lstDEPTID);
+            dqsj.Text = xq;
+        }
+        protected override void billSearch()
+        {
+            string strSql = @"select f_getdeptname(A.DEPTID) DEPTIDNAME,
+                                    A.DEPTID,
+                                    A.GDSEQ,
+                                    F_GETHISINFO(A.GDSEQ,'GDNAME') GDNAME,
+                                    F_GETHISINFO(A.GDSEQ,'GDSPEC') GDSPEC,
+                                    f_getunitname(A.UNIT) UNIT,
+                                    A.KCSL,
+                                    B.HSJJ,
+                                    A.HWID,
+                                    f_getproducername(B.PRODUCER) PRODUCER,
+                                    B.PIZNO, 
+                                    A.PHID,
+                                    TO_CHAR(A.RQ_SC,'YYYY-MM-DD') RQSC,
+                                    TO_CHAR(A.YXQZ,'YYYY-MM-DD') YXQZ,                                    
+                                    --floor(A.YXQZ-SYSDATE) XQ,
+                                    ceil(A.YXQZ-SYSDATE) XQ,
+                                    decode(B.ISGZ,'Y','是','否') ISGZ
+                                from (SELECT * FROM DAT_GOODSSTOCK WHERE F_CHK_DATARANGE(DEPTID, '" + UserAction.UserID + @"') = 'Y') A,DOC_GOODS B
+                                where A.GDSEQ=B.GDSEQ AND A.KCSL>0 ";
+            string strSearch = "";
+            string strSearchOrder = " order by (ceil(A.YXQZ-SYSDATE)) ASC";
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) strSearch += " and B.ISGZ = '" + ddlISGZ.SelectedValue + "'";
+            if (tgbGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND (UPPER(A.GDSEQ) LIKE '%{0}%' OR UPPER(B.GDNAME) LIKE '%{0}%' OR UPPER(B.ZJM) LIKE '%{0}%') ", (tgbGDSEQ.Text.Trim()).ToUpper());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedIndex > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            if (dqsj.Text.Trim() == "")
+            {
+                dqsj.Text = "0";
+                strSearch += string.Format(" AND ceil(A.YXQZ-SYSDATE) <='{0}'", dqsj.Text.Trim());
+            }
+            else
+                strSearch += string.Format(" AND ceil(A.YXQZ-SYSDATE) <='{0}'", dqsj.Text.Trim());
+            if (ShowMode.Checked == false)
+            {
+                strSearch += " AND ceil(A.YXQZ-SYSDATE) >= 0 ";
+            }
+            strSql += strSearch;
+            strSql += string.Format(" AND a.deptid in( select code FROM SYS_DEPT where F_CHK_DATARANGE(CODE, '{0}') = 'Y' )", UserAction.UserID);
+            strSql += strSearchOrder;
+            int total = 0;
+            highyellowlight.Text = ",";
+            highredlight.Text = ",";
+            DataTable dt = PubFunc.DbGetPage(GridList.PageIndex, GridList.PageSize, strSql, ref total);
+            GridList.DataSource = dt;
+            GridList.RecordCount = total;
+            GridList.DataBind();
+        }
+        protected void GridList_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridList.PageIndex = e.NewPageIndex;
+            billSearch();
+        }
+        protected override void billClear()
+        {
+            PubFunc.FormDataClear(Formlist);
+            lstDEPTID.SelectedValue = "";
+            dqsj.Text = xq;
+        }
+        protected void lstGDSEQ_TriggerClick(object sender, EventArgs e)
+        {
+            //查询信息统一触发
+            billSearch();
+        }
+        protected void GridList_RowDataBound(object sender, GridRowEventArgs e)
+        {
+            DataRowView row = e.DataItem as DataRowView;
+            if (row != null)
+            {
+                if (string.IsNullOrWhiteSpace(row["XQ"].ToString()))
+                {
+                    row["XQ"] = "0";
+                }
+                string flag = row["XQ"].ToString();
+                FineUIPro.BoundField flagcol = GridList.FindColumn("XQ") as FineUIPro.BoundField;
+                int SYXQ = System.Int32.Parse(flag);
+
+                if (SYXQ > 0 && SYXQ <= 30)
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color2";
+                }
+                else if (SYXQ < 0)
+                {
+                    e.CellAttributes[flagcol.ColumnIndex]["data-color"] = "color3";
+                }
+            }
+
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            if (GridList.Rows.Count < 1)
+            {
+                Alert.Show("没有数据,无法导出！");
+                return;
+            }
+
+            string strSql = @"select 
+                              f_getdeptname(A.DEPTID) 科室库房,
+                              ' '||A.GDSEQ 商品编码,
+                              F_GETHISINFO(A.GDSEQ, 'GDNAME') 商品名称,
+                              F_GETHISINFO(A.GDSEQ, 'GDSPEC') 商品规格,
+                              f_getunitname(A.UNIT) 单位,
+                              A.KCSL 数量,
+                              B.HSJJ 单价,
+                              A.HWID 货位,
+                              f_getproducername(B.PRODUCER) 生产商,
+                              A.PHID 批号,
+                              B.PIZNO 注册证号,
+                              TO_CHAR(A.RQ_SC, 'YYYY-MM-DD') 生产日期,
+                              TO_CHAR(A.YXQZ, 'YYYY-MM-DD') 有效期至,
+                              ceil(A.YXQZ - SYSDATE) 剩余天数,
+                              decode(B.ISGZ,'Y','是','否') 是否高值
+                          from (SELECT * FROM DAT_GOODSSTOCK WHERE F_CHK_DATARANGE(DEPTID, '" + UserAction.UserID + @"') = 'Y') A, DOC_GOODS B
+                         where A.GDSEQ = B.GDSEQ
+                           AND A.KCSL > 0";
+            string strSearch = "";
+            string strSearchOrder = " order by (ceil(A.YXQZ-SYSDATE)) ASC";
+            if (!PubFunc.StrIsEmpty(ddlISGZ.SelectedValue)) strSearch += " and B.ISGZ = '" + ddlISGZ.SelectedValue + "'";
+            if (tgbGDSEQ.Text.Trim().Length > 0)
+            {
+                strSearch += string.Format(" AND (A.GDSEQ   LIKE '%{0}%' OR B.GDNAME LIKE '%{0}%') ", tgbGDSEQ.Text.Trim());
+            }
+            if (lstDEPTID.SelectedItem != null && lstDEPTID.SelectedIndex > 0)
+            {
+                strSearch += string.Format(" AND A.DEPTID='{0}'", lstDEPTID.SelectedItem.Value);
+            }
+            if (dqsj.Text.Trim() == "") dqsj.Text = "0";
+            else
+                strSearch += string.Format(" AND ceil(A.YXQZ-SYSDATE) <='{0}'", dqsj.Text.Trim());
+            if (ShowMode.Checked == false)
+            {
+                strSearch += " AND ceil(A.YXQZ-SYSDATE) >= 0 ";
+            }
+            
+            strSql += strSearch;
+            strSql += strSearchOrder;
+
+            DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+
+            ExcelHelper.ExportByWeb(dt, "近效期库存导出", "近效期库存导出_" + DateTime.Now.ToString("yyyyMMddHH") + ".xls");
+        }
+    }
+}

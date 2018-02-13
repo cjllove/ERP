@@ -1,0 +1,242 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdProject
+{
+    public partial class QuestionManage : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                if (Request.QueryString["oper"] != null)
+                {
+                    hfdFlag.Text = Request.QueryString["oper"].ToString();
+                }
+                DataInit();
+                billNew();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlXMBH, "DDL_PROJECT");
+            PubFunc.DdlDataGet("DDL_USER", ddlCREUSER, ddlDOUSER, lstDOUSER);
+            PubFunc.DdlDataGet(ddlQTYPE, "DDL_QUESTION_TYPE");
+            PubFunc.DdlDataGet(ddlQLEVEL, "DDL_QUESTION_LEVEL");
+            PubFunc.DdlDataGet("DDL_QUESTION_STATUS", ddlSTATUS, lstSTATUS);
+
+            dpkCRETIME.SelectedDate = DateTime.Now;
+            lstCRETIME1.SelectedDate = DateTime.Now.AddDays(-7);
+            lstCRETIME2.SelectedDate = DateTime.Now;
+        }
+
+        private void billNew()
+        {
+            txaHOWDO.Text = "";
+            hfdSEQ.Text = "";
+            txaQUESTION.Text = "";
+            if (hfdFlag.Text == "question")
+            {
+                //ddlDOUSER.Enabled = false;
+                //dpkDOTIME.Enabled = false;
+                //txaHOWDO.Enabled = false;
+                fudIMAGE.Text = "";
+                ddlCREUSER.SelectedValue = UserAction.UserID;
+                dpkCRETIME.SelectedDate = DateTime.Now;
+            }
+            else if (hfdFlag.Text == "answer")
+            {
+                //PubFunc.FormLock(FormQuest, true);
+                fudIMAGE.Enabled = false;
+                //ddlDOUSER.Enabled = true;
+                //dpkDOTIME.Enabled = true;
+                //txaHOWDO.Enabled = true;
+                ddlDOUSER.SelectedValue = UserAction.UserID;
+                dpkDOTIME.SelectedDate = DateTime.Now;
+            }
+            ddlSTATUS.SelectedValue = "1";
+            hfdISNEW.Text = "Y";
+        }
+
+        protected void btnNew_Click(object sender, EventArgs e)
+        {
+            billNew();
+        }
+
+        protected void ddlSTATUS_Changed(object sender, EventArgs e)
+        {
+            if (dpkDOTIME.SelectedDate == null && ((FineUIPro.DropDownList)sender).SelectedValue == "5")
+            {
+                dpkDOTIME.SelectedDate = DateTime.Now;
+            }
+        }
+        protected void btnDelete_Click(object sender, EventArgs e)
+        {
+            string strSeq = hfdSEQ.Text.ToString();
+            if (PubFunc.StrIsEmpty(strSeq)) return;
+
+            if (ddlSTATUS.SelectedValue != "5")
+            {
+                Alert.Show("当前问题状态【" + ddlSTATUS.SelectedText + "】还没有关闭，不能删除！！", "消息提示", MessageBoxIcon.Information);
+                return;
+            }
+
+
+
+            DbHelperOra.ExecuteSql("delete FROM PRO_QUESTION WHERE SEQ='" + strSeq + "'");
+
+            Alert.Show("当前问题信息删除成功！", "消息提示", MessageBoxIcon.Information);
+            billNew();
+            DataSearch();
+        }
+
+        protected void btnSelect_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        protected void btSave_Click(object sender, EventArgs e)
+        {
+            MyTable mtQuest = new MyTable("PRO_QUESTION");
+            mtQuest.ColRow = PubFunc.FormDataHT(FormQuest);
+            if (fudIMAGE.HasFile)
+            {
+                string fileName = fudIMAGE.ShortFileName;
+
+                if (!ValidateFileType(fileName))
+                {
+                    Alert.Show("无效的文件类型！");
+                    return;
+                }
+
+                fileName = fileName.Replace(":", "_").Replace(" ", "_").Replace("\\", "_").Replace("/", "_");
+                fileName = DateTime.Now.Ticks.ToString() + "_" + fileName;
+
+                //按日期归类保存
+                string datePath = DateTime.Now.ToString("yyyyMM") + "/" + DateTime.Now.ToString("dd") + "/";
+                //物理完整路径                    
+                string filePath = MapPath("~/SpdUpload/Question/" + datePath);
+
+                //检查是否有该路径,没有就创建
+                if (!Directory.Exists(filePath))
+                {
+                    Directory.CreateDirectory(filePath);
+                }
+                fudIMAGE.SaveAs(filePath + fileName);
+                mtQuest.ColRow.Add("IMAGE", "~/SpdUpload/Question/" + datePath + fileName);
+            }
+            mtQuest.ColRow.Remove("ISNEW");
+            if (hfdISNEW.Text == "Y")
+            {
+                object objSeq = DbHelperOra.GetSingle("select seq_public.nextval from dual");
+                mtQuest.ColRow["SEQ"] = objSeq.ToString();
+                mtQuest.InsertExec();
+            }
+            else
+            {
+                mtQuest.UpdateExec();
+            }
+            billNew();
+            DataSearch();
+            Alert.Show("项目问题信息保存成功！", "消息提示", MessageBoxIcon.Information);
+        }
+
+        private void DataSearch()
+        {
+            string strSql = @"SELECT SEQ,QUESTION,ENDTIME,f_getusername(CREUSER) CREUSER,CRETIME,
+                                     HOWDO,f_getusername(DOUSER) DOUSER,DOTIME,
+                                     (SELECT XMMC FROM PRO_PROJECT WHERE XMBH=A.XMBH) XMMC, 
+                                     F_GETCODEVALUE('QUESTION_TYPE',QTYPE) QTYPENAME,
+                                     F_GETCODEVALUE('QUESTION_LEVEL',QLEVEL) QLEVELNAME,
+                                     F_GETCODEVALUE('QUESTION_STATUS',STATUS) STATUSNAME 
+                                FROM PRO_QUESTION A WHERE 1=1 ";
+            string strSearch = "";
+
+            if (ddlXMBH.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.XMBH='{0}'", ddlXMBH.SelectedItem.Value);
+            }
+
+            if (lstDOUSER.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.DOUSER='{0}'", lstDOUSER.SelectedItem.Value);
+            }
+
+            if (lstSTATUS.SelectedItem.Value.Length > 0)
+            {
+                strSearch += string.Format(" AND A.STATUS='{0}'", lstSTATUS.SelectedItem.Value);
+            }
+            if (lstCRETIME1.Text.Length > 0 && lstCRETIME2.Text.Length > 0)
+            {
+                if (lstCRETIME1.SelectedDate > lstCRETIME2.SelectedDate)
+                {
+                    Alert.Show("开始日期大于结束日期，请重新输入！");
+                    return;
+                }
+                strSearch += string.Format(" AND A.CRETIME>=TO_DATE('{0}','YYYY-MM-DD')", lstCRETIME1.Text);
+                strSearch += string.Format(" AND A.CRETIME <TO_DATE('{0}','YYYY-MM-DD') + 1", lstCRETIME2.Text);
+            }
+
+
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql += strSearch;
+            }
+
+            GridQuestion.DataSource = DbHelperOra.Query(strSql + " order by to_number(seq) asc ").Tables[0];
+            GridQuestion.DataBind();
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            DataSearch();
+        }
+
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            DataTable dtData = PubFunc.GridDataGet(GridQuestion);
+            XTBase.Utilities.ExcelHelper.ExportByWeb(dtData, "项目问题管理表", "项目问题管理表_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".xls");
+        }
+
+        protected void GridQuestion_RowDoubleClick(object sender, GridRowClickEventArgs e)
+        {
+            if (GridQuestion.Rows.Count == 0) return;
+
+            string strSeq = ((FineUIPro.Grid)sender).Rows[e.RowIndex].Values[1].ToString();
+            DataTable dt = DbHelperOra.Query("SELECT * FROM PRO_QUESTION WHERE SEQ='" + strSeq + "'").Tables[0];
+            PubFunc.FormDataSet(FormQuest, dt.Rows[0]);
+            hfdISNEW.Text = "N";
+            if (!string.IsNullOrWhiteSpace(dt.Rows[0]["IMAGE"].ToString()))
+            {
+                lnkImage.NavigateUrl = dt.Rows[0]["IMAGE"].ToString();
+                lnkImage.Text = dt.Rows[0]["IMAGE"].ToString();
+                lnkImage.Hidden = false;
+            }
+            else
+            {
+                lnkImage.Hidden = true;
+            }
+            if (hfdFlag.Text == "answer")
+            {
+                PubFunc.FormLock(FormQuest, true);
+                fudIMAGE.Enabled = false;
+                ddlSTATUS.Enabled = true;
+                ddlDOUSER.SelectedValue = UserAction.UserID;
+                ddlDOUSER.Enabled = true;
+                dpkDOTIME.SelectedDate = DateTime.Now;
+                dpkDOTIME.Enabled = true;
+                txaHOWDO.Enabled = true;
+            }
+        }
+
+    }
+}

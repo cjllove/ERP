@@ -1,0 +1,379 @@
+﻿using FineUIPro;
+using XTBase;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Text.RegularExpressions;
+
+namespace SPDProject.SpdEntrust
+{
+    public partial class GoodsSupManage : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                DataInit();
+                dataSearch();
+            }
+        }
+
+        private void DataInit()
+        {
+            PubFunc.DdlDataGet(ddlGoodsType, "DDL_GOODS_TYPE");
+            PubFunc.DdlDataGet(ddlGhs, "DDL_SUPID_ORDER");
+            PubFunc.DdlDataGet(ddlPssId, "DDL_DOC_PSSID");
+        }
+
+        private void dataSearch(string type = "left")
+        {
+            int total = 0;
+            NameValueCollection nvc = new NameValueCollection();
+            object obj = DbHelperOra.GetSingle("SELECT value FROM SYS_PARA where code = 'ShowName'");
+            if (type == "left")
+            {
+                String Sql = "select g.GDSEQ, g.GDID,";
+                if ((obj ?? "").ToString() == "HIS")
+                {
+                    Sql += @"NVL(g.HISNAME,g.GDNAME) GDNAME,NVL(g.STR3,g.GDSPEC) GDSPEC,";
+                }
+                else
+                {
+                    Sql += @"g.GDNAME,g.GDSPEC,";
+                }
+                Sql += @"D.NAME UNITNAME,S.NAME FLAG_CN,DECODE(G.ISFLAG7,'Y','本地','下传') ISFLAG7_CN,F_GETPRODUCERNAME(G.PRODUCER) PRODUCERNAME,f_getsupname(G.SUPPLIER) SUPNAME FROM  DOC_GOODS G,DOC_GOODSUNIT D,
+                                                              (SELECT CODE, NAME FROM SYS_CODEVALUE WHERE TYPE = 'GOODS_STATUS') S
+                                                        WHERE G.ISDELETE = 'N' AND G.FLAG = S.CODE(+) AND G.UNIT = D.CODE(+) AND G.FLAG = 'Y'";
+
+                if (ddlGoodsType.SelectedValue.Length > 0)
+                    Sql += string.Format(" AND CATID0='{0}'", ddlGoodsType.SelectedValue);
+                if (!string.IsNullOrWhiteSpace(ddlGhs.SelectedValue))
+                    Sql += string.Format(" AND G.GDSEQ NOT IN(SELECT GDSEQ FROM DOC_GOODSSUP WHERE SUPID = '{0}')", ddlGhs.SelectedValue);
+                if (tgbSearch.Text.Trim().Length > 0)
+                    Sql += string.Format(" AND （G.GDNAME LIKE '%{0}%' OR G.GDSEQ LIKE '%{0}%' OR G.NAMEJC LIKE '%{0}%' OR G.BAR3 LIKE '%{0}%' OR F_GETPRODUCERNAME(G.PRODUCER) LIKE '%{0}%' OR G.HISNAME LIKE '%{0}%' ）", tgbSearch.Text.Trim());
+                if (!string.IsNullOrWhiteSpace(ddlISFLAG7.SelectedValue))
+                {
+                    Sql += string.Format(" AND G.ISFLAG7 = '{0}'", ddlISFLAG7.SelectedValue);
+                }
+                DataTable dtData = PubFunc.DbGetPage(GridGoods.PageIndex, GridGoods.PageSize, Sql, ref total);
+                GridGoods.RecordCount = total;
+                GridGoods.DataSource = dtData;
+                GridGoods.DataBind();
+            }
+            else if (type == "right")
+            {
+                if (ddlGhs.SelectedValue != null && ddlGhs.SelectedValue.Length < 1)
+                {
+                    GridCFGGoods.RecordCount = 0;
+                    GridCFGGoods.DataSource = null;
+                    GridCFGGoods.DataBind();
+                    return;
+                }
+                String Sql = "SELECT b.GDSEQ,";
+                if ((obj ?? "").ToString() == "HIS")
+                {
+                    Sql += @"NVL(b.HISNAME,b.GDNAME) GDNAME,NVL(b.STR3,b.GDSPEC) GDSPEC,";
+                }
+                else
+                {
+                    Sql += @"b.GDNAME,b.GDSPEC,";
+                }
+
+                Sql += "f_getproducername(B.PRODUCER) PRODUCERNAME,f_getunitname(B.UNIT) UNITNAME FROM DOC_GOODSSUP A,DOC_GOODS B WHERE A.GDSEQ = B.GDSEQ AND B.FLAG = 'Y'";
+                if (trbSearch.Text.Trim().Length > 0)
+                    Sql += string.Format(" AND （B.GDNAME LIKE '%{0}%' OR B.GDSEQ LIKE '%{0}%' OR B.NAMEJC LIKE '%{0}%' OR B.BAR3 LIKE '%{0}%' OR F_GETPRODUCERNAME(B.PRODUCER) LIKE '%{0}%'）", trbSearch.Text.Trim());
+                if (ddlGhs.SelectedValue != null && ddlGhs.SelectedValue.Length > 0)
+                {
+                    Sql += string.Format(" AND A.SUPID = '{0}'", ddlGhs.SelectedValue);
+                }
+                if (ddlMODE.SelectedValue == "0" || ddlMODE.SelectedValue == "1")
+                {
+                    if (ddlPssId.SelectedValue.Length < 1)
+                    {
+                        //Alert.Show("请选择配送商！", "提示信息", MessageBoxIcon.Warning);
+                        //return;
+                    }
+                    else Sql += string.Format(" AND A.PSSID = '{0}'", ddlPssId.SelectedValue);
+                }
+                if (ddlMODE.SelectedValue.Length > 0)
+                {
+                    Sql += string.Format(" AND A.TYPE = '{0}'", ddlMODE.SelectedValue);
+                }
+                DataTable dtData = PubFunc.DbGetPage(GridCFGGoods.PageIndex, GridCFGGoods.PageSize, Sql, ref total);
+                GridCFGGoods.RecordCount = total;
+                GridCFGGoods.DataSource = dtData;
+                GridCFGGoods.DataBind();
+            }
+        }
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+        protected void GridCFGGoods_RowDoubleClick(object sender, FineUIPro.GridRowClickEventArgs e)
+        {
+            string seq = GridCFGGoods.DataKeys[e.RowIndex][0].ToString();
+            //string supid = GridCFGGoods.Rows[e.RowIndex].Values[3].ToString();
+            string supid = ddlGhs.SelectedValue;
+            String pssid = ddlPssId.SelectedValue;
+            string strSql = @"SELECT A.GDSEQ,A.GDSPEC,NVL(HISNAME,A.GDNAME) GDNAME,A.UNIT,A.PIZNO,B.STR3,B.ORDERZQ,B.TYPE,f_getproducername(A.PRODUCER) PRODUCERNAME,f_getunitname(a.unit) UNITNAME FROM DOC_GOODS A,DOC_GOODSSUP B WHERE A.GDSEQ = '" + seq + "' AND A.GDSEQ = B.GDSEQ AND B.SUPID='"+ supid +"'";
+            if (ddlMODE.SelectedValue != "Z")
+            {
+                strSql += string.Format("  AND B.PSSID='" + pssid + "'");
+            }
+                DataTable dt = DbHelperOra.Query(strSql).Tables[0];
+            PubFunc.FormDataSet(FormConfig, dt.Rows[0]);
+        }
+        protected void ddlDept_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            dataSearch();
+            dataSearch("right");
+            CleanConfig();
+        }
+
+        protected void GridGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridGoods.PageIndex = e.NewPageIndex;
+            dataSearch();
+        }
+
+        protected void GridCFGGoods_PageIndexChange(object sender, FineUIPro.GridPageEventArgs e)
+        {
+            GridCFGGoods.PageIndex = e.NewPageIndex;
+            dataSearch("right");
+        }
+
+        protected void btnAddRight_Click(object sender, EventArgs e)
+        {
+            if (ddlGhs.SelectedValue.Length > 0)
+            {
+                int[] selectArray = GridGoods.SelectedRowIndexArray;
+                if (selectArray.Length > 0)
+                {
+                    if (ddlMODE.SelectedValue == "0" || ddlMODE.SelectedValue == "0")
+                    {
+                        if (ddlPssId.SelectedValue.Length < 1)
+                        {
+                            Alert.Show("请选择配送商", "提示信息", MessageBoxIcon.Warning);
+                            return;
+                        }
+                    }
+
+                    List<CommandInfo> cmdList = new List<CommandInfo>();
+                    for (int i = 0; i < selectArray.Length; i++)
+                    {
+                        string GDSEQ = GridGoods.Rows[selectArray[i]].Values[1].ToString();
+
+                        object objISFLAG7 = DbHelperOra.GetSingle(string.Format("SELECT ISFLAG7 FROM DOC_GOODS WHERE GDSEQ = '{0}'", GDSEQ));
+
+                        if (!string.IsNullOrWhiteSpace(objISFLAG7.ToString()) && objISFLAG7.ToString() == "Y")
+                        {
+                            if (!string.IsNullOrWhiteSpace(ddlMODE.SelectedValue) && ddlMODE.SelectedValue != "1")
+                            {
+                                Alert.Show("本地商品的供货类型只可选择【代管】！", MessageBoxIcon.Warning);
+                                return;
+                            }
+                            //供应商 是否是本地新增
+                            object objGHS = DbHelperOra.GetSingle(string.Format("SELECT STR1 FROM DOC_SUPPLIER WHERE SUPID = '{0}'", ddlGhs.SelectedValue));
+                            if (!string.IsNullOrWhiteSpace((objGHS ?? "N").ToString()) && (objGHS ?? "N").ToString() != "Y")
+                            {
+                                Alert.Show("商品【" + GDSEQ + "】为本地新增商品，只能配置本地供应商", "消息提示", MessageBoxIcon.Warning);
+                                return;
+                            }
+                        }
+
+                        if (DbHelperOra.Exists(string.Format(@"SELECT 1 FROM DOC_GOODS  WHERE GDSEQ = '{0}' AND FLAG <> 'Y'
+                        UNION ALL
+                        SELECT 1 FROM DOC_GOODSSUP WHERE GDSEQ = '{0}' AND SUPID = '{1}' ", GDSEQ, ddlGhs.SelectedValue)))
+                        {
+                            Alert.Show("商品【" + GDSEQ + "】商品状态不正确或已被配置此供应商", "消息提示", MessageBoxIcon.Warning);
+                            return;
+                        }
+                        string Sql = "";
+                        if (ddlPssId.SelectedValue.Length < 1)
+                        {
+                            Sql = "INSERT INTO DOC_GOODSSUP (CUSTID,GDSEQ, OPERUSER ,SUPID,PSSID,TYPE)  VALUES (f_getpara('USERCODE'),'" + GDSEQ + "','" + UserAction.UserID + "','" + ddlGhs.SelectedValue + "','" + ddlGhs.SelectedValue + "','" + ddlMODE.SelectedValue + "')";
+                        }
+                        else
+                        {
+                            Sql = "INSERT INTO DOC_GOODSSUP (CUSTID,GDSEQ, OPERUSER ,SUPID,PSSID,TYPE)  VALUES (f_getpara('USERCODE'),'" + GDSEQ + "','" + UserAction.UserID + "','" + ddlGhs.SelectedValue + "','" + ddlPssId.SelectedValue + "','" + ddlMODE.SelectedValue + "')";
+                        }
+                        cmdList.Add(new CommandInfo(Sql, null));
+                        cmdList.Add(new CommandInfo("UPDATE DOC_GOODSSUP SET ORDERSORT = 'Y' WHERE GDSEQ = '" + GDSEQ + "' AND SUPID = '" + ddlGhs.SelectedValue + "' AND NOT EXISTS(SELECT 1 FROM DOC_GOODSSUP WHERE GDSEQ = '" + GDSEQ + "' AND ORDERSORT = 'Y')", null));
+                        cmdList.Add(new CommandInfo("UPDATE DOC_GOODS SET SUPPLIER = NVL((SELECT SUPID FROM DOC_GOODSSUP WHERE GDSEQ = '" + GDSEQ + "' AND ORDERSORT = 'Y'),'00002') WHERE GDSEQ='" + GDSEQ + "'", null));
+
+                        OperLog("商品配置供应关系", "商品【" + GDSEQ + "】配置供应关系至供应商【" + ddlGhs.SelectedValue + "】配送商【" + ddlPssId.SelectedValue + "】");
+                    }
+                    DbHelperOra.ExecuteSqlTran(cmdList);
+                    
+                    dataSearch("left");
+                    dataSearch("right");
+                }
+                else
+                {
+                    Alert.Show("请选择要进行配置的商品信息！");
+                }
+            }
+            else
+            {
+                Alert.Show("请选择要进行配置的供应商或配送商！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
+        protected void btnAddLeft_Click(object sender, EventArgs e)
+        {
+            int[] selectArray = GridCFGGoods.SelectedRowIndexArray;
+            string err = "";
+            if (selectArray.Length > 0)
+            {
+                List<CommandInfo> cmdList = new List<CommandInfo>();
+                for (int i = 0; i < selectArray.Length; i++)
+                {
+                    string GDSEQ = GridCFGGoods.DataKeys[selectArray[i]][0].ToString();
+                    string strSUPID = ddlGhs.SelectedValue;
+                    string strPSSID = ddlPssId.SelectedValue;
+                    if(!string.IsNullOrWhiteSpace(ddlMODE.SelectedValue) && ddlMODE.SelectedValue == "Z")
+                    {
+                        strPSSID = strSUPID;
+                    }
+                    if (DbHelperOra.Exists(string.Format(@"SELECT 1 FROM DOC_GOODSSUP A, DAT_GOODSSTOCK B 
+                                                            WHERE A.GDSEQ = B.GDSEQ  AND A.SUPID = B.SUPID AND A.PSSID = B.PSSID
+                                                                  AND A.GDSEQ = '{0}' AND B.KCSL > 0 AND A.SUPID = '{1}' AND A.PSSID = '{2}'", GDSEQ, strSUPID, strPSSID)))
+                    {
+                        string errmsg = "[" + GDSEQ + "]对应供应商[" + strSUPID + "]和配送商["+ strPSSID + "]，";
+                        err += errmsg;
+                        continue;
+                    }
+                    cmdList.Add(new CommandInfo("DELETE DOC_GOODSSUP WHERE GDSEQ='" + GDSEQ + "' AND SUPID = '" + ddlGhs.SelectedValue + "'", null));
+                    cmdList.Add(new CommandInfo("UPDATE DOC_GOODSSUP SET ORDERSORT = 'Y' WHERE GDSEQ = '" + GDSEQ + "' AND ROWNUM = 1 AND NOT EXISTS(SELECT 1 FROM DOC_GOODSSUP WHERE GDSEQ = '" + GDSEQ + "' AND ORDERSORT = '0')", null));
+                    cmdList.Add(new CommandInfo("UPDATE DOC_GOODS SET SUPPLIER = NVL((SELECT SUPID FROM DOC_GOODSSUP WHERE GDSEQ = '" + GDSEQ + "' AND ORDERSORT = '0'),0000) WHERE GDSEQ='" + GDSEQ + "'", null));
+                    OperLog("商品取消供应关系", "商品【" + GDSEQ + "】取消供应关系从供应商【" + ddlGhs.SelectedValue + "】配送商【" + ddlPssId.SelectedValue + "】");
+                }
+                DbHelperOra.ExecuteSqlTran(cmdList);
+                if (err.Length > 0)
+                {
+                    Alert.Show("商品" + err + "存在库存，不允许取消配置！", "提示信息", MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    Alert.Show("商品配置取消成功！");
+                }
+                CleanConfig();
+                dataSearch("left");
+                dataSearch("right");
+            }
+        }
+        protected void btnSave_Click(object sender, EventArgs e)
+        {
+            //if (PubFunc.FormDataCheck(FormConfig).Length > 1) return;
+
+            //填写定数数量，定数系数必须填写
+            if (PubFunc.StrIsEmpty(tbxGDSEQ.Text))
+            {
+                Alert.Show("请先选择商品！"); return;
+            }
+            //验证此商品本账期是否被结算
+            if (DbHelperOra.Exists("SELECT 1 FROM DAT_GOODSJXC A,DOC_GOODSSUP B WHERE A.GDSEQ = B.GDSEQ AND B.STR3 <>'" + ddlSTR3.SelectedValue + "' AND A.GDSEQ = '" + tbxGDSEQ.Text + "' AND A.SUPID = '" + ddlGhs.SelectedValue + "' "))
+            {
+                Alert.Show("商品[" + tbxGDSEQ.Text + "]已经发生业务，不允许修改结算方式！", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            DbHelperOra.ExecuteSql("UPDATE DOC_GOODSSUP SET STR3='" + ddlSTR3.SelectedValue + "',ORDERZQ=" + nbxORDERZQ.Text + " WHERE GDSEQ='" + tbxGDSEQ.Text + "' AND SUPID='" + ddlGhs.SelectedValue + "' ");
+            dataSearch("right");
+            Alert.Show("信息保存成功！");
+        }
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ddlGhs.SelectedValue))
+            {
+                Alert.Show("请先选择供应商或配送商!", "提示信息", MessageBoxIcon.Warning);
+                return;
+            }
+            dataSearch("right");
+        }
+        private void CleanConfig()
+        {
+            //每次重新选择代管供应商时，需要清空底部之前选中的信息
+            tbxGDSEQ.Text = "";
+            tbsGDNAME.Text = "";
+            tbxGDSPEC.Text = "";
+            tbxUNITNAME.Text = "";
+            tbxPRODUCERNAME.Text = "";
+            tbxPIZNO.Text = "";
+        }
+
+        protected void Unnamed_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (ddlMODE.SelectedValue == "0" || ddlMODE.SelectedValue == "1")
+            {
+                ddlPssId.Enabled = true;
+            }
+            else
+            {
+                ddlPssId.Enabled = false;
+                ddlPssId.SelectedValue = "";
+            }
+            if (ddlMODE.SelectedValue == "1")
+            {//代管，只有代管可以区分
+                PubFunc.DdlDataGet(ddlGhs, "DDL_DOC_SUPID_DG");
+            }
+            else {
+                PubFunc.DdlDataGet(ddlGhs, "DDL_DOC_SUPID");
+                ddlGhs.SelectedValue = "";
+            }
+            dataSearch();
+            dataSearch("right");
+        }
+
+        protected void GridGoods_RowCommand(object sender, GridCommandEventArgs e)
+        {
+            if (e.CommandName == "sup")
+            {
+                String Sql = @"SELECT A.SUPID,A.GDSEQ,F_GETSUPNAME(A.SUPID) SUPNAME,A.ORDERSORT
+                    FROM DOC_GOODSSUP A WHERE GDSEQ = '{0}'";
+                DataTable dt = DbHelperOra.Query(string.Format(Sql, GridGoods.DataKeys[e.RowIndex][0])).Tables[0];
+                if (dt.Rows.Count < 2)
+                {
+                    Alert.Show("商品不存在或只有一个供应商，不需要配置默认供应商！", MessageBoxIcon.Warning);
+                    return;
+                }
+                GridSup.DataSource = dt;
+                GridSup.DataBind();
+                List<int> selects = new List<int>();
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    if (dt.Rows[i]["ORDERSORT"].ToString() == "Y")
+                        selects.Add(i);
+                }
+                GridSup.SelectedRowIndexArray = selects.ToArray();
+                //更改默认供货商
+                winSup.Hidden = false;
+            }
+        }
+
+        protected void btnLoadTemplateClose_Click(object sender, EventArgs e)
+        {
+            int[] selects = GridSup.SelectedRowIndexArray;
+            if (selects.Count() < 1)
+            {
+                Alert.Show("请选择默认供货商！", MessageBoxIcon.Warning);
+                return;
+            }
+            String gdseq = GridSup.DataKeys[selects[0]][1].ToString();
+            String supid = GridSup.DataKeys[selects[0]][0].ToString();
+            List<CommandInfo> cmdList = new List<CommandInfo>();
+            cmdList.Add(new CommandInfo("UPDATE DOC_GOODSSUP SET ORDERSORT = 'N' WHERE GDSEQ = '" + gdseq + "' AND ORDERSORT ='Y'", null));
+            cmdList.Add(new CommandInfo("UPDATE DOC_GOODSSUP SET ORDERSORT = 'Y' WHERE GDSEQ = '" + gdseq + "' AND SUPID ='" + supid + "'", null));
+            cmdList.Add(new CommandInfo("UPDATE DOC_GOODS SET SUPPLIER = '" + supid + "' WHERE GDSEQ = '" + gdseq + "'", null));
+            DbHelperOra.ExecuteSqlTran(cmdList);
+            winSup.Hidden = true;
+        }
+    }
+}

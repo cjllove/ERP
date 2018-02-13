@@ -1,0 +1,112 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="SupplierCheckList.aspx.cs" Inherits="SPDProject.SpdQuery.SupplierCheckList" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>供应商结账表</title>
+    <script src="../res/js/CreateControl.js" type="text/javascript"></script>
+    <style type="text/css" media="all">
+        .ColBlue {
+            font-size: 12px;
+            color: blue;
+        }
+
+        .x-grid-row-summary .x-grid-cell-inner {
+            font-weight: bold;
+            color: blue;
+        }
+
+        .x-grid-row-summary .x-grid-cell {
+            background-color: #fff !important;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="PanelMain" runat="server" />
+        <f:Panel ID="PanelMain" runat="server" ShowBorder="false" BodyPadding="0px" Layout="VBox"
+            ShowHeader="false">
+            <Toolbars>
+                <f:Toolbar ID="Toolbar3" runat="server">
+                    <Items>
+                        <f:CheckBox ID="ckbAll" runat="server" Label="包含零库存"></f:CheckBox>
+                        <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                        <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出" EnableDefaultState="false" OnClick="btnExport_Click" ConfirmText="是否导出当前信息?" DisableControlBeforePostBack="false"
+                            EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" />
+                        <f:Button ID="btnPrintAll" Icon="Printer" Text="打 印" EnableDefaultState="false" DisableControlBeforePostBack="true" runat="server" OnClientClick="PrintHZB()" />
+                        <f:ToolbarSeparator runat="server" />
+                        <f:Button ID="btnQuery" Icon="Magnifier" Text="查 询" EnableDefaultState="false" OnClick="btnQuery_Click" runat="server" />
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+            <Items>
+                <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="5px"
+                    ShowHeader="False" LabelWidth="80px" runat="server">
+                    <Rows>
+                        <f:FormRow ColumnWidths="40% 20% 20% 20%">
+                            <Items>
+                                <f:DropDownList ID="docPSSID" runat="server" Label="供 应 商" EnableEdit="true" ForceSelection="true" />
+                                <f:DropDownList ID="ddlISGZ" runat="server" Label="是否高值">
+                                    <f:ListItem Selected="true" Text="---请选择---" Value="" />
+                                    <f:ListItem Text="高值" Value="Y" />
+                                    <f:ListItem Text="非高值" Value="N" />
+                                </f:DropDownList>
+                                 <f:DropDownList ID="docDHLX" runat="server" Label="商品类型" ShowRedStar="true" Required="true"></f:DropDownList>
+                                <f:DatePicker ID="dpkRQ1" runat="server" Label="查询期间" Required="true" ShowRedStar="true" />
+                                <f:DatePicker ID="dpkRQ2" runat="server" Label="　　至" LabelSeparator="" Required="true" ShowRedStar="true" />
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+                <f:Grid ID="GridSupKC" BoxFlex="1" ShowBorder="false" ShowHeader="false" CssStyle="border-top: 1px solid #99bce8;" AllowColumnLocking="true"
+                    EnableColumnLines="true" EnableTextSelection="true" AutoScroll="true" runat="server" DataKeyNames="SUPID" OnRowDataBound="GridSupKC_RowDataBound"
+                    EnableSummary="true" SummaryPosition="Bottom" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridSupKC_RowDoubleClick">
+                    <Columns>
+                        <f:RowNumberField Width="35px" TextAlign="Center" />
+                        <f:BoundField Hidden="true" DataField="SUPID" ColumnID="SUPID" HeaderText="供应商编码" />
+                        <f:BoundField Width="210px" DataField="SUPNAME" ColumnID="SUPNAME" HeaderText="供应商名称" EnableLock="true" Locked="true" />
+                        <f:BoundField Width="90px" DataField="RKSL" ColumnID="RKSL" HeaderText="入库数量" TextAlign="Right" />
+                        <f:BoundField Width="100px" DataField="RKJE" ColumnID="RKJE" HeaderText="入库金额" DataFormatString="{0:F2}" TextAlign="Right" />
+                        <f:BoundField Width="90px" DataField="SYSL" ColumnID="SYSL" HeaderText="使用数量" TextAlign="Right" />
+                        <f:BoundField Width="100px" DataField="SYJE" ColumnID="SYJE" HeaderText="使用金额" DataFormatString="{0:F2}" TextAlign="Right" />
+                        <f:BoundField Width="60px" DataField="FPS" ColumnID="FPS" HeaderText="发票数" TextAlign="Center" />
+                        <f:BoundField Width="100px" DataField="FPJE" ColumnID="FPJE" HeaderText="发票金额" DataFormatString="{0:F2}" TextAlign="Right" />
+                        <f:BoundField Width="100px" DataField="WFPJE" ColumnID="WFPJE" HeaderText="无发票金额" TextAlign="Right" />
+                        <f:BoundField Width="150px" DataField="MEMO" ColumnID="MEMO" HeaderText="备注" ExpandUnusedSpace="true" />
+                    </Columns>
+                </f:Grid>
+            </Items>
+        </f:Panel>
+    </form>
+    <script type="text/javascript">
+        function PrintHZB() {
+            if (F('<%= dpkRQ1.ClientID%>').lastValue > F('<%= dpkRQ2.ClientID%>').lastValue) {
+                F.util.alert('开始日期大于结束日期', F.util.formAlertTitle, Ext.MessageBox.INFO);
+                return;
+            }
+
+            var gys = F('<%= docPSSID.ClientID%>').getValue();
+            var begrq = F('<%= dpkRQ1.ClientID%>').getText();
+            var endrq = F('<%= dpkRQ2.ClientID%>').getText();
+            var isgz = F('<%= ddlISGZ.ClientID%>').getValue();
+            var all = F('<%= ckbAll.ClientID%>').getValue();
+
+            var Report = ReportViewer.Report;
+            ReportViewer.ReportURL = "/grf/gyshzb.grf?timestamp=" + new Date().getTime();
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetGysHzData&gys=" + gys + "&b=" + begrq + "&e=" + endrq + "&isgz=" + isgz + "&a=" + all;
+
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }
+    </script>
+</body>
+</html>

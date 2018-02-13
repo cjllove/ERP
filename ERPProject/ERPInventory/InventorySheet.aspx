@@ -1,0 +1,394 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="InventorySheet.aspx.cs" Inherits="ERPProject.ERPInventory.InventorySheet" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>盘点单管理</title>
+    <script src="../res/js/CreateControl.js" type="text/javascript"></script>
+    <script src="../res/js/GRInstall.js" type="text/javascript"></script>
+    <style type="text/css" media="all">
+        .x-grid-row-summary .x-grid-cell-inner {
+            font-weight: bold;
+            color: blue;
+        }
+
+        .x-grid-row-summary .x-grid-cell {
+            background-color: #fff !important;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1" OnCustomEvent="PageManager1_CustomEvent"
+            runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right"
+            EnableTabCloseMenu="false" ActiveTabIndex="0"
+            runat="server">
+            <Tabs>
+                <f:Tab Title="单据列表" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel2" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="Panel3" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText2" CssStyle="" Text="操作信息：双击打开单据明细！" runat="server" />
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:Button ID="bntClear" Icon="Erase" Text="清 除" EnablePostBack="true" runat="server" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询" EnablePostBack="true" runat="server" ValidateForms="Formlist" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="Formlist" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                                            ShowHeader="False" LabelWidth="70px" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TriggerBox ID="lstBILLNO" runat="server" Label="盘点单号" MaxLength="20" EmptyText="输入盘点编号查询" OnTriggerClick="lstBILLNO_TriggerClick" />
+                                                        <f:TriggerBox ID="lstBILLPLAN" runat="server" Label="计划盘点单号" LabelWidth="100px" MaxLength="20" EmptyText="输入盘点计划单号查询" OnTriggerClick="lstBILLNO_TriggerClick" />
+                                                        <f:DropDownList ID="lstDEPTOUT" runat="server" Label="生成科室" EnableEdit="true" ForceSelection="true" />
+                                                        <f:DatePicker ID="lstLRRQ1" runat="server" Label="盘点日期" Required="true" />
+                                                        <f:DatePicker ID="lstLRRQ2" runat="server" Label="　　至" Required="true" CompareType="String" CompareControl="lstLRRQ1" CompareOperator="GreaterThanEqual" />
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridList" AnchorValue="100% -68" ShowBorder="false" ShowHeader="false"
+                                    AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableTextSelection="true"
+                                    DataKeyNames="SEQNO" EnableRowDoubleClickEvent="true" OnRowDoubleClick="listRow_DoubleClick" OnRowDataBound="GridList_RowDataBound" EnableColumnLines="true"
+                                    EnableHeaderMenu="true" SortField="SEQNO" OnSort="GridList_Sort" SortDirection="ASC" AllowSorting="true">
+                                    <Columns>
+                                        <f:RowNumberField Width="30px" runat="server" />
+                                        <f:BoundField Width="120px" DataField="SEQNO" HeaderText="盘点单号" SortField="SEQNO" TextAlign="Center" />
+                                        <f:BoundField Width="110px" DataField="DEPTIDNAME" HeaderText="盘点科室" SortField="DEPTIDNAME" ExpandUnusedSpace="true" />
+                                        <f:BoundField Width="120px" DataField="PDPLAN" HeaderText="盘点计划单号" TextAlign="Center" SortField="PDPLAN" />
+                                        <f:BoundField Width="70px" DataField="FLAG" ColumnID="FLAG" HeaderText="单据状态" TextAlign="Center" Hidden="true" SortField="FLAG" />
+                                        <f:BoundField Width="70px" DataField="FLAGNAME" HeaderText="单据状态" ColumnID="FLAGNAME" TextAlign="Center" SortField="FLAGNAME" />
+                                        <f:BoundField Width="80px" DataField="PDRQ" HeaderText="盘点日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" SortField="PDRQ" />
+                                        <f:BoundField Width="60px" DataField="SUBNUM" HeaderText="条目数" TextAlign="Center" SortField="SUBNUM" />
+                                        <f:BoundField Width="100px" DataField="LRY" HeaderText="录入员" TextAlign="Center" Hidden="true" SortField="LRY" />
+                                        <f:BoundField Width="70px" DataField="LRYNAME" HeaderText="录入员" TextAlign="Center" SortField="LRYNAME" />
+                                        <f:BoundField Width="80px" DataField="LRRQ" HeaderText="录入日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" SortField="LRRQ" />
+                                        <f:BoundField Width="100px" DataField="SPR" HeaderText="审核员" TextAlign="Center" Hidden="true" />
+                                        <f:BoundField Width="70px" DataField="SPRNAME" HeaderText="审核员" TextAlign="Center" SortField="SPRNAME" />
+                                        <f:BoundField Width="80px" DataField="SPRQ" HeaderText="审核日期" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" SortField="SPRQ" />
+                                        <f:BoundField Width="80px" DataField="MEMO" HeaderText="备注说明" SortField="MEMO" Hidden="true" />
+                                    </Columns>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="单据信息" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px"
+                                    Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="操作信息：单据操作主界面！" runat="server" />
+                                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                                <f:Button ID="btnSD" Icon="Lock" Text="开始盘点" EnablePostBack="true" runat="server" OnClick="btnSD_Click" EnableDefaultState="false" />
+                                                <f:Button ID="btnSave" Icon="Disk" Text="保 存" EnablePostBack="true" runat="server" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnAudit" Icon="UserTick" Text="审 核" EnablePostBack="true" ConfirmText="是否确认审核此单据，完成盘点任务?" runat="server" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                                <f:Button ID="btnRept" Icon="UserTick" Text="复 盘" EnablePostBack="true" ConfirmText="是否确认取消此单据，并生成复盘单据?" runat="server" OnClick="btnRept_Click" EnableDefaultState="false" />
+                                                <f:Button ID="btnCancel" Icon="UserCross" Text="驳 回" Enabled="true" EnablePostBack="true" runat="server" OnClick="btnBill_Click" EnableDefaultState="false" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnPrint" Icon="Printer" Text="打 印" Enabled="false" EnablePostBack="false" runat="server" OnClientClick="btnPrint_onclick()" EnableDefaultState="false" />
+                                                <f:Button ID="btnPrintJC" Icon="Printer" Text="打印结存表" EnablePostBack="false" runat="server" OnClientClick="PrintJC_onclick()" Hidden="true" EnableDefaultState="false" />
+                                                <f:Button ID="btnExport" Icon="DatabaseGo" Text="导 出" OnClick="btnExp_Click" ConfirmText="是否导出当前商品信息?" DisableControlBeforePostBack="false" EnableDefaultState="false"
+                                                    EnablePostBack="true" EnableAjax="false" EnableAjaxLoading="true" AjaxLoadingType="Mask" runat="server" />
+                                                <%--<f:Button ID="btnExp" runat="server" Text="导 出" Icon="DatabaseGo" EnablePostBack="true" DisableControlBeforePostBack="true" EnableAjax="false" OnClick="btnExp_Click" EnableDefaultState="false"></f:Button>--%>
+                                                <f:Button ID="btnGoods" Icon="Magnifier" Text="增加批号" ValidateForms="FormDoc" EnablePostBack="true" runat="server" OnClick="btnBill_Click" Hidden="true" EnableDefaultState="false" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+                                        <f:Form ID="FormDoc" ShowBorder="false" AutoScroll="false" BodyPadding="10px" LabelWidth="75px"
+                                            ShowHeader="False" runat="server">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="tbxPDPLAN" runat="server" Label="计划单号">
+                                                        </f:TextBox>
+                                                        <f:DatePicker ID="dpkPDRQ" runat="server" Label="盘点日期"></f:DatePicker>
+                                                        <f:TextBox ID="tbxSEQNO" runat="server" Label="盘点单号"></f:TextBox>
+                                                        <f:DropDownList ID="ddlFLAG" runat="server" Label="单据状态" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="ddlPDTYPE" runat="server" Label="盘点类别" AutoPostBack="true">
+                                                            <f:ListItem Value="1" Text="1-普通盘点" Selected="true" />
+                                                            <f:ListItem Value="2" Text="2-动销盘点" />
+                                                            <%--<f:ListItem Value="3" Text="3-月末盘点" />
+                                                            <f:ListItem Value="4" Text="4-APP盘点" EnableSelect="false" />--%>
+                                                            <f:ListItem Value="5" Text="5-月度结算盘点" />
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="ddlISPH" runat="server" Label="批次管理">
+                                                            <f:ListItem Text="是" Value="Y" Selected="true" />
+                                                            <f:ListItem Text="否" Value="N" />
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="ddlLRY" runat="server" Label="录入员" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkLRRQ" runat="server" Label="录入日期"></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList runat="server" Label="锁定库存" ID="ddlISSD" Enabled="false">
+                                                            <f:ListItem Text="未锁定" Value="N" Selected="true" />
+                                                            <f:ListItem Text="已锁定" Value="Y" />
+                                                        </f:DropDownList>
+                                                        <f:DropDownList ID="ddlDEPTID" runat="server" Label="部　　门"></f:DropDownList>
+                                                        <f:DropDownList ID="ddlSPR" runat="server" Label="审核员" EnableEdit="true" ForceSelection="true">
+                                                        </f:DropDownList>
+                                                        <f:DatePicker ID="dpkSPRQ" runat="server" Label="审核日期"></f:DatePicker>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow Hidden="true">
+                                                    <Items>
+                                                        <f:TextBox ID="tbxSYDBILL" runat="server" Label="损益单号" Hidden="true"></f:TextBox>
+                                                        <f:TextBox ID="tbxMEMO" runat="server" Label="备　注" Hidden="true"></f:TextBox>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow Hidden="true">
+                                                    <Items>
+                                                        <f:DatePicker ID="dpkENDRQ" runat="server" Hidden="true"></f:DatePicker>
+                                                        <f:DatePicker ID="dpkBEGINRQ" runat="server" Hidden="true"></f:DatePicker>
+                                                        <f:TextBox ID="tbxBILLNO" runat="server" Hidden="true"></f:TextBox>
+                                                        <f:HiddenField ID="hfdDEPTTYPE" runat="server"></f:HiddenField>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                                <f:Grid ID="GridGoods" AnchorValue="100% -144" ShowBorder="false" ShowHeader="false" SummaryPosition="Bottom" EnableSummary="true" EnableTextSelection="true"
+                                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" AllowPaging="true" PageSize="100" IsDatabasePaging="true"
+                                    DataKeyNames="ROWCODE" AllowCellEditing="true" ClicksToEdit="1" EnableColumnLines="true" OnPageIndexChange="GridGoods_PageIndexChange">
+                                    <Toolbars>
+                                        <f:Toolbar runat="server">
+                                            <Items>
+                                                <f:TriggerBox ID="tgxGoods" Label="商品信息" LabelWidth="70px" runat="server" CssStyle="margin-left:20px" ShowTrigger="false" MaxLength="20" EmptyText="输入商品信息过滤查询" OnTriggerClick="tgxGoods_TriggerClick"></f:TriggerBox>
+                                                <f:Button ID="btn_srch" runat="server" Text="过 滤" CssStyle="margin-left:20px" Icon="Magnifier" EnablePostBack="true" OnClick="tgxGoods_TriggerClick" EnableDefaultState="false"></f:Button>
+                                                <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                                <f:Label ID="lblSUBSUM" runat="server" Label="合计数量" CssClass="ColBlue"></f:Label>
+                                                <f:Label ID="lblSUBNUM" runat="server" Label="合计金额" CssClass="ColBlue"></f:Label>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField runat="server" Width="35px" TextAlign="Center" EnablePagingNumber="true"></f:RowNumberField>
+                                        <f:BoundField Hidden="true" DataField="ISFLOAT" HeaderText="ISFLOAT" ColumnID="ISFLOAT"></f:BoundField>
+                                        <f:BoundField Width="100px" DataField="GDSEQ" HeaderText="商品编码" TextAlign="Center" />
+                                        <f:BoundField DataField="ROWCODE" Hidden="true" />
+                                        <f:BoundField Width="160px" DataField="GDNAME" ColumnID="GDNAME" HeaderText="商品名称" />
+                                        <f:BoundField Width="40px" DataField="UNITNAME" HeaderText="单位" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="GDSPEC" HeaderText="商品规格" />
+                                        <f:BoundField Width="70px" DataField="HWID" HeaderText="货位" TextAlign="Center" />
+                                        <f:BoundField Width="70px" DataField="BZHL" HeaderText="包装含量" TextAlign="Center" />
+                                        <f:BoundField Width="80px" DataField="HSJJ" HeaderText="含税进价" TextAlign="Right" DataFormatString="{0:F4}" />
+                                        <%--<f:BoundField Width="90px" DataField="BHSJE" ColumnID="BHSJE" HeaderText="期初数量" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="LSJ" ColumnID="LSJ" HeaderText="入库金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="90px" DataField="LSJE" ColumnID="LSJE" HeaderText="使用数量" TextAlign="Center" />--%>
+                                        <f:BoundField Width="80px" DataField="KCSL" ColumnID="KCSL" HeaderText="结存数量" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="KCHSJE" ColumnID="HSJE" HeaderText="结存金额" TextAlign="Right" DataFormatString="{0:F2}" />
+
+                                        <f:RenderField Width="90px" DataField="PDSL" ColumnID="PDSL" HeaderText="盘点数量" TextAlign="Right" EnableColumnHide="false" EnableHeaderMenu="false">
+                                            <Editor>
+                                                <f:NumberBox ID="comPDSL" runat="server" MinValue="0" NoDecimal="false"></f:NumberBox>
+                                            </Editor>
+                                        </f:RenderField>
+
+                                        <f:BoundField Width="80px" DataField="BZSL" ColumnID="BZSL" HeaderText="差异数量" TextAlign="Center" />
+                                        <f:BoundField Width="100px" DataField="CYHSJE" ColumnID="CYHSJE" HeaderText="差异含税金额" TextAlign="Right" DataFormatString="{0:F2}" />
+                                        <f:BoundField Width="100px" DataField="PH" HeaderText="批号" ColumnID="PH" TextAlign="Center" />
+                                        <f:BoundField Width="90px" DataField="RQ_SC" HeaderText="生产日期" ColumnID="RQ_SC" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                        <f:BoundField Width="90px" DataField="YXQZ" HeaderText="有效期" ColumnID="YXQZ" TextAlign="Center" DataFormatString="{0:yyyy-MM-dd}" />
+                                        <f:BoundField Width="140px" DataField="CDIDNAME" HeaderText="产地" />
+                                        <f:BoundField Width="140px" DataField="SUPNAME" HeaderText="供应商" />
+                                        <f:BoundField Width="140px" DataField="PSSNAME" HeaderText="配送商" />
+                                        <f:BoundField Width="190px" DataField="PZWH" HeaderText="注册证号" />
+                                    </Columns>
+                                    <Listeners>
+                                        <f:Listener Event="beforeedit" Handler="OnGridBeforeEdit1" />
+                                        <f:Listener Event="afteredit" Handler="OnGridBeforeEdit" />
+                                    </Listeners>
+                                </f:Grid>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+        <f:Window ID="WindowReject" Title="驳回信息" Hidden="true" EnableIFrame="false" runat="server"
+            EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Layout="Fit" Width="370px" Height="200px">
+            <Items>
+                <f:Form ID="Form2" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px"
+                    ShowHeader="False" LabelWidth="75px" runat="server">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:DropDownList ID="ddlReject" runat="server" Label="驳回原因" Required="true" ShowRedStar="true" EnableEdit="true" LabelWidth="75px" ForceSelection="true" />
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow>
+                            <Items>
+                                <f:TextArea ID="txaMemo" runat="server" Label="详细说明" Height="80px" />
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                </f:Form>
+            </Items>
+            <Toolbars>
+                <f:Toolbar ID="Toolbar4" runat="server" Position="Bottom" ToolbarAlign="Right">
+                    <Items>
+                        <f:Button ID="btnRejectSubmit" Text="确定" Icon="SystemSave" ValidateForms="Form2" runat="server" EnableDefaultState="false" OnClick="btnRejectSubmit_Click">
+                        </f:Button>
+                    </Items>
+                </f:Toolbar>
+            </Toolbars>
+        </f:Window>
+    </form>
+    <f:HiddenField ID="hfdisclick" runat="server" />
+    <f:HiddenField ID="highlightRows" runat="server" />
+    <f:HiddenField ID="highRedlightRows" runat="server"></f:HiddenField>
+    <f:Window ID="WindowPH" Title="商品批号维护" EnableIFrame="false" runat="server" Hidden="true"
+        EnableMaximize="false" EnableResize="true" Target="Parent" IsModal="True" Layout="Fit" Width="300px" Height="200px">
+        <Items>
+            <f:Form ID="Form3" ShowBorder="false" AutoScroll="false" BodyPadding="5px 10px"
+                ShowHeader="False" LabelWidth="70px" runat="server">
+                <Rows>
+                    <f:FormRow>
+                        <Items>
+                            <f:TextBox ID="tbxPH1" runat="server" EmptyText="手动输入批号" Label="批号" Required="true" ShowRedStar="True"></f:TextBox>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow ColumnWidths="70% 30%">
+                        <Items>
+                            <f:NumberBox ID="nbxSL" runat="server" Label="盘点数量" MinValue="0" Required="true" ShowRedStar="True"></f:NumberBox>
+                            <f:Label ID="lblUNIT" runat="server" LabelSeparator=""></f:Label>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:DatePicker runat="server" Label="生产日期" ID="lstRQ_SC1" Required="true" ShowRedStar="True"></f:DatePicker>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:DatePicker runat="server" Label="有效期至" ID="lstYXQZ1" Required="true" ShowRedStar="True"></f:DatePicker>
+                        </Items>
+                    </f:FormRow>
+                    <f:FormRow>
+                        <Items>
+                            <f:TextBox ID="tbxPZWH1" runat="server" Label="注册证号"></f:TextBox>
+                        </Items>
+                    </f:FormRow>
+                </Rows>
+            </f:Form>
+        </Items>
+        <Toolbars>
+            <f:Toolbar ID="Toolbar6" runat="server" Position="Bottom" ToolbarAlign="Right">
+                <Items>
+                    <f:Button ID="btnPHClose" Text="确定" Icon="SystemSave" runat="server" OnClick="btnPHClose_Click"></f:Button>
+                </Items>
+            </f:Toolbar>
+        </Toolbars>
+    </f:Window>
+
+    <script type="text/javascript">
+        function OnGridBeforeEdit1(event, value, param)
+        {
+
+        }
+        function OnGridBeforeEdit(event,value,param)
+        {
+            var gridGood = F('<%= GridGoods.ClientID%>')
+            if (param.columnId == "PDSL")
+            {
+                if (param.rowData.values["ISFLOAT"] != "Y") {
+                    gridGood.updateCellValue(param.rowId, param.columnId, Math.round(value), false);
+                }
+            }
+        }
+        function btnPrint_onclick() {
+            var billNo = F('<%= tbxSEQNO.ClientID%>').getValue();
+            var billState = F('<%= ddlFLAG.ClientID%>').getValue();
+
+            if (billNo == "") {
+                F.alert("请选择要打印的单据信息！");
+                return;
+            }
+            //if (billState != "N") {
+            //    F.alert("选择单据已审核,不允许打印！");
+            //    return;
+            //}
+            var Report = ReportViewer.Report;
+            var ISPH = F('<%= ddlISPH.ClientID%>').getValue();
+            var pdtype = F('<%= ddlPDTYPE.ClientID%>').getValue();
+            var bmtype = F('<%= hfdDEPTTYPE.ClientID%>').getValue();
+
+            if (ISPH == "Y")
+                ReportViewer.ReportURL = "/grf/inventory_H.grf?timestamp=" + new Date().getTime();
+            else
+                ReportViewer.ReportURL = "/grf/inventory_H2.grf?timestamp=" + new Date().getTime();
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetPDData&osid=" + billNo;
+            console.log(dataurl);
+            /* if (pdtype == "5") {
+                 if (bmtype == "1" || bmtype == "2") {
+                     ReportViewer.ReportURL = "/grf/inventory_H5.grf?timestamp=" + new Date().getTime();
+                 }
+                 else {
+                     ReportViewer.ReportURL = "/grf/inventory_H4.grf?timestamp=" + new Date().getTime();
+                 }
+             }*/
+
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }
+        function PrintJC_onclick() {
+            var billNo = F('<%= tbxSEQNO.ClientID%>').getValue();
+            var billState = F('<%= ddlFLAG.ClientID%>').getValue();
+            if (billNo == "") {
+                F.alert("请选择要打印的单据信息！");
+                return;
+            }
+            var Report = ReportViewer.Report;
+            var ISPH = F('<%= ddlISPH.ClientID%>').getValue();
+            var pdtype = F('<%= ddlPDTYPE.ClientID%>').getValue();
+
+            ReportViewer.ReportURL = "/grf/gyERPjc.grf?timestamp=" + new Date().getTime();
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetPDJCData&osid=" + billNo;
+
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }
+    </script>
+</body>
+</html>
+

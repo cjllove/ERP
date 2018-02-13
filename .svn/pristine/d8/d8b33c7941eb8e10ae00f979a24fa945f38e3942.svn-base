@@ -1,0 +1,47 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web; 
+using System.Web.Script.Serialization;
+using System.Data;
+using System.IO;
+using System.Text;
+using System.Collections;
+using System.Configuration;
+using Oracle.ManagedDataAccess.Client;
+using XTBase;
+using Newtonsoft.Json;
+using System.Web.Services;
+
+namespace SPDProject
+{
+    public static class AjaxExt
+    {
+        public static string Exec(ArrayList arlStr)
+        {
+            string ret = "";//正确返回：【OK】,错误：【ERR:XXX】,其它返回JSON串
+
+            switch ((string)arlStr[1])
+            {
+                case "CONN":
+                    break;
+                case "PROC":
+                    break;
+                case "ORDER_ADD":     //其它扩展--购物车商品增加
+                    break; 
+                case "ORDER_UPT":     //其它扩展--购物车商品修改
+                    break;
+                case "ORDER_CANCEL":     //其它扩展--订单取消
+                    break;
+                case "ORDER_COPY":     //其它扩展--订单取消
+                    break;
+                case "ORDER_OK":     //其它扩展订单收货确认
+                    break;
+            }
+
+            return ret;
+        }
+       
+          
+    }
+}

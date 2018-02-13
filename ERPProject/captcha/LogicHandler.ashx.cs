@@ -1,0 +1,105 @@
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Data;
+using XTBase;
+using Newtonsoft.Json;
+using XTBase.Utilities;
+
+namespace ERPProject.captcha
+{
+    /// <summary>
+    /// LogicHandler 的摘要说明
+    /// </summary>
+    public class LogicHandler : IHttpHandler
+    {
+
+        public void ProcessRequest(HttpContext context)
+        {
+            string type = context.Request.QueryString["tp"].ToString();
+            string seqno = context.Request.QueryString["id"];
+            string json = "";
+            if (type == "cache")
+            {
+                json = GetCacheValue(seqno);
+            }
+            else
+            {
+                json = GetBillExt(seqno);
+            }
+
+            context.Response.ContentType = "text/plain";
+            context.Response.Write(json);
+        }
+
+        private string GetBillExt(string seqno)
+        {
+            string sql = @" select b.billno,a.gdseq,a.gdname,a.gdspec,a.ph,a.rq_sc,to_char(a.yxqz,'YYYY-MM-DD HH:mi:ss') yxqz,f_getusername(b.lry) lry,to_char(b.lrrq,'YYYY-MM-DD HH:mi:dd') lrrq ,b.billtype,( select rulename from sys_globrule where b.billtype =  substr(ruleid,6) ) billtype_name,b.memo
+                                    from dat_dd_ext a,dat_dd_doc b
+                                    where a.billno=b.seqno and a.onecode='{0}' and b.flag not in ('N','R')
+                                    union all
+                                    select b.billno,a.gdseq,a.gdname,a.gdspec,a.ph,a.rq_sc,to_char(a.yxqz,'YYYY-MM-DD HH:mi:ss') yxqz,f_getusername(b.lry) lry,to_char(b.lrrq,'YYYY-MM-DD HH:mi:dd') lrrq ,b.billtype,( select rulename from sys_globrule where b.billtype =  substr(ruleid,6) ) billtype_name,b.memo 
+                                    from dat_rk_ext a,dat_rk_doc b
+                                    where a.billno=b.seqno and a.onecode='{0}' and b.flag not in ('N','R')
+                                    union all
+                                    select b.billno,a.gdseq,a.gdname,a.gdspec,a.ph,a.rq_sc,to_char(a.yxqz,'YYYY-MM-DD HH:mi:ss') yxqz,f_getusername(b.lry) lry,to_char(b.lrrq,'YYYY-MM-DD HH:mi:dd') lrrq ,b.billtype,( select rulename from sys_globrule where b.billtype =  substr(ruleid,6) ) billtype_name ,b.memo
+                                    from dat_ck_ext a,dat_ck_doc b
+                                    where a.billno=b.seqno and a.onecode='{0}' and b.flag not in ('N','R')
+                                    union all
+                                    select b.billno,a.gdseq,a.gdname,a.gdspec,a.ph,a.rq_sc,to_char(a.yxqz,'YYYY-MM-DD HH:mi:ss') yxqz,f_getusername(b.lry) lry,to_char(b.lrrq,'YYYY-MM-DD HH:mi:dd') lrrq ,b.billtype,( select rulename from sys_globrule where b.billtype =  substr(ruleid,6) ) billtype_name ,b.memo
+                                    from dat_xs_ext a,dat_xs_doc b
+                                    where a.billno=b.seqno and a.onecode='{0}'";
+            DataTable table = DbHelperOra.Query(string.Format(sql, seqno)).Tables[0];
+            JObject jo = new JObject();
+            JArray ja = new JArray();
+            foreach (DataRow row in table.Rows)
+            {
+                JObject joItem = new JObject();
+                joItem.Add("billno", row["billno"].ToString());
+                joItem.Add("billtype_name", row["billtype_name"].ToString());
+                joItem.Add("gdname", row["gdname"].ToString());
+                joItem.Add("gdspec", row["gdspec"].ToString());
+                joItem.Add("ph", row["ph"].ToString());
+                joItem.Add("yxqz", row["yxqz"].ToString());
+                joItem.Add("lry", row["lry"].ToString());
+                joItem.Add("lrrq", Convert.ToDateTime(row["lrrq"]).ToString("yyyy-MM-dd HH:mm:ss"));
+
+                ja.Add(joItem);
+            }
+            jo.Add("data", ja);
+            jo.Add("total", ja.Count);
+
+            return jo.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
+        private string GetCacheValue(string key)
+        {
+            dynamic dResult = CacheHelper.GetCache(key);
+            System.Web.Caching.Cache objCache = HttpRuntime.Cache;
+            Type type = objCache[key.ToString()].GetType();
+            JArray ja = new JArray();
+            JArray jaItem = new JArray();
+            if (type.Name.Equals("DataTable"))
+            {
+                jaItem.Add(JArray.FromObject(dResult).ToString(Newtonsoft.Json.Formatting.None));
+            }
+            else
+            {
+                jaItem.Add(JObject.FromObject(dResult).ToString(Newtonsoft.Json.Formatting.None));
+            }
+            ja.Add(jaItem);
+
+            return ja.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
+        public bool IsReusable
+        {
+            get
+            {
+                return false;
+            }
+        }
+    }
+}

@@ -1,0 +1,148 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="EvaluationFm.aspx.cs" Inherits="ERPProject.ERPEvalution.EvaluationFm" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>科室评价管理</title>
+    <script src="../res/js/start.js"></script>
+    <style type="text/css" media="all">
+        #rateStatus {
+            float: left;
+            clear: both;
+            width: 100%;
+            height: 30px;
+        }
+
+        #rateMe {
+            clear: both;
+            width: 100%;
+            height: 100%;
+            margin-left: 20px;
+        }
+
+            #rateMe li {
+                float: left;
+                list-style: none;
+            }
+
+                #rateMe li a:hover,
+                #rateMe .on {
+                    background: url(../res/images/2.png) no-repeat;
+                    width: 40px;
+                    height: 45px;
+                }
+
+            #rateMe a {
+                float: left;
+                background: url(../res/images/1.png) no-repeat;
+                margin-left: 40px;
+                width: 40px;
+                height: 45px;
+            }
+
+        #ratingSaved {
+            display: none;
+        }
+
+        .saved {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="Panel1" OnCustomEvent="PageManager1_CustomEvent"
+            runat="server" />
+        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+            ShowHeader="false">
+            <Items>
+                <f:Panel ID="PanelBody" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="False" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar1" runat="server">
+                            <Items>
+                                <f:ToolbarText ID="ToolbarText1" CssStyle="" Text="操作信息：" runat="server" />
+                                <f:ToolbarFill ID="ToolbarFill2" runat="server" />
+                                <f:Button ID="btnSave" Icon="Disk" Text="保 存" EnableDefaultState="false" runat="server" ValidateForms="FormDoc" OnClientClick="btnSave()" Enabled="false" />
+                                <f:ToolbarSeparator runat="server" />
+                                <f:Button ID="btnAudit" Icon="UserTick" Text="提 交" EnableDefaultState="false" EnablePostBack="true" runat="server" ConfirmText="是否确认提交您的评价内容?" OnClick="btnAudit_Click" Enabled="false" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                    <Items>
+                        <f:Form ID="FormDoc" ShowBorder="false" AutoScroll="false" BodyPadding="10px 10px 5px 10px"
+                            ShowHeader="False" LabelWidth="90px" runat="server">
+                            <Rows>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:DropDownList ID="docDEPTID" runat="server" Label="评价科室" Enabled="false" Required="true" EnableEdit="true" ForceSelection="true">
+                                        </f:DropDownList>
+                                        <f:TextBox ID="dpkPJYF" runat="server" Label="评价月份" Enabled="false" />
+                                        <f:TextBox runat="server" ID="docRES" Enabled="false" Label="评价分数"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbxSEQNO" Enabled="false" Label="评价序号"></f:TextBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox runat="server" ID="tbx7" Enabled="false" Label="本月退货数" LabelWidth="100px"></f:TextBox>
+                                        <f:DropDownList ID="docPJR" runat="server" Label="评价人" Required="true" EnableEdit="true" Enabled="false" ForceSelection="true" />
+                                        <f:DatePicker ID="dpkPJRQ" Label="评价日期" runat="server" Enabled="false"></f:DatePicker>
+                                        <f:DropDownList ID="docFLAG" runat="server" Label="评价状态" Enabled="false">
+                                            <f:ListItem Text="--请选择--" Value="" />
+                                            <f:ListItem Text="未评价" Value="N" />
+                                            <f:ListItem Text="已评价" Value="Y" />
+                                        </f:DropDownList>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox runat="server" ID="tbx1" Enabled="false" Label="本月申领数量" LabelWidth="100px"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx2" Enabled="false" Label="达成数量"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx8" Enabled="false" Label="本月缺货数"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx3" Enabled="false" Label="满足率"></f:TextBox>
+                                    </Items>
+                                </f:FormRow>
+                                <f:FormRow>
+                                    <Items>
+                                        <f:TextBox runat="server" ID="tbx4" Enabled="false" Label="本月申领品规" LabelWidth="100px"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx5" Enabled="false" Label="达成品规"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx9" Enabled="false" Label="缺货品规"></f:TextBox>
+                                        <f:TextBox runat="server" ID="tbx6" Enabled="false" Label="满足率"></f:TextBox>
+                                    </Items>
+                                </f:FormRow>
+                            </Rows>
+                        </f:Form>
+                    </Items>
+                </f:Panel>
+                <f:ContentPanel ID="cpanAdd" runat="server" CssStyle="border-left: 0px;border-right: 0px;" ShowHeader="false" BodyPadding="20px auto" AutoScroll="true" AnchorValue="100% -25">
+                    <Items>
+                        <%=html %>
+                    </Items>
+                    <f:TextArea runat="server" ID="txaMEMO" LabelSeparator="" Label="其他" Height="140px" Width="80px"  MaxLength="45" CssStyle="font-size: 16px;margin-top: 20px;margin-left: -500px;position: absolute;" LabelWidth="135px"></f:TextArea>
+                </f:ContentPanel>
+            </Items>
+        </f:Panel>
+        <f:HiddenField ID="hdfValue" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hdfcount" runat="server"></f:HiddenField>
+    </form>
+    <script src="../res/my97/WdatePicker.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function btnSave() {
+            F('<%= hdfValue.ClientID%>').value = "";
+            for (var i = 0; i < F('<%= hdfcount.ClientID%>').value ; i++) {
+                F('<%= hdfValue.ClientID%>').value = F('<%= hdfValue.ClientID%>').value + document.getElementById("Project" + (i + 1)).innerHTML + "k" + document.getElementById("rateNow" + (i + 1)).innerHTML + ",";
+            }
+            F.customEvent('Save' + F('<%= hdfValue.ClientID%>').value);
+        }
+        function refreshTab() {
+            var mainTabStrip = parent.Ext.getCmp("TabStrip1");
+            var myTab = mainTabStrip.getTab("tab_clientID");
+            if (myTab != null) {
+                //mainTabStrip.setActiveTab(myTab);
+                var iframe = Ext.DomQuery.selectNode('iframe', myTab.body.dom);
+                iframe.contentWindow.location.reload(false);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+﻿using XTBase;
+using XTBase.Business;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace SPDProject.SpdXM.TJ_YKGZ
+{
+    public partial class TJPrintReport : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            string method = Request["Method"].ToString();
+            if (!string.IsNullOrWhiteSpace(method))
+            {
+                MethodInfo methodInfo = this.GetType().GetMethod(method);
+                methodInfo.Invoke(this, null);
+            }
+        }
+
+        # region 天津入库单打印SQL
+        public void GetStorageData()
+        {
+            //入库单
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            string sql = @"SELECT A.SEQNO,
+                                   F_GETDEPTNAME(A.DEPTID) DEPTID,
+                                   A.DHRQ,
+                                   ROWNUM ROWNO,
+                                   B.GDSEQ,
+                                   B.GDNAME,
+                                   B.BARCODE,
+                                   B.GDSPEC,
+                                   PH PZWH,
+                                   YXQZ,
+                                   SSSL,
+                                   f_getunitname(B.UNIT) UNIT,
+                                   B.HSJJ,
+                                   HSJE,
+                                   HWID,
+                                   TO_CHAR(SYSDATE, 'yyyy-MM-dd') PRINTDATE,
+                                   F_GETUSERNAME(A.LRY) JHY,
+                                   SUM(NVL(B.HSJJ * B.SSSL, 0)) OVER(PARTITION BY A.SEQNO ORDER BY A.SEQNO) AMOUNT,
+                                   B.PH,
+                                   A.INVOICENUMBER,
+                                   f_getsuppliername(pssid) pssname,
+                                   (SELECT F_GETPRODUCERNAME(G.PRODUCER)
+                                      FROM DOC_GOODS G
+                                     WHERE G.GDSEQ = B.GDSEQ) PRODUCER,
+                                    f_getcatname( C.CATID) catname,
+                                   F_GETPARA('USERNAME') || '入库单' HISTROY
+                              FROM DAT_RK_DOC A, DAT_RK_COM B, doc_goods C
+                             WHERE A.SEQNO = B.SEQNO AND B.GDSEQ=C.GDSEQ AND A.SEQNO='{0}'";
+            OracleXMLReportData.GenNodeXmlData(this, string.Format(sql, osid), false);
+        }
+        # endregion
+
+        public void GetXSDataBill_Rtn()
+        {
+            //销售退货单
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            string sql = @" A.SEQNO,
+                           A.DEPTID,
+                           F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,
+                           a.deptout,
+                           F_GETDEPTNAME(A.deptout) deptoutDNAME,
+                           A.LRY,
+                           F_GETUSERNAME(A.LRY) LRYNAME,
+                           ROWNO,
+                           B.GDNAME,
+                           B.GDSPEC,
+                           B.PRODUCER,
+                           F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,
+                           B.UNIT,
+                           F_GETUNITNAME(B.UNIT) UNITNAME,
+                           BZSL,
+                           B.BZHL,
+                           B.HSJJ,
+                           HSJE,
+                           PH,
+                           RQ_SC,
+                           B.ZPBH,
+                           '合格' QUALITY,
+                           F_GETPARA('USERNAME') || '医用耗材退货单' DT,
+                           yxqz,
+                           PZWH,
+                           F_GETPARA('SUPPER') cusname,
+                           TO_CHAR(XSRQ, 'YYYY-MM-DD') XSRQ,
+                           TO_CHAR(SYSDATE, 'YYYY-MM-DD') PRINTDATE,
+                           B.STR1,
+                           '合格' QUALITY,
+                           B.HSJJ || '元/' || F_GETUNITNAME(B.UNIT) V_HSJJ,
+                           (SELECT PH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PHCK,
+                           (SELECT PZWH FROM DAT_CK_COM C WHERE B.STR1 = C.STR2) PZWHCK,
+                           F_GETHISTYPE(B.GDSEQ) LB,
+                           B.NUM1,
+                           f_getcatname( C.catid) catname,
+                                     ,(SELECT SUM(HSJE) FROM DAT_XS_COM WHERE SEQNO = '{0}') sumhjje
+                                    from DAT_XS_DOC A, DAT_XS_COM B ,DOC_GOODS C
+                     WHERE A.SEQNO = B.SEQNO and b.gdseq=c.gdseq and a.SEQNO = '{0}'";
+            OracleXMLReportData.GenNodeXmlData(this, string.Format(sql, osid), false);
+        }
+        public void GoodsRtn()
+        {
+            //退货至EAS
+            string osid = Request["osid"] == null ? "" : Request["osid"].ToString();
+            //string sql = @"SELECT A.SEQNO,f_getsupname( A.pssid) pssname ,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.THRQ,B.GDSEQ,B.GDNAME,B.UNIT,B.GDSPEC,B.BZHL,B.HSJJ,F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,B.ROWNO,TO_CHAR(SYSDATE,'YYYY-MM-DD') PRINTTIME
+            //        ,F_GETUNITNAME(B.UNIT) UNITNAME,HSJE,F_GETUSERNAME(A.LRY) ZDY,B.BZSL,B.BZSL,F_GETPARA('SUPPER')||'SPD退货单' DT,F_GETPARA('USERNAME') KH,B.THSL,B.PH,F_GETHIS_CODE(B.GDSEQ) HIS_CODE,f_getcatname( c.catid) catname
+            //         ,(SELECT SUM(HSJE) FROM DAT_TH_COM WHERE SEQNO = '{0}') SUMHJJE,B.HSJJ||'元/'||F_GETUNITNAME(B.UNIT) V_HSJJ
+            //            FROM DAT_TH_DOC A,DAT_TH_COM B,DOC_GOODS C WHERE A.SEQNO = B.SEQNO and b.gdseq=c.gdseq AND A.SEQNO='{0}'";
+            string sql = @"SELECT A.SEQNO,F_GETDEPTNAME(A.DEPTID) DEPTIDNAME,A.THRQ,B.GDSEQ,B.GDNAME,B.UNIT,B.GDSPEC,B.BZHL,B.HSJJ,F_GETPRODUCERNAME(B.PRODUCER) PRODUCERNAME,B.ROWNO,TO_CHAR(SYSDATE,'YYYY-MM-DD') PRINTTIME
+                    ,F_GETUNITNAME(B.UNIT) UNITNAME,HSJE,F_GETUSERNAME(A.LRY) ZDY,B.BZSL,B.BZSL,F_GETPARA('SUPPER')||'SPD退货单' DT,F_GETPARA('USERNAME') KH,B.THSL,B.PH,F_GETHIS_CODE(B.GDSEQ) HIS_CODE
+                     ,(SELECT SUM(HSJE) FROM DAT_TH_COM WHERE SEQNO = '{0}') SUMHJJE,B.HSJJ||'元/'||F_GETUNITNAME(B.UNIT) V_HSJJ
+                        FROM DAT_TH_DOC A,DAT_TH_COM B WHERE A.SEQNO = B.SEQNO AND A.SEQNO='{0}'";
+            OracleXMLReportData.GenDetailData(this, string.Format(sql, osid));
+        }
+
+    }
+}

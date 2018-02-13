@@ -1,0 +1,265 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="GoodsShelf.aspx.cs" Inherits="ERPProject.ERPDictionary.GoodsShelf" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>货位资料管理</title>
+    <script src="/res/js/CreateControl.js" type="text/javascript"></script>
+</head>
+<body>
+    <div style="width: 0px; height: 0px">
+        <script type="text/javascript">
+            CreateDisplayViewerEx("0%", "0%", "", "", false, "");
+        </script>
+    </div>
+    <form id="form1" runat="server">
+        <f:PageManager EnableAjaxLoading="false" ID="PageManager1" AutoSizePanelID="TabStrip1" runat="server" />
+        <f:TabStrip ID="TabStrip1" ShowBorder="false" TabPosition="Right" EnableTabCloseMenu="false" ActiveTabIndex="0" runat="server">
+            <Tabs>
+                <f:Tab Title="货位资料维护" Icon="Table" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel1" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor"
+                            ShowHeader="false">
+                            <Items>
+                                <f:Grid ID="GridShelf" ShowBorder="false" ShowHeader="false" AnchorValue="100% -100px" AllowSorting="false" AutoScroll="true" runat="server" EnableColumnLines="true"
+                                    DataKeyNames="HWID" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridShelf_RowDoubleClick" OnPageIndexChange="Grid1_PageIndexChange" PageSize="100" IsDatabasePaging="true" AllowPaging="true">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar1" runat="server">
+                                            <Items>
+                                                <f:TriggerBox ID="trbSearch" runat="server" Label=" 查询信息" EmptyText="输入货位ID进行查询" LabelWidth="70px" TriggerIcon="Search" Width="360px" OnTriggerClick="trbSearch_TriggerClick" />
+                                                <f:DropDownList ID="lstDEPTID" runat="server" Label="当前科室" LabelWidth="70px" EnableEdit="true" ForceSelection="true" />
+                                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                                <f:Button ID="btnAddNew" CssStyle="margin-left: 15px;" Icon="Add" OnClick="btnAddNew_Click"
+                                                    Text="新增" EnablePostBack="true" runat="server" EnableDefaultState="false" >
+                                                </f:Button>
+                                                <f:Button ID="btnDelete" CssStyle="margin-left: 15px;" Icon="Delete" OnClick="btnDelete_Click"
+                                                    Text="删除" EnablePostBack="true" ConfirmText="确认删除选中货位信息?" runat="server" EnableDefaultState="false" >
+                                                </f:Button>
+                                                <f:Button ID="btSave" CssStyle="margin-left: 15px;margin-right: 11px;" OnClick="btSave_Click"
+                                                    Icon="Disk" Text="保存" DisableControlBeforePostBack="false" runat="server"  EnableDefaultState="false" ValidateForms="FormShelf" />
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="btnTemplate" EnablePostBack="false" runat="server" Text="操作" EnableDefaultState="false" >
+                                                    <Menu ID="Menu1" runat="server">
+                                                        <f:MenuButton ID="btnPrint" Icon="Printer" runat="server" Text="打印"   OnClick="btnPrint_Click">
+                                                        </f:MenuButton>
+                                                        <f:MenuButton ID="btnExport" Icon="PageExcel" EnablePostBack="true" runat="server" OnClick="btnExport_Click" Text="导出"  ConfirmText="是否确定已经保存数据并导出数据?">
+                                                        </f:MenuButton>
+                                                    </Menu>
+                                                </f:Button>
+                                                <f:ToolbarSeparator runat="server" />
+                                                <f:Button ID="bntSearch" Icon="Magnifier" Text="查 询"  EnableDefaultState="false" EnablePostBack="true" runat="server" OnClick="trbSearch_TriggerClick" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField runat="server" Width="30px"></f:RowNumberField>
+                                        <f:BoundField Width="120px" DataField="HWID" HeaderText="货位ID" />
+                                        <f:BoundField Width="120px" DataField="JWBH" HeaderText="货架编号" />
+                                        <f:BoundField Width="120px" DataField="KFBH" HeaderText="库房ID" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="KFBHNAME" HeaderText="所属库房" />
+                                        <f:BoundField Width="120px" DataField="KB" HeaderText="库房类别ID" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="KBNAME" HeaderText="库房类别" />
+                                        <f:BoundField Width="120px" DataField="MANAGER" HeaderText="管理员" />
+                                        <f:BoundField Width="120px" DataField="HWZT" HeaderText="货位状态ID" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="HWZTNAME" HeaderText="货位状态" />
+                                        <f:BoundField Width="120px" DataField="DZBQH" HeaderText="电子标签号" />
+                                        <f:BoundField Width="120px" DataField="XD" HeaderText="巷道" />
+                                        <f:BoundField Width="120px" DataField="QYBH" HeaderText="区域编号" />
+                                        <f:BoundField Width="120px" DataField="PAI" HeaderText="排号" />
+                                        <f:BoundField Width="120px" DataField="LIE" HeaderText="列号" />
+                                        <f:BoundField Width="120px" DataField="CENG" HeaderText="层号" />
+                                        <f:BoundField Width="120px" DataField="ABC" HeaderText="ABC分类" />
+                                    </Columns>
+                                </f:Grid>
+                                <f:Form ID="FormShelf" Height="100px" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                                    ShowHeader="False" LabelWidth="80px" runat="server" CssStyle="border-top: 1px solid #99bce8;">
+                                    <Rows>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:TextBox ID="tbxHWID" runat="server" Label="货位ID" ShowRedStar="true" Required="true" EmptyText="设定后不可更改,保存时若为空，则由区域、排、列、层号码拼接" MaxLength="30"></f:TextBox>
+                                                <f:TextBox ID="tbsJWBH" runat="server" Label="货架编号" EmptyText="设定后不可更改" Required="true" ShowRedStar="true" MaxLength="20"></f:TextBox>
+                                                <f:TextBox ID="tbxLIE" runat="server" Label="列号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                <f:TextBox ID="tbxCENG" runat="server" Label="层号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                            </Items>
+                                        </f:FormRow>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:TextBox ID="tbxQYBH" runat="server" Label="区域编号" MaxLength="10" ShowRedStar="true" Required="true" />
+                                                <f:TextBox ID="tbxPAI" runat="server" Label="排号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                <f:DropDownList ID="ddlKFBH" runat="server" Label="所属库房" Required="true" ShowRedStar="true"></f:DropDownList>
+                                                <f:DropDownList ID="ddlHWZT" runat="server" Label="货位状态" EnableEdit="true" ForceSelection="true">
+                                                    <f:ListItem Text="可用" Value="Y" Selected="true" />
+                                                    <f:ListItem Text="不可用" Value="N" />
+                                                </f:DropDownList>
+                                            </Items>
+                                        </f:FormRow>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:DropDownList ID="ddlKB" runat="server" Label="库房类别" Required="true" ShowRedStar="true" />
+                                                <f:DropDownList ID="ddlMANAGER" runat="server" Label="管理员" ShowRedStar="true" EnableEdit="true" ForceSelection="true" />
+                                                <f:TextBox ID="tbxDZBQH" runat="server" Label="电子标签" MaxLength="10" />
+                                                <f:DropDownList ID="ddlABC" runat="server" Label="ABC分类" EnableEdit="true" ForceSelection="true">
+                                                    <f:ListItem Text="A" Value="A" Selected="true" />
+                                                    <f:ListItem Text="B" Value="B" />
+                                                    <f:ListItem Text="C" Value="C" />
+                                                </f:DropDownList>
+                                            </Items>
+                                        </f:FormRow>
+                                        <f:FormRow>
+                                            <Items>
+                                                <f:HiddenField ID="hfdHWID" runat="server" />
+                                                <f:HiddenField ID="hfdIsNew" runat="server" Text="Y" />
+                                            </Items>
+                                        </f:FormRow>
+                                    </Rows>
+                                </f:Form>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+                <f:Tab Title="货位批量导入" Icon="PageWord" Layout="Fit" runat="server">
+                    <Items>
+                        <f:Panel ID="Panel5" runat="server" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="false">
+                            <Items>
+                                <f:Panel ID="PanelD" ShowBorder="false" BodyPadding="0px" Layout="Anchor" ShowHeader="False" runat="server">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar2" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText1" Text="导入货位excel文件:" EnableAjax="true" runat="server" />
+                                                <f:FileUpload runat="server" ID="fuDocument" EmptyText="导入EXCEL文件" Width="300" AutoPostBack="true" OnFileSelected="fuDocument_FileSelected" ShowRedStar="true" />
+                                                <f:LinkButton ID="LinkButton1" Text="下载货位资料模板" EnablePostBack="false" OnClientClick="DownLoadModelclick();" runat="server" />
+                                                <f:ToolbarFill runat="server"></f:ToolbarFill>
+                                                <f:Button runat="server" ID="btnClear" Icon="Delete" Text="清空列表数据" DisableControlBeforePostBack="false" Enabled="true" OnClick="btnClear_Click"></f:Button>
+                                                <f:ToolbarSeparator runat="server"></f:ToolbarSeparator>
+                                                <f:Button runat="server" ID="btnSave" Icon="Disk"
+                                                    Text="提 交" DisableControlBeforePostBack="false" ValidateForms="FormMain" OnClick="btnSave_Click">
+                                                </f:Button>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                </f:Panel>
+
+                                <f:Grid ID="GridIns" AnchorValue="100% -155px" ShowBorder="false" ShowHeader="false" EnableColumnLines="true"
+                                    AllowSorting="false" AutoScroll="true" runat="server" CssStyle="border-top: 1px solid #99bce8;" EnableRowDoubleClickEvent="true" OnRowDoubleClick="GridIns_RowDoubleClick"
+                                    DataKeyNames="MEMO">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar4" runat="server" Hidden="true">
+                                            <Items>
+                                                <f:ToolbarText ID="ToolbarText4" CssStyle="" Text="操作信息：订货数=(未经营品种：定数量*3)或(已经营品种：定数量*3-(库存-已存在定数均量*2))" runat="server" />
+                                                <f:ToolbarFill ID="ToolbarFill3" runat="server" />
+                                                <f:TriggerBox ID="TriggerBox1" LabelWidth="60px" Width="350px" MaxLength="20" Label="商品信息" runat="server" EmptyText="可输入ERP编码或EAS编码或商品名称" TriggerIcon="Search" OnTriggerClick="trbSearch_TriggerClick" />
+                                                <f:Button ID="btnSrchDh" Icon="SystemSearch" CssStyle="margin-left:50px" Text="订货查询" EnablePostBack="true" runat="server" />
+                                                <f:Button ID="btnSrchDs" Icon="SystemSearch" Text="定数查询" DisableControlBeforePostBack="false" runat="server" />
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Columns>
+                                        <f:RowNumberField Width="35px" />
+                                        <f:BoundField Width="120px" DataField="HWID" HeaderText="货位编号" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="KFBH" HeaderText="库房编号" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="KFBHNAME" HeaderText="所属库房" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="KB" HeaderText="库房类别ID" Hidden="true" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="KBNAME" HeaderText="库房类别" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="MANAGER" HeaderText="管理员" Hidden="true" />
+                                        <f:BoundField Width="120px" DataField="MANAGERNAME" HeaderText="管理员" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="DZBQH" HeaderText="电子标签号" TextAlign="Center" />
+                                        <f:BoundField Width="120px" DataField="QYBH" HeaderText="区域编号" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="CD" HeaderText="巷道" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="PAI" HeaderText="排号" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="LIE" HeaderText="列号" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="CENG" HeaderText="层号" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="CHANG" HeaderText="长" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="KUAN" HeaderText="宽" TextAlign="Center" />
+                                        <f:BoundField Width="60px" DataField="GAO" HeaderText="高" TextAlign="Center" />
+                                    </Columns>
+                                </f:Grid>
+
+                                <f:Panel runat="server" ID="Panel2" ShowBorder="false" BodyPadding="3px" CssStyle="border-top:1px solid PaleTurquoise3;" Layout="Anchor" ShowHeader="false">
+                                    <Toolbars>
+                                        <f:Toolbar ID="Toolbar3" runat="server">
+                                            <Items>
+                                                <f:ToolbarText ID="tbxtext" runat="server" Text="货位信息" CssStyle="color:#EE0000; font-weight:bold;"></f:ToolbarText>
+                                                <f:ToolbarFill ID="tbfbar" runat="server"></f:ToolbarFill>
+                                                <f:HiddenField ID="hfdRowIndex" runat="server"></f:HiddenField>
+                                                <f:Button runat="server" ID="btnUpdate" CssStyle="margin-left:60px;" Icon="ApplicationEdit"
+                                                    Text="保 存" DisableControlBeforePostBack="false" ValidateForms="FormMain,FormAssist" OnClick="btnUpdate_Click">
+                                                </f:Button>
+                                            </Items>
+                                        </f:Toolbar>
+                                    </Toolbars>
+                                    <Items>
+
+                                        <f:Form ID="myFormShelf" Height="100px" ShowBorder="false" AutoScroll="false" BodyPadding="10px"
+                                            ShowHeader="False" LabelWidth="80px" runat="server" CssStyle="border-top: 1px solid #99bce8;">
+                                            <Rows>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="docHWID" runat="server" Label="货位ID" ShowRedStar="true" Required="true" EmptyText="设定后不可更改,保存时若为空，则由区域、排、列、层号码拼接" MaxLength="11" />
+                                                        <f:TextBox ID="docJWBH" runat="server" Label="货架编号"></f:TextBox>
+                                                        <f:TextBox ID="docLIE" runat="server" Label="列号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                        <f:TextBox ID="docCENG" runat="server" Label="层号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:TextBox ID="docQYBH" runat="server" Label="区域编号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                        <f:TextBox ID="docPAI" runat="server" Label="排号" MaxLength="3" ShowRedStar="true" Required="true" />
+                                                        <f:DropDownList ID="ddllKFBH" runat="server" Label="所属库房" ShowRedStar="true"  EnableEdit="true" ForceSelection="true" />
+                                                        <f:DropDownList ID="ddllHWZT" runat="server" Label="货位状态">
+                                                            <f:ListItem Text="可用" Value="Y" Selected="true" />
+                                                            <f:ListItem Text="不可用" Value="N" />
+                                                        </f:DropDownList>
+                                                    </Items>
+                                                </f:FormRow>
+                                                <f:FormRow>
+                                                    <Items>
+                                                        <f:DropDownList ID="ddllKB" runat="server" Label="库房类别" ShowRedStar="true" />
+                                                        <f:DropDownList ID="ddllMANAGER" runat="server" Label="管理员" ForceSelection="true" />
+                                                        <f:TextBox ID="docDZBQH" runat="server" Label="电子标签" MaxLength="10" />
+                                                        <f:DropDownList ID="ddllABC" runat="server" Label="ABC分类" EnableEdit="true" ForceSelection="true">
+                                                            <f:ListItem Text="A" Value="A" Selected="true" />
+                                                            <f:ListItem Text="B" Value="B" />
+                                                            <f:ListItem Text="C" Value="C" />
+                                                        </f:DropDownList>
+                                                    </Items>
+                                                </f:FormRow>
+                                            </Rows>
+                                        </f:Form>
+                                    </Items>
+                                </f:Panel>
+                            </Items>
+                        </f:Panel>
+                    </Items>
+                </f:Tab>
+            </Tabs>
+        </f:TabStrip>
+        <f:HiddenField ID="hfdShelf" runat="server"></f:HiddenField>
+    </form>
+    <script type="text/javascript">
+        function DownLoadModelclick() {
+            window.location.href = '货位资料导入.xls';
+        }
+        function Print_Click() {
+            var shelf = F('<%= hfdShelf.ClientID%>').getValue();
+            var dept = F('<%= lstDEPTID.ClientID%>').getValue();
+            if (dept == "") {
+                F.alert("请选择要打印货位的部门！");
+                return;
+            }
+            if (shelf == "") {
+                F.alert("请选择要打印的货位信息！");
+                return;
+            }
+            ReportViewer.ReportURL = "/grf/huowei.grf?121";
+            var dataurl = "/captcha/PrintReport.aspx?Method=GetShelf&bm=" + dept + "&hw=" + shelf;
+
+            ReportViewer.Report.LoadDataFromURL(dataurl);
+            ReportViewer.Start();
+            ReportViewer.Report.PrintPreview(true);
+            ReportViewer.Stop();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+﻿using Newtonsoft.Json.Linq;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+
+namespace ERPProject.captcha
+{
+    /// <summary>
+    /// AutoComplete 的摘要说明
+    /// </summary>
+    public class AutoComplete : IHttpHandler
+    {
+        public void ProcessRequest(HttpContext context)
+        {
+            String term = context.Request.QueryString["term"];
+            if (!String.IsNullOrEmpty(term))
+            {
+                JArray ja = new JArray();
+                context.Response.ContentType = "text/plain";
+                if (!term.Contains(";"))
+                {
+                    return;
+                }
+                string strType = term.Split(';')[1];
+                switch (strType)
+                {
+                    case "GoodsType":
+                        ja = getGoodsInfo(term.Split(';')[0]);
+                        break;
+                    case "DeptType":
+                        ja = getDeptInfo(term.Split(';')[0]);
+                        break;
+                    case "SupperType":
+                        ja = getSupperInfo(term.Split(';')[0]);
+                        break;
+                    case "ProduceType":
+                        ja = getProduceInfo(term.Split(';')[0]);
+                        break;
+                }
+                context.Response.Write(ja.ToString());
+            }
+        }
+
+        /// <summary>
+        /// 库存/科室查询
+        /// </summary>
+        /// <param name="DeptZjm"></param>
+        /// <returns></returns>
+        public JArray getDeptInfo(string DeptZjm)
+        {
+            if (DeptZjm.Contains("["))
+            {
+                DeptZjm = DeptZjm.Remove(0, 1);
+                if (DeptZjm.Contains("]"))
+                {
+                    DeptZjm = DeptZjm.Split(']')[0];
+                }
+            }
+            DataTable deptDt = new DataTable();
+            JArray ja = new JArray();
+            if (CacheHelper.GetCache("DeptInfo") == null)
+            {
+                deptDt = DbHelperOra.Query("SELECT CODE, '['||CODE||']'||NAME NAME,BYCODE  FROM SYS_DEPT   WHERE  flag='Y' AND isdelete='N'  ORDER BY CODE").Tables[0];
+                CacheHelper.SetCache("DeptInfo", deptDt);
+            }
+            else
+            {
+                deptDt = CacheHelper.GetCache("DeptInfo") as DataTable;
+            }
+
+            DataRow[] rowData = deptDt.Select(string.Format(" BYCODE LIKE '%{0}%' OR CODE LIKE '%{0}%' OR NAME LIKE '%{0}%'", DeptZjm.ToUpper()));
+            if (rowData.Length > 0)
+            {
+                foreach (DataRow row in rowData)
+                {
+                    ja.Add(row["NAME"].ToString() + "#" + row["CODE"].ToString());
+                }
+            }
+            return ja;
+           
+        }
+
+        /// <summary>
+        /// 供应商资料
+        /// </summary>
+        /// <param name="supperZjm"></param>
+        /// <returns></returns>
+        public JArray getSupperInfo(string supperZjm)
+        {
+            if (supperZjm.Contains("["))
+            {
+                supperZjm = supperZjm.Remove(0, 1);
+                if (supperZjm.Contains("]"))
+                {
+                    supperZjm = supperZjm.Split(']')[0];
+                }
+            }
+            DataTable deptDt = new DataTable();
+            JArray ja = new JArray();
+            if (CacheHelper.GetCache("SupperInfo") == null)
+            {
+                deptDt = DbHelperOra.Query(" SELECT SUPID CODE, '['||SUPID||']'||SUPNAME NAME,SUPSIMID  FROM DOC_SUPPLIER   WHERE   flag='Y'   ORDER BY DECODE(CODE,'',99,0) DESC ,CODE ASC").Tables[0];
+                CacheHelper.SetCache("SupperInfo", deptDt);
+            }
+            else
+            {
+                deptDt = CacheHelper.GetCache("SupperInfo") as DataTable;
+            }
+
+            DataRow[] rowData = deptDt.Select(string.Format("  CODE LIKE '%{0}%' OR NAME LIKE '%{0}%' OR SUPSIMID like '%{0}%'", supperZjm.ToUpper()));
+            if (rowData.Length > 0)
+            {
+                foreach (DataRow row in rowData)
+                {
+                    ja.Add(row["NAME"].ToString() + "#" + row["CODE"].ToString());
+                }
+            }
+            return ja;
+
+        }
+
+        /// <summary>
+        /// 商品资料
+        /// </summary>
+        /// <param name="term"></param>
+        /// <returns></returns>
+        public JArray getGoodsInfo(string term)
+        {
+            if (term.Contains("["))
+            {
+                term = term.Remove(0, 1);
+                if (term.Contains("]"))
+                {
+                    term = term.Split(']')[0];
+                }
+            }
+            DataTable dtGoodsInfo = new DataTable();
+            JArray ja = new JArray();
+            if (CacheHelper.GetCache("GoodsInfo") == null)
+            {
+                dtGoodsInfo = DbHelperOra.Query("select ZJM,GDSEQ,GDNAME,BARCODE,GDSPEC,UNIT,PIZNO,STR4 from  DOC_GOODS where ISDELETE='N'").Tables[0];
+                CacheHelper.SetCache("GoodsInfo", dtGoodsInfo);
+            }
+            else
+            {
+                dtGoodsInfo = CacheHelper.GetCache("GoodsInfo") as DataTable;
+            }
+
+            DataRow[] rowData = dtGoodsInfo.Select(string.Format("ZJM LIKE '%{0}%' OR STR4 LIKE '%{0}%' OR GDSEQ LIKE '%{0}%' OR GDNAME LIKE '%{0}%'", term.ToUpper()));
+            if (rowData.Length > 0)
+            {
+                foreach (DataRow row in rowData)
+                {
+                    ja.Add(row["GDNAME"].ToString() + "#" + row["GDSEQ"].ToString() + "$" + row["BARCODE"].ToString() + "$" + row["GDSPEC"].ToString() + "$" + row["UNIT"].ToString() + "$" + row["PIZNO"].ToString());
+                }
+            }
+            return ja;
+        }
+
+        /// <summary>
+        ///  生产商资料
+        /// </summary>
+        /// <param name="ProduceZjm"></param>
+        /// <returns></returns>
+        public JArray getProduceInfo(string ProduceZjm)
+        {
+            if (ProduceZjm.Contains("["))
+            {
+                ProduceZjm = ProduceZjm.Remove(0, 1);
+                if (ProduceZjm.Contains("]"))
+                {
+                    ProduceZjm = ProduceZjm.Split(']')[0];
+                }
+            }
+            DataTable deptDt = new DataTable();
+            JArray ja = new JArray();
+            if (CacheHelper.GetCache("ProducInfo") == null)
+            {
+                deptDt = DbHelperOra.Query("SELECT CODE, '['||CODE||']'||NAME NAME,STR2  FROM DOC_PRODUCER WHERE FLAG='Y'  ORDER BY CODE").Tables[0];
+                CacheHelper.SetCache("ProducInfo", deptDt);
+            }
+            else
+            {
+                deptDt = CacheHelper.GetCache("ProducInfo") as DataTable;
+            }
+
+            DataRow[] rowData = deptDt.Select(string.Format("  CODE LIKE '%{0}%' OR NAME LIKE '%{0}%' OR STR2 LIKE '%{0}%'", ProduceZjm.ToUpper()));
+            if (rowData.Length > 0)
+            {
+                foreach (DataRow row in rowData)
+                {
+                    ja.Add(row["NAME"].ToString() + "#" + row["CODE"].ToString());
+                }
+            }
+            return ja;
+
+        }
+
+        public bool IsReusable
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+
+       
+    }
+}

@@ -1,0 +1,31 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using FineUIPro;
+using XTBase;
+using System.Data;
+
+namespace SPDProject.pad
+{
+    public partial class InventorySheet : PageBase
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack) {
+                DepartmentBind.BindDDL("DDL_SYS_DEPTHASATH", UserAction.UserID, lstDEPTOUT, ddlDEPTID);
+                //PubFunc.DdlDataGet(ddlReject, "DDL_BILL_REASON");
+                PubFunc.DdlDataGet("DDL_STATUSPD", ddlFLAG);
+                PubFunc.DdlDataGet("DDL_USER", ddlSPR, ddlLRY);
+                DetailForm.Enabled = false;
+            }
+        }
+
+        protected void PageManager1_CustomEvent(object sender, FineUIPro.CustomEventArgs e)
+        {
+
+        }
+    }
+}

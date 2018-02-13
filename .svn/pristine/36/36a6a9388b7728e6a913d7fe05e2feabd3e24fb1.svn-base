@@ -1,0 +1,204 @@
+﻿<?xml version="1.0"?>
+<configuration>
+  <configSections>
+    <section name="FineUIPro" type="FineUIPro.ConfigSection, FineUIPro" requirePermission="false"/>
+    <sectionGroup name="applicationSettings" type="System.Configuration.ApplicationSettingsGroup, System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
+      <section name="SPDProject.Properties.Settings" type="System.Configuration.ClientSettingsSection, System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" requirePermission="false"/>
+    </sectionGroup>
+  </configSections>
+  <!-- 可用的配置项（这里列的都是默认值）: 
+      Language="zh_CN" 
+      AjaxTimeout="120" 
+      EnableAjax="true" 
+      Theme="Neptune" 
+      FormMessageTarget="Qtip" 
+      FormOffsetRight="0" 
+      FormLabelWidth="100" 
+      FormLabelSeparator="：" 
+      IconBasePath="~/res/icon" 
+      EnableAjaxLoading="true" 
+      AjaxLoadingType="default" 
+      CustomTheme="" 
+      CustomThemeBasePath="~/res/theme" 
+  -->
+  <FineUIPro DebugMode="true" Theme="Cupertino" EnableAjaxLoading="false" Language="zh_CN"/>
+  <connectionStrings>
+    <!--本地-->
+    <add name="OracleConnString44" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=127.0.0.1)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=spd_zqrm;Password=spd_zqrm;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <!--7000-->
+    <add name="OracleConnString1" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=221.2.165.50)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=dbspd3protjph;Password=dbspd3protjph;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <add name="OracleConnString2" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=221.2.165.50)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=dbspd_szl2;Password=dbspd_szl2;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <!--SPD正式和开发-->
+    <add name="OracleConnString22" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.240)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=spd_kf;Password=spd_kf;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <add name="OracleConnString55" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=222.175.217.211)(PORT=1520))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=spd_zqrm;Password=spd_zqrm;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <add name="OracleConnString" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=192.168.1.104)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=SPD_ZQRM_XC;Password=SPD_ZQRM_XC;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <add name="OracleConnString3" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=221.2.165.50)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=dbspd3protjtest;Password=dbspd3protjtest;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <!--菏泽中医医院-->
+    <add name="OracleConnString33" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=10.1.30.77)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=spdtest;Password=spdtest;" providerName="Oracle.ManagedDataAccess.Client"/>
+    <add name="OracleConnString11" connectionString="Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=10.1.30.77)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=SPD)));Persist Security Info=True;User ID=dbspd;Password=dbspd;" providerName="Oracle.ManagedDataAccess.Client"/>
+  </connectionStrings>
+  <appSettings>
+    <add key="APPNAME" value="威高讯通科技物资管理平台"/>
+    <!--*********系统权限控制相关参数*********begin-->
+    <!--是否遍历页面将按钮更新至数据库,正常运行时要置为N或删除-->
+    <add key="ISADDBUTTON" value="N"/>
+    <!--登陆页面的演示地址-->
+    <add key="ERP_DEMO" value="http://221.2.165.50:8023"/>
+    <!--建议浏览器下载地址-->
+    <add key="LLQ_URL" value="../grinstall/chrome.exe"/>
+    <!--系统是否进行权限控制：Y-控制/N-不控制，需要进行控制时要置为Y或删除-->
+    <add key="POWERCHECK" value="N"/>
+    <!--不进行系统权限控制的页面-->
+    <add key="NOCHECKURL" value="/SpdStorage/SupEvaluation.aspx,/spdbasic/menuedith.aspx,/spdbasic/useredith.aspx,/default.aspx,/spdquery/goodswindow.aspx,/spdquery/goodswindow_gather.aspx,/spdquery/goodswindow_his.aspx,/spdquery/contantwindow_his.aspx,/captcha/printreport.aspx,/SpdXM/TJ_YKGZ/TJPrintReport.aspx,/spdapply/contant_goodswindow_his.aspx,/spdapply/contant_goodswindow.aspx,/spdapply/departmentmonthbudgetcontrol.aspx,/spdworkbench/indexwarehouse.aspx,/spdworkbench/indexmanage.aspx,/spdworkbench/indexbusiness.aspx,          /spdassist/mymemo.aspx,/spdapply/departmentmonthbudgetbig.aspx,/spdapply/departmentmonthbudgetcontrol1.aspx,/spdpayment/doc_ck_comwindow.aspx,/spdpayment/doc_db_comwindow.aspx,          /spdpayment/doc_dd_comwindow.aspx,/spdpayment/doc_rk_comwindow.aspx,/spdpayment/doc_sy_comwindow.aspx,/spdpayment/doc_th_comwindow.aspx,/spdpayment/doc_xs_comwindow.aspx,          /spdpayment/billchecking_fk.aspx,/spdpayment/billchecking_ks.aspx,/spdpayment/billchecking_sp.aspx,/spdpayment/billchecking_spl.aspx,/spdpayment/billchecking_sum.aspx,          /spdapply/departmentsinglebudget.aspx,/spdquery/amountchar.aspx,/spdquery/goodswindow_new.aspx,/spdapply/ckwindow.aspx,/spdquery/goodswindow_zp.aspx,/captcha/cartshowanddo.aspx,          /spdcart/cartshowanddo.aspx,/spdcart/goodssearchcontent.aspx,/spdquery/goodspic.aspx,/spdapply/departmentmonthbudgetcontrol1.aspx,/spdevaluation/evaluationfm.aspx,          /spdapply/departmentbudget.aspx,/default_New.aspx,/spdcart/GoodsSearch.aspx,/spdcart/GoodsCart.aspx"/>
+    <!--*********系统权限控制相关参数*********end-->
+    <!--*********主数据平台测试接口访问相关参数*********begin-->
+    <add key="ERP_USEDYNAMICURL" value="1"/>
+    <add key="USEDYNAMICURL" value="1"/>
+    <add key="ERP_USERNAME" value="sjzx"/>
+    <add key="ERP_PASSWORD" value=""/>
+    <add key="ERP_SLNNAME" value="eas"/>
+    <add key="ERP_DCNAME" value="a25"/>
+    <add key="ERP_LANGUAGE" value="l2"/>
+    <add key="ERP_DBTYPE" value="2"/>
+    <add key="BILLTIMEOUT" value="60"/>
+    <add key="ERP_BILLTIMEOUT" value="60"/>
+    <!--*********主数据平台测试接口访问相关参数*********end-->
+    <!--EAS和SPD库存对账报表使用参数-->
+    <add key="QUERYINVENTORY_WAREHOUSE" value="YYBB-15-2"/>
+    <!--短信相关参数begin-->
+    <add key="MESSAGE_ID" value="300"/>
+    <add key="MESSAGE_NAME" value="weigaorl"/>
+    <add key="MESSAGE_PWD" value="1234321"/>
+    <add key="MESSAGE_WEBSERVICEURL" value="http://223.4.21.214:8180/Service.asmx"/>
+    <!--短信相关参数end-->
+    <!--<add key="ERP_USEDYNAMICURL" value="1"/>
+    <add key="USEDYNAMICURL" value="1"/>
+    <add key="ERP_USERNAME" value="sjzx"/>
+    <add key="ERP_PASSWORD" value="ll11sjzx11"/>
+    <add key="ERP_SLNNAME" value="eas"/>
+    <add key="ERP_DCNAME" value="wego"/>
+    <add key="ERP_LANGUAGE" value="l2"/>
+    <add key="ERP_DBTYPE" value="2"/>
+    <add key="BILLTIMEOUT" value="60"/>
+    <add key="ERP_BILLTIMEOUT" value="10"/>-->
+    <add key="PIC_PATH" value="http://172.16.5.200:10625/"/>
+    <add key="LICENSE_PATH" value="http://221.2.165.50:8001"/>
+  </appSettings>
+  <applicationSettings>
+    <SPDProject.Properties.Settings>
+      <setting name="SPDProject_EasLogin_EASLoginProxyService" serializeAs="String">
+        <value>http://172.16.9.20:6900/ormrpc/services/EASLogin</value>
+      </setting>
+      <setting name="SPDProject_EasAPI_WSSpdTestFacadeSrvProxyService" serializeAs="String">
+        <value>http://172.16.9.20:6900/ormrpc/services/WSPlatformSpdFacade</value>
+      </setting>
+      <setting name="SPDProject_Platform_PlatformWebService" serializeAs="String">
+        <value>http://172.16.5.200:8002/WeiGo/WebService/PlatformWebService.asmx</value>
+      </setting>
+      <setting name="Vesion" serializeAs="String">
+        <value>http://localhost:3789/SpdBasic/version.aspx</value>
+      </setting>
+    </SPDProject.Properties.Settings>
+  </applicationSettings>
+  <system.web>
+    <authentication mode="Forms">
+      <forms name="HSCV3.ASPXFORMSAU" loginUrl="~/Login.aspx" timeout="120" defaultUrl="~/default.aspx" protection="All" path="/"/>
+    </authentication>
+    <pages controlRenderingCompatibilityVersion="4.0" clientIDMode="AutoID" validateRequest="false">
+      <controls>
+        <add assembly="FineUIPro" namespace="FineUIPro" tagPrefix="f"/>
+      </controls>
+    </pages>
+    <httpModules>
+      <add name="FineUIProScriptModule" type="FineUIPro.ScriptModule, FineUIPro"/>
+    </httpModules>
+    <httpHandlers>
+      <add path="res.axd" verb="GET" type="FineUIPro.ResourceHandler, FineUIPro" validate="false"/>
+    </httpHandlers>
+    <compilation targetFramework="4.0" debug="true"/>
+    <httpRuntime maxRequestLength="102400" requestValidationMode="2.0"/>
+    <customErrors mode="Off"/>
+    <authorization>
+      <deny users="?"/>
+    </authorization>
+  </system.web>
+  <location path="WeiGo/WebService">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="SpdBasic">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="res.axd">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="icon">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="res">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="pad/login.aspx">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="captcha">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <location path="SpdXM">
+    <system.web>
+      <authorization>
+        <allow users="*"/>
+      </authorization>
+    </system.web>
+  </location>
+  <!--IIS7集成管道模式-->
+  <system.webServer>
+    <modules>
+      <add name="FineUIProScriptModule" type="FineUIPro.ScriptModule, FineUIPro"/>
+    </modules>
+    <handlers>
+      <add name="FineUIProResourceHandler" verb="GET" path="res.axd" type="FineUIPro.ResourceHandler, FineUIPro"/>
+      <add name="ReportViewerWebControlHandler" preCondition="integratedMode" verb="*" path="Reserved.ReportViewerWebControl.axd" type="Microsoft.Reporting.WebForms.HttpHandler, Microsoft.ReportViewer.WebForms, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"/>
+    </handlers>
+    <httpErrors errorMode="Detailed"/>
+    <validation validateIntegratedModeConfiguration="false"/>
+    <staticContent>
+      <mimeMap fileExtension=".grf" mimeType="报表模板文件"/>
+    </staticContent>
+  </system.webServer>
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <dependentAssembly>
+        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" culture="neutral"/>
+        <bindingRedirect oldVersion="0.0.0.0-6.0.0.0" newVersion="6.0.0.0"/>
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+</configuration>

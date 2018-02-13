@@ -1,0 +1,352 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Data;
+using FineUIPro;
+using System.Collections.Specialized;
+using System.Text;
+using System.Collections;
+using XTBase;
+using Oracle.ManagedDataAccess.Client;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace SPDProject.SpdDictionary
+{
+    public partial class PictureManage : PageBase
+    {
+        private static DataTable dtData;
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                //WindowPic.CssStyle = "visibility:hidden;";
+            }
+        }
+
+        private void dataSearch()
+        {
+            int total = 0;
+            string msg = "";
+
+            dtData = GetGoodsList(gridGoods.PageIndex, gridGoods.PageSize, ref total, ref msg);
+            gridGoods.RecordCount = total;
+            gridGoods.DataSource = dtData;
+            gridGoods.DataBind();
+        }
+
+
+        public DataTable GetGoodsList(int pageNum, int pageSize, ref int total, ref string errMsg)
+        {
+            string strSearch = "";
+
+            string strSql = @"SELECT SP.GDSEQ,SP.GDID,SP.GDNAME,SP.ZJM,SP.BARCODE,e.name CATID0NAME,B.NAME CATID0NAME_F,SP.GDSPEC,D.NAME UNITNAME,
+                               ROUND(SP.HSJJ,4) HSJJ,ROUND(SP.LSJ,4) LSJ,C.SUPNAME,SP.ZPBH,S.NAME FLAG_CN,SP.PIZNO,F_GETPRODUCERNAME(SP.PRODUCER) PRODUCERNAME,DECODE(SP.ISFLAG7,'Y','本地','下传') ISFLAG7_CN,SP.ISFLAG7
+                          from DOC_GOODS SP,
+                               SYS_CATEGORY B,
+                               DOC_SUPPLIER C,
+                               DOC_GOODSUNIT D,
+                               doc_goodstype e,
+                               (SELECT CODE, NAME FROM SYS_CODEVALUE WHERE TYPE = 'GOODS_STATUS') S
+                         WHERE SP.CATID=B.CODE(+) AND SP.FLAG=S.CODE AND SP.SUPPLIER=C.SUPID(+) AND SP.UNIT = D.CODE(+) and b.type = e.code(+) AND SP.FLAG IN ('N','Y')";
+            if (cbxNonPic.Checked)
+            {
+                //strSearch += " AND SP.ISFLAG4='N'";
+                strSearch += " AND SP.GDSEQ NOT IN (SELECT GDSEQ FROM DOC_GOODSPICTURE)";
+            }
+            if (!string.IsNullOrWhiteSpace(trbSearch.Text))
+            {
+                strSearch += string.Format(" AND (sp.GDSEQ LIKE '%{0}%' OR sp.GDNAME LIKE '%{0}%' OR sp.NAMEJC  LIKE '%{0}%' OR  sp.BARCODE LIKE '%{0}%' OR sp.ZJM  LIKE '%{0}%')", trbSearch.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(ddlISFLAG7.SelectedValue))
+            {
+                strSearch += string.Format(" AND SP.ISFLAG7 = '{0}'", ddlISFLAG7.SelectedValue);
+            }
+            if (!string.IsNullOrWhiteSpace(strSearch))
+            {
+                strSql = strSql + strSearch + " order by SP.gdseq";
+            }
+            else
+            {
+                strSql = strSql + " order by SP.gdseq";
+            }
+
+            return PubFunc.DbGetPage(pageNum, pageSize, strSql, ref total);
+        }
+
+        private int ComRow()
+        {
+            return gridGoods.SelectedRowIndexArray.Length > 0 ? gridGoods.SelectedRowIndexArray[0] : -1;
+        }
+
+        private void picSearch(string gdseq)
+        {
+            DataTable dt = DbHelperOra.Query(string.Format("select gdseq,rowno,gdpict,str1,decode(flag,'N','新增','Y','已发布','E','已撤回') flag from doc_goodspicture where gdseq = '{0}' order by rowno", hfdGDID.Text)).Tables[0];
+            gridPic.DataSource = dt;
+            gridPic.DataBind();
+        }
+
+        protected void gridGoods_RowClick(object sender, GridRowClickEventArgs e)
+        {
+            imgBMPPATH.ImageUrl = "~/res/images/model.png";
+            string gdseq = gridGoods.Rows[e.RowIndex].DataKeys[0].ToString();
+            hfdGDID.Text = gdseq;
+            hfdISFLAG7.Text = gridGoods.Rows[e.RowIndex].DataKeys[3].ToString();
+            picSearch(gdseq);
+            PageContext.RegisterStartupScript("rebind('" + gdseq + "');");
+        }
+
+        protected void gridPic_RowClick(object sender, GridRowClickEventArgs e)
+        {
+            string gdseq = gridPic.Rows[e.RowIndex].DataKeys[0].ToString();
+            string rowno = gridPic.Rows[e.RowIndex].DataKeys[1].ToString();
+            DataTable picDt = DbHelperOra.Query(string.Format("select picpath from doc_goodspicture where gdseq='{0}' and rowno='{1}'", gdseq, rowno)).Tables[0];
+            string path = picDt.Rows[0]["PICPATH"].ToString();
+            //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?gdseq=" + gdseq + "&rowno=" + rowno;
+            //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSEPATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+            
+            if (File.Exists(Request.PhysicalApplicationPath + (path.Substring(2)).Replace("/", @"\")))
+            {
+                imgBMPPATH.ImageUrl = "http://" + Request.Url.Authority + path.Substring(1);
+            }
+            else
+            {
+                imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + path;
+            }
+
+            //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("CLOUD_URL_PREFIX") + picDt.Rows[0][0].ToString();
+        }
+
+        #region  商品图片单张上传
+        //private static byte[] ImageBytes;
+        //protected void docBMPPATH_FileSelected(object sender, EventArgs e)
+        //{
+        //    string fileName = docBMPPATH.ShortFileName;//ShortFileName表示整个导入文件的名称
+        //    string[] mystr = fileName.Split('.');
+
+        //    if ((!ValidateFileType(fileName)) || mystr[1].Equals("xls") || mystr[1].Equals("xlsx") || mystr[1].Equals("doc") || mystr[1].Equals("docx"))
+        //    {
+        //        Alert.Show("请选择图片文件导入！", "消息提示", MessageBoxIcon.Warning);
+        //        return;
+        //    }
+        //    else
+        //    {
+        //        System.Drawing.Image img = System.Drawing.Image.FromStream(docBMPPATH.PostedFile.InputStream);
+        //        MemoryStream ms = new MemoryStream();
+        //        img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
+        //        ImageBytes = ms.ToArray();
+        //        String key = "ImageBytes" + DateTime.Now.ToString("ddHHmmssfff");
+        //        CacheHelper.SetCache(key, ImageBytes, TimeSpan.FromMinutes(15));
+        //        imgBMPPATH.ImageUrl = "~/captcha/ImageServer.aspx?img=" + key;
+        //    }
+        //}
+        #endregion
+
+        protected void btnSearch_Click(object sender, EventArgs e)
+        {
+
+            dataSearch();
+
+        }
+
+        protected void gridPic_PageIndexChange(object sender, GridPageEventArgs e)
+        {
+            gridGoods.PageIndex = e.NewPageIndex;
+            dataSearch();
+        }
+
+        protected void gridPic_RowCommand(object sender, FineUIPro.GridCommandEventArgs e)
+        {
+            //string gdseq = gridPic.Rows[ComRow()].Values[1].ToString();
+            //string rowno = gridPic.Rows[ComRow()].Values[2].ToString();
+            string gdseq = gridPic.Rows[e.RowIndex].DataKeys[0].ToString();
+            string rowno = gridPic.Rows[e.RowIndex].DataKeys[1].ToString();
+            if (e.CommandName == "shanchu")
+            {
+                int count = DbHelperOra.ExecuteSql(string.Format("delete from doc_goodspicture where gdseq = '{0}' and rowno = '{1}'", gdseq, rowno));
+                if (count > 0)
+                {
+                    Alert.Show("删除成功！");
+                    picSearch(gdseq);
+                    DataTable dtt = DbHelperOra.Query(string.Format("select gdseq,rowno,decode(flag,'N','新增','Y','已发布','E','已取消') flag,gdpict,picpath from doc_goodspicture where gdseq='{0}'", hfdGDID.Text)).Tables[0];
+                    if (dtt.Rows.Count == 0)
+                    {
+                        imgBMPPATH.ImageUrl = "~/res/images/model.png";
+                        DbHelperOra.ExecuteSql(string.Format("update doc_goods set isflag4='N' where gdseq='{0}'", gdseq));
+                    }
+                }
+                else
+                {
+                    Alert.Show("删除失败！");
+                }
+            }
+            else if (e.CommandName == "lbfsava")
+            {
+                List<CommandInfo> lci = new List<CommandInfo>();
+                JArray ja = gridPic.GetModifiedData();
+
+                foreach (JToken jt in ja)
+                {
+                    int selectedX;
+                    JObject joValue = (JObject)jt;
+
+                    selectedX = joValue.Value<Int16>("index");
+                    JObject jo = JObject.FromObject(joValue.Value<JObject>("values"));
+                    string gdseqq = gridPic.DataKeys[selectedX][0].ToString();
+                    string rownoo = gridPic.DataKeys[selectedX][1].ToString();
+                    string str1 = jo.Value<String>("STR1");
+                    lci.Add(new CommandInfo(string.Format("update doc_goodspicture set STR1='{0}' where gdseq='{1}' and rowno='{2}'", str1, gdseq, rowno), null));
+                }
+                DbHelperOra.ExecuteSqlTran(lci);
+                Alert.Show("修改【图片别名】成功！");
+                picSearch(gdseq);
+            }
+        }
+
+        protected void PageManager1_CustomEvent(object sender, CustomEventArgs e)
+        {
+            if (e.EventArgument.IndexOf("bind_piclist") >= 0)
+            {
+                hfdTempPic1.Text = "Y";
+                DataTable dt = DbHelperOra.Query(string.Format("select gdseq,rowno,gdpict,picpath,str1,decode(flag,'N','新增','Y','已发布','E','已撤回') flag from doc_goodspicture where gdseq = '{0}' order by to_number(rowno)", hfdGDID.Text)).Tables[0];
+                gridPic.DataSource = dt;
+                gridPic.DataBind();
+                //Alert.Show(dt.Rows[0]["PICPATH"].ToString().Replace("~", ""));
+                //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?gdseq=" + hfdGDID.Text + "&rowno=1";
+                imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("LICENSE_PATH") + "/captcha/GetPictures.aspx?picpath=" + dt.Rows[0]["PICPATH"].ToString();
+                //imgBMPPATH.ImageUrl = ApiUtil.GetConfigCont("CLOUD_URL_PREFIX") + dt.Rows[0]["PICPATH"].ToString().Replace("~", "");
+            }
+        }
+
+        #region 商品单图上传操作保存
+        //protected void btnSave_Click(object sender, EventArgs e)
+        //{
+        //    //DataTable PICDT = DbHelperOra.Query(string.Format("select gdseq,rowno,gdpict,str1,decode(flag,'N','新增','Y','已发布','E','已撤回') flag from doc_goodspicture where gdseq = '{0}'", hfdGDID.Text)).Tables[0];
+        //    try
+        //    {
+        //        DataTable PICDT = DbHelperOra.Query("select max(rowno) from doc_goodspicture where gdseq='" + hfdGDID.Text + "'").Tables[0];
+        //        if (string.IsNullOrWhiteSpace(hfdGDID.Text))
+        //        {
+        //            Alert.Show("请双击左边单元行选择指定商品上传图片！");
+        //        }
+        //        else if (PICDT.Rows.Count <= 0 && docBMPPATH.PostedFile.ContentLength == 0)
+        //        {
+        //            Alert.Show("该商品还没有图片，请选择图片上传！");
+        //        }
+        //        else if (docBMPPATH.PostedFile.ContentLength == 0)
+        //        {
+        //            Alert.Show("您还没有为该商品选择图片上传！");
+        //        }
+        //        else if (PICDT.Rows[0][0].ToString().Equals("10"))
+        //        {
+        //            Alert.Show("不得上传超过10张照片！");
+        //        }
+        //        else
+        //        {
+        //            int rowno = 1;
+        //            //发布商品图片
+        //            string picName = "", pic = "", seqn = "";
+        //            MyTable mtType = new MyTable("DOC_GOODSPICTURE");
+        //            mtType.ColRow = PubFunc.Form2DataHT(FormPic);
+
+        //            if (ImageBytes != null)
+        //            {
+        //                if (docBMPPATH.HasFile)
+        //                {
+        //                    string fileName = docBMPPATH.ShortFileName;
+
+        //                    if (!ValidateFileType(fileName))
+        //                    {
+        //                        Alert.Show("无效的文件类型！", "消息提示", MessageBoxIcon.Warning);
+        //                        return;
+        //                    }
+
+        //                    //fileName = fileName.Replace(":", "_").Replace(" ", "_").Replace("\\", "_").Replace("/", "_");
+        //                    //fileName = "FROMPLATFORM_" + DateTime.Now.ToString("ddHHmmssfff") + "_" + fileName;
+        //                    string fileName1 = hfdGDID.Text + "_" + DateTime.Now.ToString("ddHHmmssfff") + ".jpg";
+        //                    DataTable dt = DbHelperOra.Query("select max(rowno) from doc_goodspicture where gdseq='" + hfdGDID.Text + "'").Tables[0];
+        //                    if (dt != null && dt.Rows.Count != 0)
+        //                    {
+        //                        string oldnum = dt.Rows[0][0].ToString();
+        //                        if (!String.IsNullOrWhiteSpace(oldnum))
+        //                        {
+        //                            rowno = Convert.ToInt32(oldnum) + 1;
+        //                            seqn = hfdGDID.Text + "_" + rowno;
+        //                            fileName1 = hfdGDID.Text + "_" + rowno + ".jpg";
+        //                        }
+        //                        else
+        //                        {
+        //                            seqn = hfdGDID.Text + "_" + rowno;
+        //                            fileName1 = hfdGDID.Text + "_" + rowno + ".jpg";
+        //                        }
+        //                    }
+
+        //                    String containPath = "GoodsPic";
+        //                    String rootPath = ApiUtil.GetConfigCont("UPLOADDIR");//AppDomain.CurrentDomain.BaseDirectory;
+        //                    //String fileName = "FROMPLATFORM_" + DateTime.Now.ToString("ddHHmmssfff") + ".jpg";
+
+
+
+        //                    //按日期归类保存
+        //                    string datePath = "\\" + DateTime.Now.ToString("yyyy") + "\\" + DateTime.Now.ToString("MM") + "\\" + DateTime.Now.ToString("dd");
+        //                    //物理完整路径                    
+        //                    string filePath = rootPath + containPath + datePath;
+
+        //                    //检查是否有该路径,没有就创建
+        //                    if (!Directory.Exists(filePath))
+        //                    {
+        //                        Directory.CreateDirectory(filePath);
+        //                    }
+        //                    docBMPPATH.SaveAs(filePath + "\\" + fileName1);
+
+        //                    mtType.ColRow.Add("PICPATH", "~/" + ("SpdUpload\\" + containPath + datePath + "\\" + fileName1).Replace("\\", "/"));
+        //                }
+
+
+        //                mtType.ColRow.Add("ROWNO", rowno);
+        //                mtType.ColRow.Add("GDSEQ", hfdGDID.Text);
+        //                mtType.ColRow.Add("GDPICT", seqn);
+        //                mtType.ColRow.Add("STR1", seqn);
+        //                mtType.ColRow.Add("FLAG", "N");
+        //                DbHelperOra.ExecuteSql(string.Format("update doc_goods set ISFLAG4 = 'Y' where gdseq='{0}'", hfdGDID.Text));
+        //                mtType.InsertExec();
+        //                Alert.Show("图片已成功上传！");
+        //                picSearch();
+
+        //            }
+        //            else
+        //            {
+        //                Alert.Show("请为指定商品上传商品图片！");
+        //            }
+        //        }
+        //    }
+        //    catch
+        //    {
+        //        Alert.Show("不得上传超过10张照片！");
+        //    }
+        //}
+        #endregion
+
+        protected void btnPicUpload_Click(object sender, EventArgs e)
+        {
+            //WindowPic.Hidden = false;//initUploader
+            PageContext.RegisterStartupScript("initUploader();");
+
+            //PageContext.RegisterStartupScript("rebind('" + "111" + "');");
+        }
+
+        protected void trbSearch_TriggerClick(object sender, EventArgs e)
+        {
+            dataSearch();
+        }
+
+        protected void btnPic_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}

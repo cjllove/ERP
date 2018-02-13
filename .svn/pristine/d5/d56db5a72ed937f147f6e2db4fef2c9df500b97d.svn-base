@@ -1,0 +1,280 @@
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="default.aspx.cs" Inherits="SPDProject.SpdXM.TJ_YKGZ._default" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" href="/res/css/iconfont/iconfont.css" />
+    <style>
+        .mymenu {
+            top: 0; 
+            height: 60px;
+            margin: 0 0 0 0;
+            padding: 0 0 0 0;
+            border-radius: 0;
+        }
+
+        .mymenuuser {
+            top: 0;
+            height: 60px;
+            margin: 0 0 0 0;
+            padding: 0 0 0 0;
+            border-radius: 0;
+        }
+
+        .f-btn.f-btn-large {
+            padding: 6px 8px;
+            font-size: 14px;
+            font-family: Arial;
+            /*font-weight: 700;*/
+            /*font-weight: bold;*/
+            border: 0px;
+            border-bottom-right-radius: 0px;
+            border-bottom-left-radius: 0px;
+            border-top-right-radius: 0px;
+            border-top-left-radius: 0px;
+        }
+
+        #RegionPanel_topPanel_topRegionToolbar {
+            background-color: #1ea3d8;
+            border:none;
+        }
+
+            #RegionPanel_topPanel_topRegionToolbar .ui-icon, #RegionPanel_topPanel_topRegionToolbar .f-btn-text {
+                color:white;           
+                
+              }
+            .f-btn-text{
+                font-size: 14px;
+                font-weight: normal;
+            }
+            #RegionPanel_topPanel_topRegionToolbar a:hover .ui-icon, #RegionPanel_topPanel_topRegionToolbar a:hover .f-btn-text {
+                color:#0070a3;
+            }
+             #RegionPanel_topPanel_topRegionToolbar a.ui-state-focus .ui-icon, #RegionPanel_topPanel_topRegionToolbar a.ui-state-focus .f-btn-text {
+                color:#0070a3;
+            }
+
+        #RegionPanel_topPanel_topRegionToolbar .ui-state-active, #RegionPanel_topPanel_topRegionToolbar .ui-widget-content .ui-state-active, #RegionPanel_topPanel_topRegionToolbar .ui-widget-header .ui-state-active, #RegionPanel_topPanel_topRegionToolbar .ui-state-active .f-btn-text  {
+            border-color: #74b2e2;
+            background: #e4f1fb;
+            
+            color: #0070a3;
+          
+        }
+            #RegionPanel_topPanel_topRegionToolbar a.ui-state-active {
+                border-bottom: 4px solid #f8b551;            
+            }
+
+          
+        #RegionPanel_topPanel_topRegionToolbar_appname
+        {
+            font-size:18px;float:left;font-family:微软雅黑;color:#fff;margin-left:20px; letter-spacing: 1px;
+
+        }
+
+        .cart:before {
+            content: attr(cart-count);
+            position: absolute;
+            left: 36px;
+            top: 0px;
+            width: 10px;
+            box-sizing: border-box;
+            padding: 0 6px;
+            font-size: 14px;
+             color:rgba(255, 0, 0, 0.38);
+            font-weight: bolder;
+        }
+        /*.cart.blue:before {
+            color:rgba(255, 0, 0, 0.38);
+        }*/
+        .logo-common {
+            height:40px;
+        }
+        .minimodeinside > .f-panel-header .f-panel-tools .f-tool-icon {
+            font-size: 20px;
+            min-width: 20px;
+        }
+        /*#RegionPanel_topPanel_topRegionToolbar .f-btn-icon-top .f-btn-text{margin-top:5px;}*/
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <f:PageManager ID="PageManager1" AutoSizePanelID="RegionPanel" OnCustomEvent="PageManager1_CustomEvent" runat="server"></f:PageManager>
+        <f:Panel ID="RegionPanel" CssStyle="margin:0 0 0 0; padding:0 0 0 0;" Layout="Region" ShowBorder="false" ShowHeader="false" runat="server">
+            <Items>
+                <f:Panel ID="topPanel" RegionPosition="Top" CssStyle="margin:0 0 0 0; padding:0 0 0 0;border-bottom:1px solid #aed0ea;" ShowBorder="false" ShowHeader="false" EnableCollapse="true" runat="server">
+                    <Toolbars>
+                        <f:Toolbar ID="topRegionToolbar" Position="Bottom" CssStyle="/*background: #d4e4ef;*/margin:0 0 0 0; padding:0 0 0 0;" Height="62px" runat="server" >
+                            <Items>
+                                <f:ContentPanel runat="server" ShowBorder="false" ShowHeader="false">
+                                    <img src="<%=logoPath %>" class="logo-common" style="width:<%=logoWidth%>px;" />
+                                </f:ContentPanel>
+                                <%--<f:Button runat="server" Text=" " CssStyle="backgroud:url(./res/images/logo.png)"></f:Button>--%>
+                                <%--<f:Button runat="server" CssClass="icononlyaction" ID="btnHomePage" ToolTip="官网首页" IconAlign="Top" IconFont="Home"
+                                        EnablePostBack="false" EnableDefaultState="false" EnableDefaultCorner="false"
+                                        OnClientClick="window.open('http://fineui.com/pro/','_blank');">
+                                    </f:Button>--%>
+                              <%-- <f:Image ID="imgLogo" ImageCssStyle="margin:0 0 0 2px;border;0px;"
+                                    ImageHeight="40px" runat="server" ImageUrl="./res/images/logo.png" />--%>
+                                <f:ToolbarText ID="appname" runat="server" Text="xxxx物资管理平台" >
+                                </f:ToolbarText>
+                                <f:ToolbarFill ID="ToolbarFill1" runat="server" />
+                                <%--								<f:ContentPanel runat="server" ID="cplGWC" Hidden="true" ShowHeader="false" ShowBorder="false" CssClass="top_left_gwc">
+									<div class="top_gwc">
+										<a href="#" class="fl gwc_search" onclick="onButtonSearch()">商品搜索</a>
+										<span class="fl">|</span>
+										<a href="#" class="fl gwc_goods" onclick="onButtonCart()">购物车<i class="cart-count" id="DH">0</i></a>
+										<div style="clear: both; font-size: 0; height: 0;"></div>
+									</div>
+								</f:ContentPanel>--%>
+
+                                <%--<f:Button ID="btn_goods" EnableDefaultState="false" CssStyle="float:right;margin-right:0px" Text="商品搜索"
+                                    CssClass="mymenuuser " IconAlign="Top" Size="Large"
+                                    EnablePostBack="false" IconFont="Search" runat="server" OnClientClick="onButtonSearch()" />
+                                <f:Button ID="btn_cart" EnableDefaultState="false" CssStyle="float:right;margin-right:20px;color:red;" Text="购物车<font color='red'>0</font>"
+                                    CssClass="mymenuuser " IconAlign="Top" Size="Large"
+                                    EnablePostBack="false" IconFont="ShoppingCart" runat="server" OnClientClick="onButtonCart()" />--%>
+
+                                <f:Button ID="btnUser" EnableDefaultState="false" CssStyle="float:right;margin-right:10px" Text="当前用户"
+                                    IconAlign="Top" Size="Large" EnablePostBack="false" runat="server"
+                                    CssClass="mymenuuser iconfont icon-accountfilling" IconFont="User">
+                                    <%--CssClass="mymenuuser iconfont icon-accountfilling icon-big iconfont-big iconfont-blue">--%>
+                                    <Menu runat="server">
+                                        <f:MenuButton Text="个人信息" IconFont="SignOut" Icon="User" EnableAjax="true" EnablePostBack="true" runat="server" OnClick="btnUser_Click">
+                                        </f:MenuButton>
+                                        <f:MenuSeparator runat="server"></f:MenuSeparator>
+                                        <f:MenuButton Text="修改密码" Icon="Key" EnableAjax="true" EnablePostBack="true" runat="server" OnClick="btnPwd_Click">
+                                        </f:MenuButton>
+                                        <f:MenuSeparator runat="server"></f:MenuSeparator>
+                                        <f:MenuButton ID="helpBtn1" Text="操作说明" Icon="BookOpen" EnablePostBack="true" runat="server" OnClientClick="onButtonSpecialKey()">
+                                        </f:MenuButton>
+                                        <f:MenuSeparator runat="server"></f:MenuSeparator>
+                                        <f:MenuButton Text="安全退出" Icon="Cross" EnableAjax="true" EnablePostBack="true" runat="server" OnClick="btnExit_Click">
+                                        </f:MenuButton>
+                                    </Menu>
+                                </f:Button>
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                </f:Panel>
+               <f:Tree runat="server" ID="MenuTree1" EnableCollapse="true" AutoScroll="true"  Title="系统菜单"
+                            EnableSingleClickExpand="true" EnableNodeHyperLink="true" RegionPosition="Left" RegionSplit="false"
+                            Width="200px" ShowBorder="false" ShowHeader="true">
+                   
+                        </f:Tree>
+                <%--<f:Panel ID="leftPanel" CssClass="leftregion" RegionPosition="left" RegionSplit="false" RegionSplitWidth="3px" 
+                    ShowBorder="true" Width="300px" ShowHeader="true" Title="系统菜单"
+                    EnableCollapse="false" Collapsed="false" Layout="Fit" runat="server" >
+                    <Tools>
+                        
+                        <f:Tool ID="leftPanelToolCollapse" runat="server" IconFont="ChevronCircleLeft" EnablePostBack="false">
+                            <Listeners>
+                                <f:Listener Event="click" Handler="onLeftPanelToolCollapseClick" />
+                            </Listeners>
+                        </f:Tool>
+                    </Tools>
+                    <Items>
+                         
+                    </Items>
+                </f:Panel>--%>
+
+                <f:TabStrip ID="mainTabStrip" CssClass="centerregion" RegionPosition="Center" EnableTabCloseMenu="true" ShowBorder="true" CssStyle="border-top:0" runat="server">
+                    <Tabs>
+                        <f:Tab ID="mainTab" Title="首页" Layout="Fit" Icon="House" CssClass="maincontent" runat="server">
+                            <Items>
+                                <%--<f:ContentPanel ID="ContentPanel1" ShowBorder="false" BodyPadding="10px" ShowHeader="false" AutoScroll="true"
+									runat="server">
+									首页内容
+								</f:ContentPanel>--%>
+                            </Items>
+                        </f:Tab>
+                    </Tabs>
+                    <Tools>
+                        <f:Tool runat="server" EnablePostBack="false" IconFont="Refresh" MarginRight="5" CssClass="tabtool" ToolTip="刷新本页" ID="toolRefresh">
+                            <Listeners>
+                                <f:Listener Event="click" Handler="onToolRefreshClick" />
+                            </Listeners>
+                        </f:Tool>
+                        <f:Tool runat="server" EnablePostBack="false" IconFont="Expand" CssClass="tabtool" ToolTip="最大化" ID="toolMaximize">
+                            <Listeners>
+                                <f:Listener Event="click" Handler="onToolMaximizeClick" />
+                            </Listeners>
+                        </f:Tool>
+                    </Tools>
+                </f:TabStrip>
+            </Items>
+        </f:Panel>
+
+
+        <f:Window ID="WindowPwd" runat="server" Title="修改当前用户密码！" Icon="Key" IsModal="true"
+            Hidden="true" Target="Parent" EnableIFrame="false" IFrameUrl="about:blank" Width="270px"
+            Height="160px" AutoScroll="false">
+            <Items>
+                <f:Form ID="FormPwd" runat="server" ShowBorder="false" BodyPadding="10px" LabelWidth="80px"
+                    CssStyle=" margin-left: 0px;" Width="260px" ShowHeader="false">
+                    <Rows>
+                        <f:FormRow>
+                            <Items>
+                                <f:TextBox ID="tbxPasswordNew" Label="新密码" TextMode="Password" Required="true"
+                                    runat="server">
+                                </f:TextBox>
+                            </Items>
+                        </f:FormRow>
+                        <f:FormRow>
+                            <Items>
+                                <f:TextBox ID="tbxPasswordDup" CompareControl="tbxPasswordNew" CompareOperator="Equal"
+                                    CompareMessage="两次输入密码不一致！" Label="重复密码" TextMode="Password" Required="true"
+                                    runat="server">
+                                </f:TextBox>
+                            </Items>
+                        </f:FormRow>
+                    </Rows>
+                    <Toolbars>
+                        <f:Toolbar ID="Toolbar4" Position="Bottom" runat="server">
+                            <Items>
+                                <f:ToolbarFill ID="ToolBarFill2" runat="server" />
+                                <f:Button ID="btnPwdOK" Icon="Disk" OnClick="btnPwdOK_Click" ValidateForms="FormPwd"
+                                    Text="确 定" runat="server" />
+                            </Items>
+                        </f:Toolbar>
+                    </Toolbars>
+                </f:Form>
+            </Items>
+        </f:Window>
+
+        <%--<f:Window ID="WindowUser" runat="server" WindowPosition="Center" IsModal="true" Hidden="true" Target="Parent"
+            EnableIFrame="true" Width="820px" Height="295px" AutoScroll="false">
+        </f:Window>--%>
+        <f:Window ID="WindowUser" Title="用户信息" Hidden="true" EnableIFrame="true" runat="server"
+            EnableMaximize="true" EnableResize="true" Target="Self" IsModal="True"
+            Width="820px" Height="350px" >
+        </f:Window>
+        <f:HiddenField ID="reloadFlag" runat="server"></f:HiddenField>
+        <f:HiddenField ID="hfdTabData" runat="server"></f:HiddenField>
+
+        <f:HiddenField ID="hfMenuData" runat="server"></f:HiddenField>
+         <asp:XmlDataSource ID="XmlDataSource1" runat="server" EnableCaching="false" DataFile="~/menu.xml"></asp:XmlDataSource>
+    </form>
+    <%--<script src="res/js/guid.js" type="text/javascript"></script>
+    <script src="res/js/tancolor.js" type="text/javascript"></script>--%>
+    <script>
+
+
+
+        var topPanelClientID = '<%= topPanel.ClientID %>';
+        var leftPanelClientID = '<%= MenuTree1.ClientID %>';
+        var mainTabStripClientID = '<%= mainTabStrip.ClientID %>';
+        <%--
+        var leftPanelClientID = '<%= leftPanel.ClientID %>';
+        --%>
+
+        // 通知框
+
+
+    </script>
+    <script type="text/javascript" src="/res/js/index.js"></script>
+</body>
+</html>

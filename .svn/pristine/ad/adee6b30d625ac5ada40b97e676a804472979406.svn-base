@@ -1,0 +1,75 @@
+﻿using FineUIPro;
+using XTBase;
+using XTBase.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+
+namespace SPDProject
+{
+    public class SPDUtility
+    {
+        /// <summary>
+        /// 缓存清除（只针对SYS_REPORT表的下拉框缓存）
+        /// </summary>
+        /// <param name="tableName">缓存涉及到的表名</param>
+        public static void CacheClear(string tableName)
+        {
+            string sql = string.Format("SELECT SEQNO FROM SYS_REPORT WHERE INSTR(STR3,'{0}')>0 ", tableName.ToUpper());
+            DataTable dt = DbHelperOra.Query(sql).Tables[0];
+            if (dt != null && dt.Rows.Count > 0)
+            {
+                foreach (DataRow row in dt.Rows)
+                {
+                    CacheHelper.RemoveOneCache(row["SEQNO"].ToString());
+                }
+            }
+        }
+        /// <summary>
+        /// 根据Grid列获取导出Excel的数据源
+        /// </summary>
+        /// <param name="gridData"></param>
+        /// <param name="dtData"></param>
+        /// <returns></returns>
+        public static DataTable ExportDataTable(FineUIPro.Grid gridData, DataTable dtData, string filed = "")
+        {
+            List<String> columnNames = new List<string>();
+            for (int index = 1; index < gridData.Columns.Count; index++)
+            {
+                GridColumn column = gridData.Columns[index];
+                if (column.Hidden == false)
+                {
+                    if (column is FineUIPro.BoundField)
+                    {
+                        //dtData.Columns[((FineUIPro.BoundField)(column)).DataField.ToUpper()].DataType = Type.GetType("System.String");
+                        dtData.Columns[((FineUIPro.BoundField)column).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    }
+                    else if (column is FineUIPro.RenderField)
+                    {
+                        dtData.Columns[((FineUIPro.RenderField)column).DataField.ToUpper()].ColumnName = column.HeaderText;
+                    }
+                    columnNames.Add(column.HeaderText);
+                }
+            }
+            return dtData.DefaultView.ToTable(true, columnNames.ToArray());
+        }
+
+        public static string errorParse(string error)
+        {
+            string value = string.Empty;
+            if (error.IndexOf("ORA-") > -1)
+            {
+                value = error.Replace("\n", "").Substring(error.IndexOf("ORA-") + 10);
+                if (value.IndexOf("ORA-") > -1)
+                {
+                    value = value.Substring(0, value.IndexOf("ORA-"));
+                }
+            }
+            else
+            { value = error; }
+            return value;
+        }
+    }
+}
